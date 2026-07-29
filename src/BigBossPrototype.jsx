@@ -885,6 +885,12 @@ const WEEKDAYS = [
   { key: "sabado", label: "Sábado" },
   { key: "domingo", label: "Domingo" },
 ];
+const WEEKS_OF_MONTH = [
+  { key: "1", label: "1ª Semana do mês" },
+  { key: "2", label: "2ª Semana do mês" },
+  { key: "3", label: "3ª Semana do mês" },
+  { key: "4", label: "4ª Semana do mês" },
+];
 
 function mapPersonalTaskRow(row) {
   return {
@@ -4887,6 +4893,50 @@ function WeekdayTaskColumn({ day, tasks, onAdd, onDelete }) {
   );
 }
 
+function MonthWeekTaskColumn({ week, tasks, onAdd, onDelete }) {
+  const [adding, setAdding] = useState(false);
+  const [text, setText] = useState("");
+  const submit = () => {
+    if (!text.trim()) return;
+    onAdd({ text: text.trim(), allocationType: "semana_mes", weekReference: week.key });
+    setText("");
+    setAdding(false);
+  };
+  return (
+    <div>
+      <div style={{ ...sans, fontSize: 12, fontWeight: 600, color: c.ink, marginBottom: 8 }}>{week.label}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+        {tasks.map((t) => (
+          <div key={t.id} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ ...sans, fontSize: 12.5, color: c.ink, flex: 1 }}>{t.text}</span>
+            <button onClick={() => onDelete(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 0, flexShrink: 0 }}>
+              <Trash2 size={12} />
+            </button>
+          </div>
+        ))}
+        {tasks.length === 0 && <div style={{ ...sans, fontSize: 11.5, color: c.mistLight }}>Sem tarefas.</div>}
+      </div>
+      {adding ? (
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            autoFocus
+            placeholder="Nova tarefa"
+            style={{ ...sans, flex: 1, fontSize: 12, border: `1px solid ${c.line}`, borderRadius: 7, padding: "6px 8px", outline: "none" }}
+          />
+          <button onClick={submit} style={{ ...sans, fontSize: 11, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "6px 9px", cursor: "pointer" }}>OK</button>
+        </div>
+      ) : (
+        <button onClick={() => setAdding(true)} style={{ ...sans, fontSize: 11, color: c.boss, background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
+          <Plus size={11} /> Adicionar
+        </button>
+      )}
+    </div>
+  );
+}
+
 function CalendarioPessoal({ session }) {
   const [showPendingForm, setShowPendingForm] = useState(false);
   const tasksQuery = usePersonalTasks(session, session.role === "admin_geral");
@@ -4901,6 +4951,7 @@ function CalendarioPessoal({ session }) {
   const tasks = tasksQuery.data || [];
   const pending = tasks.filter((t) => t.allocationType === "sem_dia");
   const byDay = tasks.filter((t) => t.allocationType === "dia_especifico");
+  const byMonthWeek = tasks.filter((t) => t.allocationType === "semana_mes");
 
   return (
     <div>
@@ -4931,6 +4982,20 @@ function CalendarioPessoal({ session }) {
             key={day.key}
             day={day}
             tasks={byDay.filter((t) => t.weekdays.includes(day.key))}
+            onAdd={(t) => addTask.mutate(t)}
+            onDelete={(id) => deleteTask.mutate(id)}
+          />
+        ))}
+      </div>
+
+      <h2 style={{ ...serif, fontSize: 16, color: c.ink, fontWeight: 500, margin: "24px 0 12px" }}>Tarefas por semana do mês</h2>
+      <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 12 }}>Tarefas que se repetem todos os meses, na mesma semana.</div>
+      <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-4, repeat(4, 1fr))", gap: 16 }}>
+        {WEEKS_OF_MONTH.map((week) => (
+          <MonthWeekTaskColumn
+            key={week.key}
+            week={week}
+            tasks={byMonthWeek.filter((t) => t.weekReference === week.key)}
             onAdd={(t) => addTask.mutate(t)}
             onDelete={(id) => deleteTask.mutate(id)}
           />
