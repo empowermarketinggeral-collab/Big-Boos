@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import BigBossPrototype, { PublicProposalPage, PublicPresentationPage, PublicLinkPage } from "./BigBossPrototype.jsx";
+import BigBossPrototype, { PublicProposalPage, PublicPresentationPage, PublicLinkPage, PublicGrowthMapPage } from "./BigBossPrototype.jsx";
 
 function App() {
   return (
@@ -8,6 +8,7 @@ function App() {
         <Route path="/proposta/:slug" element={<PublicProposalPage />} />
         <Route path="/apresentacao/:id" element={<PublicPresentationPage />} />
         <Route path="/link/:slug" element={<PublicLinkPage />} />
+        <Route path="/mapa/:slug" element={<PublicGrowthMapPage />} />
         <Route path="*" element={<BigBossPrototype />} />
       </Routes>
     </BrowserRouter>

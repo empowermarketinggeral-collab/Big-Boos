@@ -736,6 +736,104 @@ function useDeleteProposal() {
 }
 
 /* ---------------------------------------------------------
+   MAPA DE CRESCIMENTO — ligação ao Supabase (tabela growth_maps)
+   Mesmo padrão das Propostas: agência, link público, criação
+   instantânea, tudo editável.
+--------------------------------------------------------- */
+const GROWTH_MAP_STATUS = {
+  draft: { label: "Rascunho", bg: "#F0EFF4", color: c.mist },
+  sent: { label: "Enviado", bg: "#F5EFDF", color: c.amber },
+  accepted: { label: "Aceite", bg: "#E7F5EC", color: c.sage },
+  rejected: { label: "Recusado", bg: "#FBE9EC", color: c.rose },
+};
+
+function mapGrowthMapRow(row) {
+  return {
+    id: row.id,
+    clientName: row.client_name,
+    slug: row.slug,
+    status: row.status,
+    brandingColor: row.branding_color || c.boss,
+    diagnosis: row.diagnosis || "",
+    objective: row.objective || "",
+    competitorAnalysis: row.competitor_analysis || "",
+    idealClientProfile: row.ideal_client_profile || "",
+    obstacle: row.obstacle || "",
+    channelAudit: row.channel_audit || [],
+    strategicPlan: row.strategic_plan || [],
+  };
+}
+
+function useGrowthMaps(enabled) {
+  return useQuery({
+    queryKey: ["growth_maps"],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("growth_maps")
+        .select("id, client_name, slug, status, branding_color, diagnosis, objective, competitor_analysis, ideal_client_profile, obstacle, channel_audit, strategic_plan, created_at")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data.map(mapGrowthMapRow);
+    },
+  });
+}
+
+function useAddGrowthMap() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ session, clientName }) => {
+      const agencyId = await resolveDefaultAgencyId(session);
+      const slug = `${slugify(clientName) || "cliente"}-${Date.now()}`;
+      const { data, error } = await supabase
+        .from("growth_maps")
+        .insert({ agency_id: agencyId, created_by: session.id, client_name: clientName, slug })
+        .select()
+        .single();
+      if (error) throw error;
+      return mapGrowthMapRow(data);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["growth_maps"] }),
+  });
+}
+
+function useUpdateGrowthMap() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (map) => {
+      const { error } = await supabase
+        .from("growth_maps")
+        .update({
+          client_name: map.clientName,
+          status: map.status,
+          branding_color: map.brandingColor,
+          diagnosis: map.diagnosis,
+          objective: map.objective,
+          competitor_analysis: map.competitorAnalysis,
+          ideal_client_profile: map.idealClientProfile,
+          obstacle: map.obstacle,
+          channel_audit: map.channelAudit,
+          strategic_plan: map.strategicPlan,
+        })
+        .eq("id", map.id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["growth_maps"] }),
+  });
+}
+
+function useDeleteGrowthMap() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from("growth_maps").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["growth_maps"] }),
+  });
+}
+
+/* ---------------------------------------------------------
    MINHAS TAREFAS — ligação ao Supabase (personal_tasks, só admin_geral)
 --------------------------------------------------------- */
 function mapPersonalTaskRow(row) {
@@ -1345,8 +1443,9 @@ async function uploadPortfolioImage(deckId, file) {
 
 /* ---------------------------------------------------------
    LINK NA BIO — ligação ao Supabase (tabela link_pages)
-   Uma página por agência, para já (sem seletor de várias páginas
-   na UI original).
+   Uma agência pode ter várias páginas: uma para si própria e uma
+   por cada marca/cliente. Nunca é o cliente a criar a sua — só a
+   equipa da agência.
 --------------------------------------------------------- */
 const DEFAULT_LINK_BG = {
   type: "gradient",
@@ -1358,11 +1457,11 @@ const DEFAULT_LINK_BG = {
   overlay: { enabled: true, direction: "180deg", color: "#000000", intensity: 55 },
 };
 
-function mapLinkPageRow(row, ownerName, agencyId) {
+function mapLinkPageRow(row) {
   return {
     id: row.id,
-    agencyId,
-    ownerName,
+    ownerType: row.owner_type,
+    ownerId: row.owner_id,
     slug: row.slug,
     about: row.about_text || "",
     avatarUrl: row.profile_photo_url,
@@ -1373,36 +1472,36 @@ function mapLinkPageRow(row, ownerName, agencyId) {
   };
 }
 
-function useLinkPage(session, enabled) {
+function useLinkPages(enabled) {
   return useQuery({
-    queryKey: ["link_page", session?.agency_id, session?.id],
+    queryKey: ["link_pages"],
     enabled,
     queryFn: async () => {
-      const agencyId = await resolveDefaultAgencyId(session);
-      const { data: agency } = await supabase.from("agencies").select("name").eq("id", agencyId).single();
+      // RLS já limita isto às páginas da própria agência (owner_type=agency)
+      // e às marcas que a agência gere (owner_type=brand) — sem filtro extra aqui.
       const { data, error } = await supabase
         .from("link_pages")
-        .select("id, slug, about_text, profile_photo_url, background_removed, background_style, blocks, quiz")
-        .eq("owner_type", "agency")
-        .eq("owner_id", agencyId)
-        .maybeSingle();
+        .select("id, owner_type, owner_id, slug, about_text, profile_photo_url, background_removed, background_style, blocks, quiz, created_at")
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      if (!data) {
-        return {
-          id: null,
-          agencyId,
-          ownerName: agency.name,
-          slug: slugify(agency.name) || "pagina",
-          about: "",
-          avatarUrl: null,
-          avatarBgRemoved: false,
-          bg: DEFAULT_LINK_BG,
-          blocks: [],
-          quizEnabled: false,
-        };
-      }
-      return mapLinkPageRow(data, agency.name, agencyId);
+      return data.map(mapLinkPageRow);
     },
+  });
+}
+
+function useAddLinkPage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ownerType, ownerId, slug }) => {
+      const { data, error } = await supabase
+        .from("link_pages")
+        .insert({ owner_type: ownerType, owner_id: ownerId, slug, about_text: "", blocks: [], quiz: { enabled: false } })
+        .select()
+        .single();
+      if (error) throw error;
+      return mapLinkPageRow(data);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["link_pages"] }),
   });
 }
 
@@ -1410,33 +1509,38 @@ function useSaveLinkPage() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (page) => {
-      const payload = {
-        owner_type: "agency",
-        owner_id: page.agencyId,
-        slug: page.slug,
-        about_text: page.about,
-        profile_photo_url: page.avatarUrl,
-        background_removed: page.avatarBgRemoved,
-        background_style: page.bg,
-        blocks: page.blocks,
-        quiz: { enabled: page.quizEnabled },
-      };
-      if (page.id) {
-        const { data, error } = await supabase.from("link_pages").update(payload).eq("id", page.id).select().single();
-        if (error) throw error;
-        return data.id;
-      }
-      const { data, error } = await supabase.from("link_pages").insert(payload).select().single();
+      const { error } = await supabase
+        .from("link_pages")
+        .update({
+          slug: page.slug,
+          about_text: page.about,
+          profile_photo_url: page.avatarUrl,
+          background_removed: page.avatarBgRemoved,
+          background_style: page.bg,
+          blocks: page.blocks,
+          quiz: { enabled: page.quizEnabled },
+        })
+        .eq("id", page.id);
       if (error) throw error;
-      return data.id;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["link_page"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["link_pages"] }),
   });
 }
 
-async function uploadLinkMedia(agencyId, file, prefix) {
+function useDeleteLinkPage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from("link_pages").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["link_pages"] }),
+  });
+}
+
+async function uploadLinkMedia(ownerId, file, prefix) {
   const ext = file.name.split(".").pop();
-  const path = `${agencyId}/${prefix}-${Date.now()}.${ext}`;
+  const path = `${ownerId}/${prefix}-${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from("link-media").upload(path, file, { upsert: true });
   if (error) throw error;
   const { data } = supabase.storage.from("link-media").getPublicUrl(path);
@@ -1681,6 +1785,7 @@ const NAV = [
   { key: "marcas", label: "Marcas", icon: Briefcase },
   { key: "reunioes", label: "Reuniões", icon: Handshake },
   { key: "propostas", label: "Propostas", icon: FileText },
+  { key: "mapa-crescimento", label: "Mapa de Crescimento", icon: TrendingUp },
   { key: "portfolio", label: "Portfólio", icon: Layers },
   { key: "link", label: "Link na Bio", icon: Link2 },
   { key: "precificacao", label: "Calculadora", icon: Calculator },
@@ -4102,6 +4207,300 @@ function PropostasModule({ session }) {
 }
 
 /* ---------------------------------------------------------
+   MAPA DE CRESCIMENTO — só visível para quem o criou
+--------------------------------------------------------- */
+function GrowthMapDetail({ map: initial, onBack }) {
+  const [map, onChange] = useState(initial);
+  const updateGrowthMap = useUpdateGrowthMap();
+  const deleteGrowthMap = useDeleteGrowthMap();
+
+  const updateField = (field, value) => onChange((m) => ({ ...m, [field]: value }));
+
+  const addChannel = () => onChange((m) => ({ ...m, channelAudit: [...m.channelAudit, { channel: "", finding: "" }] }));
+  const updateChannel = (i, field, value) => onChange((m) => ({ ...m, channelAudit: m.channelAudit.map((c2, idx) => (idx === i ? { ...c2, [field]: value } : c2)) }));
+  const removeChannel = (i) => onChange((m) => ({ ...m, channelAudit: m.channelAudit.filter((_, idx) => idx !== i) }));
+
+  const addPhase = () => onChange((m) => ({ ...m, strategicPlan: [...m.strategicPlan, { title: "Nova fase", description: "" }] }));
+  const updatePhase = (i, field, value) => onChange((m) => ({ ...m, strategicPlan: m.strategicPlan.map((p, idx) => (idx === i ? { ...p, [field]: value } : p)) }));
+  const removePhase = (i) => onChange((m) => ({ ...m, strategicPlan: m.strategicPlan.filter((_, idx) => idx !== i) }));
+
+  return (
+    <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 900 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <button
+          onClick={onBack}
+          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+        >
+          <ArrowLeft size={14} /> Mapa de Crescimento
+        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => updateGrowthMap.mutate(map)}
+            disabled={updateGrowthMap.isPending}
+            style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}
+          >
+            {updateGrowthMap.isPending ? "A guardar…" : "Guardar"}
+          </button>
+          <button
+            onClick={() => deleteGrowthMap.mutate(map.id, { onSuccess: onBack })}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}
+          >
+            <Trash2 size={13} /> Eliminar
+          </button>
+        </div>
+      </div>
+
+      <div
+        style={{
+          background: `linear-gradient(135deg, ${map.brandingColor}18, #FFFFFF 65%)`,
+          border: `1px solid ${c.line}`, borderRadius: 16, padding: "26px 30px", marginBottom: 24,
+          position: "relative", overflow: "hidden",
+        }}
+      >
+        <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 3, background: map.brandingColor }} />
+        <Eyebrow>Mapa de Crescimento</Eyebrow>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
+          <span style={{ ...serif, fontSize: 26, color: c.ink }}>Para</span>
+          <input
+            value={map.clientName}
+            onChange={(e) => updateField("clientName", e.target.value)}
+            style={{ ...serif, fontSize: 26, color: c.ink, border: "none", outline: "none", background: "none", flex: 1 }}
+          />
+        </div>
+        <div style={{ ...sans, fontSize: 12, color: c.mist, marginBottom: 12 }}>big-boss.app/mapa/{map.slug}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ ...sans, fontSize: 11, color: c.mist }}>Estado:</span>
+          <select
+            value={map.status}
+            onChange={(e) => updateField("status", e.target.value)}
+            style={{ ...sans, fontSize: 12, fontWeight: 600, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 7, padding: "5px 9px", cursor: "pointer" }}
+          >
+            {Object.entries(GROWTH_MAP_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+          {map.status === "sent" || map.status === "accepted" ? (
+            <span style={{ ...sans, fontSize: 11, color: c.sage }}>Visível publicamente no link acima</span>
+          ) : (
+            <span style={{ ...sans, fontSize: 11, color: c.mistLight }}>Só "Enviado"/"Aceite" ficam visíveis no link público</span>
+          )}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <ChartCard title="Diagnóstico" sub="Estado atual — posicionamento da marca">
+          <textarea
+            value={map.diagnosis}
+            onChange={(e) => updateField("diagnosis", e.target.value)}
+            rows={3}
+            style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
+          />
+        </ChartCard>
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <ChartCard title="Objetivo" sub="Definido em conjunto com a marca">
+          <textarea
+            value={map.objective}
+            onChange={(e) => updateField("objective", e.target.value)}
+            rows={2}
+            style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
+          />
+        </ChartCard>
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <ChartCard title="Obstáculo" sub="O que está a impedir a marca de ir mais longe">
+          <textarea
+            value={map.obstacle}
+            onChange={(e) => updateField("obstacle", e.target.value)}
+            rows={2}
+            style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
+          />
+        </ChartCard>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-2, 1fr 1fr)", gap: 14, marginBottom: 14 }}>
+        <ChartCard title="Análise de concorrência e mercado" sub="">
+          <textarea
+            value={map.competitorAnalysis}
+            onChange={(e) => updateField("competitorAnalysis", e.target.value)}
+            rows={4}
+            style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
+          />
+        </ChartCard>
+        <ChartCard title="Perfil de cliente ideal" sub="">
+          <textarea
+            value={map.idealClientProfile}
+            onChange={(e) => updateField("idealClientProfile", e.target.value)}
+            rows={4}
+            style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
+          />
+        </ChartCard>
+      </div>
+
+      <ChartCard
+        title="Auditoria de canais"
+        sub="Onde está o obstáculo, canal a canal"
+        right={
+          <button onClick={addChannel} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
+            <Plus size={13} /> Canal
+          </button>
+        }
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {map.channelAudit.map((ca, i) => (
+            <div key={i} style={{ background: c.paper, borderRadius: 10, padding: "12px 14px", display: "flex", gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <input
+                  value={ca.channel}
+                  onChange={(e) => updateChannel(i, "channel", e.target.value)}
+                  placeholder="Canal (ex: Instagram, Google Meu Negócio...)"
+                  style={{ ...sans, fontSize: 13, fontWeight: 600, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", marginBottom: 6 }}
+                />
+                <textarea
+                  value={ca.finding}
+                  onChange={(e) => updateChannel(i, "finding", e.target.value)}
+                  placeholder="O que encontraste e recomendas..."
+                  rows={2}
+                  style={{ ...sans, fontSize: 12.5, color: c.mist, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px", outline: "none", background: "#fff", resize: "vertical", width: "100%" }}
+                />
+              </div>
+              <button onClick={() => removeChannel(i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.rose, flexShrink: 0, height: "fit-content" }}>
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+          {map.channelAudit.length === 0 && (
+            <div style={{ ...sans, fontSize: 12, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>Sem canais ainda.</div>
+          )}
+        </div>
+      </ChartCard>
+
+      <div style={{ marginTop: 20, marginBottom: 4, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <h2 style={{ ...serif, fontSize: 17, color: c.ink, fontWeight: 500, margin: 0 }}>Plano estratégico e cronograma</h2>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {map.strategicPlan.map((p, i) => (
+          <div key={i} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: "18px 22px", display: "flex", gap: 16 }}>
+            <div
+              style={{
+                width: 30, height: 30, borderRadius: 999, background: `${map.brandingColor}1A`, color: map.brandingColor,
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...sans, fontSize: 12.5, fontWeight: 700,
+              }}
+            >
+              {i + 1}
+            </div>
+            <div style={{ flex: 1 }}>
+              <input
+                value={p.title}
+                onChange={(e) => updatePhase(i, "title", e.target.value)}
+                style={{ ...serif, fontSize: 16, color: c.ink, marginBottom: 4, border: "none", outline: "none", background: "none", width: "100%" }}
+              />
+              <textarea
+                value={p.description}
+                onChange={(e) => updatePhase(i, "description", e.target.value)}
+                rows={2}
+                style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.55, border: "none", outline: "none", background: "none", width: "100%", resize: "vertical" }}
+              />
+            </div>
+            <button onClick={() => removePhase(i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, flexShrink: 0, height: "fit-content" }}>
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+        <button
+          onClick={addPhase}
+          style={{
+            ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: c.boss,
+            background: c.bossSoft, border: "none", borderRadius: 10, padding: "12px 16px", cursor: "pointer", justifyContent: "center",
+          }}
+        >
+          <Plus size={14} /> Adicionar fase
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GrowthMapsModule({ session }) {
+  const [openId, setOpenId] = useState(null);
+  const mapsQuery = useGrowthMaps(true);
+  const addGrowthMap = useAddGrowthMap();
+  const deleteGrowthMap = useDeleteGrowthMap();
+  const maps = mapsQuery.data || [];
+  const openMap = maps.find((m) => m.id === openId);
+
+  const createMap = async () => {
+    const newMap = await addGrowthMap.mutateAsync({ session, clientName: "Novo cliente" });
+    setOpenId(newMap.id);
+  };
+
+  if (openMap) {
+    return <GrowthMapDetail map={openMap} onBack={() => setOpenId(null)} />;
+  }
+
+  return (
+    <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
+      <Eyebrow>Mapa de Crescimento</Eyebrow>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>Mapas de crescimento</h1>
+        <button
+          onClick={createMap}
+          disabled={addGrowthMap.isPending}
+          style={{
+            ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff",
+            background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer",
+          }}
+        >
+          <Plus size={14} /> {addGrowthMap.isPending ? "A criar…" : "Novo mapa"}
+        </button>
+      </div>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 20, maxWidth: 600, lineHeight: 1.6 }}>
+        Só tu vês esta lista — diagnóstico, objetivo, concorrência, perfil de cliente ideal, auditoria de canais e plano de ação, prontos a enviar com o teu branding.
+      </div>
+
+      {mapsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist, marginBottom: 20 }}>A carregar…</div>}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {maps.map((m) => {
+          const st = GROWTH_MAP_STATUS[m.status];
+          return (
+            <div
+              key={m.id}
+              onClick={() => setOpenId(m.id)}
+              style={{
+                display: "flex", alignItems: "center", gap: 14, background: "#fff",
+                border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px", cursor: "pointer",
+              }}
+            >
+              <div style={{ width: 8, height: 34, borderRadius: 4, background: m.brandingColor, flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ ...serif, fontSize: 15.5, color: c.ink, fontWeight: 500 }}>{m.clientName}</div>
+                <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 2 }}>/mapa/{m.slug}</div>
+              </div>
+              <span style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: st.color, background: st.bg, borderRadius: 999, padding: "4px 10px" }}>
+                {st.label}
+              </span>
+              <button
+                onClick={(e) => { e.stopPropagation(); deleteGrowthMap.mutate(m.id); }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 4, flexShrink: 0 }}
+              >
+                <Trash2 size={15} />
+              </button>
+              <ChevronRight size={16} color={c.mist} />
+            </div>
+          );
+        })}
+        {!mapsQuery.isLoading && maps.length === 0 && (
+          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
+            Ainda sem mapas — cria o primeiro acima.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
    CENTRO DE COMANDO — Calendário Geral / Pessoal / Minhas Tarefas
 --------------------------------------------------------- */
 function CalendarioGeral() {
@@ -4981,18 +5380,143 @@ function LinkPagePreview({ page }) {
   );
 }
 
-function LinkNaBioModule({ session }) {
-  const pageQuery = useLinkPage(session, true);
-  if (pageQuery.isLoading) {
-    return <div className="bb-page" style={{ padding: "8px 40px 60px", ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>;
-  }
-  if (pageQuery.error) {
-    return <div className="bb-page" style={{ padding: "8px 40px 60px", ...sans, fontSize: 13, color: c.rose }}>{pageQuery.error.message}</div>;
-  }
-  return <LinkNaBioEditor initialPage={pageQuery.data} />;
+function NewLinkPageForm({ session, brands, onDone }) {
+  const [ownerChoice, setOwnerChoice] = useState("agency");
+  const [slug, setSlug] = useState("");
+  const [error, setError] = useState("");
+  const addLinkPage = useAddLinkPage();
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!slug.trim()) {
+      setError("Dá um slug à página (ex: harmoniae).");
+      return;
+    }
+    setError("");
+    try {
+      let ownerType, ownerId;
+      if (ownerChoice === "agency") {
+        ownerType = "agency";
+        ownerId = await resolveDefaultAgencyId(session);
+      } else {
+        ownerType = "brand";
+        ownerId = ownerChoice;
+      }
+      await addLinkPage.mutateAsync({ ownerType, ownerId, slug: slugify(slug) });
+      onDone();
+    } catch (err) {
+      setError(err.message || "Não foi possível criar a página.");
+    }
+  };
+
+  return (
+    <form onSubmit={submit} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: 18, marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <select
+          value={ownerChoice}
+          onChange={(e) => setOwnerChoice(e.target.value)}
+          style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px" }}
+        >
+          <option value="agency">Para a agência</option>
+          {brands.map((b) => (
+            <option key={b.id} value={b.id}>{b.name}</option>
+          ))}
+        </select>
+        <input
+          value={slug}
+          onChange={(e) => setSlug(e.target.value)}
+          placeholder="slug (ex: harmoniae)"
+          style={{ ...sans, flex: 1, minWidth: 160, fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px" }}
+        />
+      </div>
+      {error && <div style={{ ...sans, fontSize: 12, color: c.rose }}>{error}</div>}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button type="submit" disabled={addLinkPage.isPending} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}>
+          {addLinkPage.isPending ? "A criar…" : "Criar"}
+        </button>
+        <button type="button" onClick={onDone} style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
+          Cancelar
+        </button>
+      </div>
+    </form>
+  );
 }
 
-function LinkNaBioEditor({ initialPage }) {
+function LinkNaBioModule({ session }) {
+  const [openId, setOpenId] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const pagesQuery = useLinkPages(true);
+  const brandsQuery = useBrands(true);
+  const pages = pagesQuery.data || [];
+  const brands = brandsQuery.data || [];
+
+  const ownerLabel = (page) => {
+    if (page.ownerType === "agency") return "A minha agência";
+    const brand = brands.find((b) => b.id === page.ownerId);
+    return brand ? brand.name : "Marca";
+  };
+
+  const openPage = pages.find((p) => p.id === openId);
+
+  if (openPage) {
+    return (
+      <LinkNaBioEditor
+        initialPage={{ ...openPage, ownerName: ownerLabel(openPage) }}
+        onBack={() => setOpenId(null)}
+      />
+    );
+  }
+
+  return (
+    <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
+      <Eyebrow>Link na Bio</Eyebrow>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>As tuas páginas</h1>
+        {!showForm && (
+          <button
+            onClick={() => setShowForm(true)}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer" }}
+          >
+            <Plus size={14} /> Nova página
+          </button>
+        )}
+      </div>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 20, maxWidth: 600, lineHeight: 1.6 }}>
+        Uma página para a tua agência, e uma por cada marca/cliente — cada uma com o seu próprio link. Só a equipa cria e edita; o cliente nunca precisa de acesso para isto.
+      </div>
+
+      {showForm && <NewLinkPageForm session={session} brands={brands} onDone={() => setShowForm(false)} />}
+
+      {pagesQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {pages.map((p) => (
+          <div
+            key={p.id}
+            onClick={() => setOpenId(p.id)}
+            style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px", cursor: "pointer" }}
+          >
+            <div style={{ width: 34, height: 34, borderRadius: 9, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Link2 size={16} color={c.boss} strokeWidth={1.8} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ ...serif, fontSize: 15, color: c.ink, fontWeight: 500 }}>{ownerLabel(p)}</div>
+              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>big-boss.link/{p.slug}</div>
+            </div>
+            <ChevronRight size={16} color={c.mist} />
+          </div>
+        ))}
+        {!pagesQuery.isLoading && pages.length === 0 && (
+          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
+            Ainda sem páginas — cria a primeira acima.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LinkNaBioEditor({ initialPage, onBack }) {
   const [page, setPage] = useState(initialPage);
   const [addingBlock, setAddingBlock] = useState(false);
   const [bgTab, setBgTab] = useState(page.bg.type);
@@ -5000,6 +5524,7 @@ function LinkNaBioEditor({ initialPage }) {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const saveLinkPage = useSaveLinkPage();
+  const deleteLinkPage = useDeleteLinkPage();
 
   const updateBg = (patch) => setPage((p) => ({ ...p, bg: { ...p.bg, ...patch } }));
   const updateOverlay = (patch) => setPage((p) => ({ ...p, bg: { ...p.bg, overlay: { ...p.bg.overlay, ...patch } } }));
@@ -5008,8 +5533,7 @@ function LinkNaBioEditor({ initialPage }) {
     setError("");
     setSaved(false);
     try {
-      const id = await saveLinkPage.mutateAsync(page);
-      setPage((p) => ({ ...p, id }));
+      await saveLinkPage.mutateAsync(page);
       setSaved(true);
     } catch (err) {
       setError(err.message || "Não foi possível guardar.");
@@ -5022,7 +5546,7 @@ function LinkNaBioEditor({ initialPage }) {
     setUploading(true);
     setError("");
     try {
-      const url = await uploadLinkMedia(page.agencyId, file, "bg");
+      const url = await uploadLinkMedia(page.ownerId, file, "bg");
       updateBg({ photoUrl: url });
     } catch (err) {
       setError(err.message || "Não foi possível carregar a foto.");
@@ -5037,7 +5561,7 @@ function LinkNaBioEditor({ initialPage }) {
     setUploading(true);
     setError("");
     try {
-      const url = await uploadLinkMedia(page.agencyId, file, "avatar");
+      const url = await uploadLinkMedia(page.ownerId, file, "avatar");
       setPage((p) => ({ ...p, avatarUrl: url }));
     } catch (err) {
       setError(err.message || "Não foi possível carregar a foto.");
@@ -5077,16 +5601,30 @@ function LinkNaBioEditor({ initialPage }) {
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1080 }}>
+      <button
+        onClick={onBack}
+        style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}
+      >
+        <ArrowLeft size={14} /> Link na Bio
+      </button>
       <Eyebrow>Link na Bio</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
         <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>{page.ownerName}</h1>
-        <button
-          onClick={save}
-          disabled={saveLinkPage.isPending}
-          style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer" }}
-        >
-          {saveLinkPage.isPending ? "A guardar…" : "Guardar"}
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={save}
+            disabled={saveLinkPage.isPending}
+            style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer" }}
+          >
+            {saveLinkPage.isPending ? "A guardar…" : "Guardar"}
+          </button>
+          <button
+            onClick={() => deleteLinkPage.mutate(page.id, { onSuccess: onBack })}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 14px", cursor: "pointer" }}
+          >
+            <Trash2 size={13} /> Eliminar
+          </button>
+        </div>
       </div>
       <div style={{ ...sans, fontSize: 12, color: c.mist, marginBottom: 16 }}>
         big-boss.link/{page.slug}
@@ -6714,6 +7252,103 @@ export function PublicProposalPage() {
   );
 }
 
+export function PublicGrowthMapPage() {
+  const { slug } = useParams();
+  const [state, setState] = useState({ loading: true, error: null, map: null });
+
+  useEffect(() => {
+    let active = true;
+    supabase
+      .from("growth_maps")
+      .select("client_name, branding_color, status, diagnosis, objective, obstacle, competitor_analysis, ideal_client_profile, channel_audit, strategic_plan")
+      .eq("slug", slug)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error || !data) setState({ loading: false, error: "Mapa não encontrado.", map: null });
+        else setState({ loading: false, error: null, map: data });
+      });
+    return () => { active = false; };
+  }, [slug]);
+
+  if (state.loading) return <PublicStateMessage text="A carregar…" />;
+  if (state.error) return <PublicStateMessage text={state.error} />;
+
+  const m = state.map;
+  const sections = [
+    ["Diagnóstico", m.diagnosis],
+    ["Objetivo", m.objective],
+    ["Obstáculo", m.obstacle],
+    ["Análise de concorrência e mercado", m.competitor_analysis],
+    ["Perfil de cliente ideal", m.ideal_client_profile],
+  ];
+
+  return (
+    <PublicPageShell>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "60px 24px" }}>
+        <div
+          style={{
+            background: `linear-gradient(135deg, ${m.branding_color}18, #FFFFFF 65%)`,
+            border: `1px solid ${c.line}`, borderRadius: 16, padding: "26px 30px", marginBottom: 28,
+            position: "relative", overflow: "hidden",
+          }}
+        >
+          <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 3, background: m.branding_color }} />
+          <Eyebrow>Mapa de Crescimento</Eyebrow>
+          <div style={{ ...serif, fontSize: 26, color: c.ink }}>Para {m.client_name}</div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 20 }}>
+          {sections.map(([title, body]) => body && (
+            <div key={title} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: "18px 22px" }}>
+              <div style={{ ...sans, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: m.branding_color, marginBottom: 8 }}>{title}</div>
+              <div style={{ ...sans, fontSize: 13.5, color: c.ink, lineHeight: 1.65, whiteSpace: "pre-line" }}>{body}</div>
+            </div>
+          ))}
+        </div>
+
+        {m.channel_audit && m.channel_audit.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ ...serif, fontSize: 17, color: c.ink, marginBottom: 10 }}>Auditoria de canais</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {m.channel_audit.map((ca, i) => (
+                <div key={i} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ ...sans, fontSize: 13, fontWeight: 600, color: c.ink, marginBottom: 4 }}>{ca.channel}</div>
+                  <div style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.55 }}>{ca.finding}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {m.strategic_plan && m.strategic_plan.length > 0 && (
+          <div>
+            <div style={{ ...serif, fontSize: 17, color: c.ink, marginBottom: 10 }}>Plano estratégico e cronograma</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {m.strategic_plan.map((p, i) => (
+                <div key={i} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: "18px 22px", display: "flex", gap: 16 }}>
+                  <div
+                    style={{
+                      width: 30, height: 30, borderRadius: 999, background: `${m.branding_color}1A`, color: m.branding_color,
+                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...sans, fontSize: 12.5, fontWeight: 700,
+                    }}
+                  >
+                    {i + 1}
+                  </div>
+                  <div>
+                    <div style={{ ...serif, fontSize: 16, color: c.ink, marginBottom: 4 }}>{p.title}</div>
+                    <div style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.55 }}>{p.description}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </PublicPageShell>
+  );
+}
+
 function PublicSlide({ slide, brandingColor }) {
   const boxStyle = {
     background: "#fff", border: `1px solid ${c.line}`, borderRadius: 16, minHeight: 320,
@@ -7033,6 +7668,8 @@ export default function BigBossPrototype() {
     content = <ReunioesModule session={session} />;
   } else if (nav === "propostas") {
     content = <PropostasModule session={session} />;
+  } else if (nav === "mapa-crescimento") {
+    content = <GrowthMapsModule session={session} />;
   } else if (nav === "centro") {
     content = <CentroComandoModule session={session} />;
   } else if (nav === "conhecimento") {
