@@ -218,6 +218,31 @@ function useAddBrand() {
   });
 }
 
+function useUpdateBrand() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, name, categoryKey, status, goal }) => {
+      const { error } = await supabase
+        .from("brands")
+        .update({ name, category: categoryKey, status, goal })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["brands"] }),
+  });
+}
+
+function useDeleteBrand() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from("brands").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["brands"] }),
+  });
+}
+
 /* ---------------------------------------------------------
    CONTEÚDOS + ROTEIROS — ligação ao Supabase
 --------------------------------------------------------- */
@@ -834,10 +859,45 @@ function useDeleteGrowthMap() {
 }
 
 /* ---------------------------------------------------------
-   MINHAS TAREFAS — ligação ao Supabase (personal_tasks, só admin_geral)
+   MINHAS TAREFAS / CENTRO DE COMANDO — ligação ao Supabase
+   (personal_tasks, só admin_geral)
 --------------------------------------------------------- */
+const COLOR_TAG_SWATCHES = [
+  { key: "purple", hex: "#7C4DE0" },
+  { key: "blue", hex: "#3B5FC2" },
+  { key: "green", hex: "#2F9E63" },
+  { key: "yellow", hex: "#C9821F" },
+  { key: "orange", hex: "#E07B39" },
+  { key: "red", hex: "#D3455B" },
+  { key: "pink", hex: "#C23B85" },
+  { key: "teal", hex: "#2E9E9E" },
+];
+const COLOR_TAG_BG = {
+  purple: "#F1ECFC", blue: "#E4EAFB", green: "#DFF5EA", yellow: "#FBF3D6",
+  orange: "#FBE7D6", red: "#FBE0E4", pink: "#FCE4F0", teal: "#DDF3F1",
+};
+const WEEKDAYS = [
+  { key: "segunda", label: "Segunda-feira" },
+  { key: "terca", label: "Terça-feira" },
+  { key: "quarta", label: "Quarta-feira" },
+  { key: "quinta", label: "Quinta-feira" },
+  { key: "sexta", label: "Sexta-feira" },
+  { key: "sabado", label: "Sábado" },
+  { key: "domingo", label: "Domingo" },
+];
+
 function mapPersonalTaskRow(row) {
-  return { id: row.id, text: row.title, done: !!row.completed };
+  return {
+    id: row.id,
+    text: row.title,
+    done: !!row.completed,
+    allocationType: row.allocation_type,
+    colorTag: row.color_tag || "purple",
+    weekReference: row.week_reference || "",
+    weekdays: row.weekdays || [],
+    startDate: row.start_date,
+    endDate: row.end_date,
+  };
 }
 
 function usePersonalTasks(session, enabled) {
@@ -847,7 +907,7 @@ function usePersonalTasks(session, enabled) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("personal_tasks")
-        .select("id, title, completed, sort_order")
+        .select("id, title, completed, allocation_type, color_tag, week_reference, weekdays, start_date, end_date, sort_order")
         .eq("user_id", session.id)
         .order("sort_order", { ascending: true });
       if (error) throw error;
@@ -859,8 +919,38 @@ function usePersonalTasks(session, enabled) {
 function useAddPersonalTask(session) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (text) => {
-      const { error } = await supabase.from("personal_tasks").insert({ user_id: session.id, title: text, allocation_type: "sem_dia" });
+    mutationFn: async (task) => {
+      const { error } = await supabase.from("personal_tasks").insert({
+        user_id: session.id,
+        title: task.text,
+        allocation_type: task.allocationType,
+        color_tag: task.colorTag || null,
+        week_reference: task.weekReference || null,
+        weekdays: task.weekdays || [],
+        start_date: task.startDate || null,
+        end_date: task.endDate || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["personal_tasks", session.id] }),
+  });
+}
+
+function useUpdatePersonalTask(session) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (task) => {
+      const { error } = await supabase
+        .from("personal_tasks")
+        .update({
+          title: task.text,
+          color_tag: task.colorTag || null,
+          week_reference: task.weekReference || null,
+          weekdays: task.weekdays || [],
+          start_date: task.startDate || null,
+          end_date: task.endDate || null,
+        })
+        .eq("id", task.id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["personal_tasks", session.id] }),
@@ -1266,42 +1356,6 @@ function ReunioesModule({ session }) {
   );
 }
 
-const CALENDAR_DAYS = [
-  { day: 29, month: "jun", events: [{ label: "Stories Harmoniae", color: c.boss }, { label: "Leads Dreams", color: c.amber }] },
-  { day: 30, month: "jun", events: [{ label: "Análise Tráfego", color: c.rose }, { label: "Blogs", color: "#3B5FC2" }] },
-  { day: 1, month: "jul", events: [{ label: "Stories Harmoniae", color: c.boss }, { label: "Leads Dreams", color: c.amber }] },
-  { day: 2, month: "jul", events: [{ label: "Stories Empower", color: c.boss }] },
-  { day: 3, month: "jul", events: [{ label: "Stories Harmoniae", color: c.boss }, { label: "Leads Dreams", color: c.amber }] },
-  { day: 4, month: "jul", events: [{ label: "Análise Tráfego", color: c.rose }], band: "Gravações" },
-  { day: 5, month: "jul", events: [{ label: "Stories Harmoniae", color: c.boss }] },
-  { day: 6, month: "jul", events: [{ label: "Stories Harmoniae", color: c.boss }] },
-  { day: 7, month: "jul", events: [{ label: "Análise Tráfego", color: c.rose }, { label: "Blogs", color: "#3B5FC2" }] },
-  { day: 8, month: "jul", events: [{ label: "Stories Harmoniae", color: c.boss }] },
-  { day: 9, month: "jul", events: [{ label: "Stories Empower", color: c.boss }] },
-  { day: 10, month: "jul", events: [{ label: "Stories Harmoniae", color: c.boss }] },
-  { day: 11, month: "jul", events: [{ label: "Análise Tráfego", color: c.rose }], band: "Estratégias" },
-  { day: 12, month: "jul", events: [{ label: "Stories Harmoniae", color: c.boss }] },
-];
-const CALENDAR_LEGEND = [
-  { label: "Stories", color: c.boss },
-  { label: "Leads / Prospeção", color: c.amber },
-  { label: "Tráfego pago", color: c.rose },
-  { label: "Blogs", color: "#3B5FC2" },
-];
-
-const PERSONAL_PENDING = [
-  { id: 1, text: "Colocar Despesas e Receita no Excel", tag: "4ª Semana", color: "#FBE0E4" },
-  { id: 2, text: "Rever roteiros da próxima semana", tag: "3ª Semana", color: "#FBF3D6" },
-  { id: 3, text: "Atualizar Base de Conhecimento — Prospeção", tag: "2ª Semana", color: "#E4EAFB" },
-  { id: 4, text: "Preparar gravações do mês", tag: "1ª Semana", color: "#DFF5EA" },
-];
-
-const PERSONAL_BY_DAY = [
-  { day: "Segunda", tasks: ["Stories Harmoniae | Empower | Bia | Academy", "Colocar Novos Leads Dreams"] },
-  { day: "Terça", tasks: ["Análise de Tráfego Pago", "Blogs", "Stories Astredik | Dreams Studio | Academy"] },
-  { day: "Quarta", tasks: ["Stories Harmoniae | Bia | Academy"] },
-];
-
 /* ---------------------------------------------------------
    BASE DE CONHECIMENTO — ligação ao Supabase (knowledge_articles)
 --------------------------------------------------------- */
@@ -1457,7 +1511,14 @@ const DEFAULT_LINK_BG = {
   overlay: { enabled: true, direction: "180deg", color: "#000000", intensity: 55 },
 };
 
+const DEFAULT_QUIZ = { enabled: false, title: "Não sabes por onde começar?", questions: [] };
+const PRODUCT_TYPES = { product: "Produto", collection: "Coleção", service: "Serviço" };
+const LINK_TYPES = { product: "Link do produto/coleção", calendar: "Link de marcação/calendário", whatsapp: "Link do WhatsApp" };
+
 function mapLinkPageRow(row) {
+  const quiz = row.quiz && Object.keys(row.quiz).length
+    ? { enabled: !!row.quiz.enabled, title: row.quiz.title || DEFAULT_QUIZ.title, questions: row.quiz.questions || [] }
+    : { ...DEFAULT_QUIZ };
   return {
     id: row.id,
     ownerType: row.owner_type,
@@ -1468,7 +1529,8 @@ function mapLinkPageRow(row) {
     avatarBgRemoved: !!row.background_removed,
     bg: row.background_style && Object.keys(row.background_style).length ? row.background_style : DEFAULT_LINK_BG,
     blocks: row.blocks || [],
-    quizEnabled: !!(row.quiz && row.quiz.enabled),
+    products: row.products || [],
+    quiz,
   };
 }
 
@@ -1481,7 +1543,7 @@ function useLinkPages(enabled) {
       // e às marcas que a agência gere (owner_type=brand) — sem filtro extra aqui.
       const { data, error } = await supabase
         .from("link_pages")
-        .select("id, owner_type, owner_id, slug, about_text, profile_photo_url, background_removed, background_style, blocks, quiz, created_at")
+        .select("id, owner_type, owner_id, slug, about_text, profile_photo_url, background_removed, background_style, blocks, products, quiz, created_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data.map(mapLinkPageRow);
@@ -1495,7 +1557,7 @@ function useAddLinkPage() {
     mutationFn: async ({ ownerType, ownerId, slug }) => {
       const { data, error } = await supabase
         .from("link_pages")
-        .insert({ owner_type: ownerType, owner_id: ownerId, slug, about_text: "", blocks: [], quiz: { enabled: false } })
+        .insert({ owner_type: ownerType, owner_id: ownerId, slug, about_text: "", blocks: [], products: [], quiz: DEFAULT_QUIZ })
         .select()
         .single();
       if (error) throw error;
@@ -1518,7 +1580,8 @@ function useSaveLinkPage() {
           background_removed: page.avatarBgRemoved,
           background_style: page.bg,
           blocks: page.blocks,
-          quiz: { enabled: page.quizEnabled },
+          products: page.products,
+          quiz: page.quiz,
         })
         .eq("id", page.id);
       if (error) throw error;
@@ -2202,6 +2265,22 @@ function MarcasList({ brands, onOpenBrand, onAddBrand, addBrandError, addingBran
    DETALHE DA MARCA
 --------------------------------------------------------- */
 function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
+  const [editing, setEditing] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [editName, setEditName] = useState(brand.name);
+  const [editCategory, setEditCategory] = useState(brand.categoryKey);
+  const [editStatus, setEditStatus] = useState(brand.status);
+  const [editGoal, setEditGoal] = useState(brand.goal);
+  const updateBrand = useUpdateBrand();
+  const deleteBrand = useDeleteBrand();
+  const canManage = CAN_MANAGE_ROLES.includes(session.role);
+  const canDelete = session.role === "admin_geral" || session.role === "agencia_admin";
+
+  const saveBrandEdit = async () => {
+    await updateBrand.mutateAsync({ id: brand.id, name: editName, categoryKey: editCategory, status: editStatus, goal: editGoal });
+    setEditing(false);
+  };
+
   if (sub === "conteudos") {
     return <ConteudosView brand={brand} onBack={() => onOpenSub(null)} session={session} />;
   }
@@ -2243,30 +2322,120 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
         <ArrowLeft size={14} /> Marcas
       </button>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 28 }}>
-        <div
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 12,
-            background: `linear-gradient(135deg, ${c.boss}, ${c.bossDeep})`,
-            color: "#fff",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            ...serif,
-            fontSize: 20,
-          }}
-        >
-          {brand.initial}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, marginBottom: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 12,
+              background: `linear-gradient(135deg, ${c.boss}, ${c.bossDeep})`,
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              ...serif,
+              fontSize: 20,
+              flexShrink: 0,
+            }}
+          >
+            {brand.initial}
+          </div>
+          {editing ? (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, maxWidth: 420 }}>
+              <input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                style={{ ...serif, fontSize: 20, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "6px 10px", outline: "none" }}
+              />
+              <div style={{ display: "flex", gap: 8 }}>
+                <select
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "6px 9px", cursor: "pointer" }}
+                >
+                  {Object.entries(CATEGORY_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                </select>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                  style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "6px 9px", cursor: "pointer" }}
+                >
+                  <option value="green">Saudável</option>
+                  <option value="yellow">Atenção</option>
+                  <option value="red">Crítico</option>
+                </select>
+              </div>
+            </div>
+          ) : (
+            <div style={{ minWidth: 0 }}>
+              <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: 0 }}>{brand.name}</h1>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+                <StatusDot status={brand.status} /> {brand.category}
+              </div>
+            </div>
+          )}
         </div>
-        <div>
-          <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: 0 }}>{brand.name}</h1>
-          <div style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-            <StatusDot status={brand.status} /> {brand.category}
+        {canManage && (
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            {editing ? (
+              <>
+                <button
+                  onClick={saveBrandEdit}
+                  disabled={updateBrand.isPending}
+                  style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
+                >
+                  {updateBrand.isPending ? "A guardar…" : "Guardar"}
+                </button>
+                <button
+                  onClick={() => setEditing(false)}
+                  style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+                >
+                  Cancelar
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setEditing(true)}
+                style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.ink, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
+              >
+                <Pencil size={13} /> Editar
+              </button>
+            )}
+            {canDelete && !editing && (
+              <button
+                onClick={() => setConfirmingDelete(true)}
+                style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
+              >
+                <Trash2 size={13} /> Eliminar
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {confirmingDelete && (
+        <div style={{ background: "#FBE9EC", border: `1px solid ${c.rose}`, borderRadius: 12, padding: "16px 18px", marginBottom: 24 }}>
+          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 10, lineHeight: 1.5 }}>
+            Eliminar <strong>{brand.name}</strong> apaga também todos os conteúdos, roteiros, relatórios, plano estratégico e tudo o resto associado a esta marca. Não é possível desfazer.
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => deleteBrand.mutate(brand.id, { onSuccess: onBack })}
+              disabled={deleteBrand.isPending}
+              style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.rose, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}
+            >
+              {deleteBrand.isPending ? "A eliminar…" : "Sim, eliminar definitivamente"}
+            </button>
+            <button
+              onClick={() => setConfirmingDelete(false)}
+              style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+            >
+              Cancelar
+            </button>
           </div>
         </div>
-      </div>
+      )}
 
       {/* SIGNATURE: Objetivo em destaque */}
       <div
@@ -2293,9 +2462,18 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
         <div style={{ ...sans, fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: c.boss, marginBottom: 12 }}>
           Objetivo
         </div>
-        <div style={{ ...serif, fontSize: 22, lineHeight: 1.45, color: c.ink, fontWeight: 400, maxWidth: 620 }}>
-          "{brand.goal}"
-        </div>
+        {editing ? (
+          <textarea
+            value={editGoal}
+            onChange={(e) => setEditGoal(e.target.value)}
+            rows={2}
+            style={{ ...serif, fontSize: 18, lineHeight: 1.45, color: c.ink, fontWeight: 400, maxWidth: 620, width: "100%", border: `1px solid ${c.line}`, borderRadius: 8, padding: "10px 12px", outline: "none", resize: "vertical", background: "#fff" }}
+          />
+        ) : (
+          <div style={{ ...serif, fontSize: 22, lineHeight: 1.45, color: c.ink, fontWeight: 400, maxWidth: 620 }}>
+            "{brand.goal}"
+          </div>
+        )}
       </div>
 
       <h2 style={{ ...serif, fontSize: 17, color: c.ink, fontWeight: 500, margin: "0 0 14px" }}>
@@ -4503,17 +4681,80 @@ function GrowthMapsModule({ session }) {
 /* ---------------------------------------------------------
    CENTRO DE COMANDO — Calendário Geral / Pessoal / Minhas Tarefas
 --------------------------------------------------------- */
-function CalendarioGeral() {
+function twoWeekWindow() {
+  const days = [];
+  const monday = new Date(mondayOfCurrentWeek() + "T00:00:00");
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  return days;
+}
+
+function CalendarioGeral({ session }) {
+  const [showForm, setShowForm] = useState(false);
+  const [title, setTitle] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [colorTag, setColorTag] = useState("purple");
+  const tasksQuery = usePersonalTasks(session, session.role === "admin_geral");
+  const addTask = useAddPersonalTask(session);
+  const deleteTask = useDeletePersonalTask(session);
+
+  if (session.role !== "admin_geral") {
+    return <div style={{ ...sans, fontSize: 13, color: c.mist }}>Só disponível para o Admin Geral.</div>;
+  }
+
+  const events = (tasksQuery.data || []).filter((t) => t.allocationType === "periodo" && t.startDate);
+  const days = twoWeekWindow();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const eventsForDay = (day) => events.filter((e) => day >= e.startDate && day <= (e.endDate || e.startDate));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!title.trim() || !startDate) return;
+    await addTask.mutateAsync({ text: title.trim(), allocationType: "periodo", startDate, endDate: endDate || null, colorTag });
+    setTitle(""); setStartDate(""); setEndDate(""); setColorTag("purple"); setShowForm(false);
+  };
+
   return (
     <div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginBottom: 18 }}>
-        {CALENDAR_LEGEND.map((l) => (
-          <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 6, ...sans, fontSize: 11.5, color: c.mist }}>
-            <span style={{ width: 8, height: 8, borderRadius: 3, background: l.color }} />
-            {l.label}
-          </div>
-        ))}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ ...sans, fontSize: 12, color: c.mist }}>Próximas 2 semanas · clica num evento para o eliminar</div>
+        {!showForm && (
+          <button
+            onClick={() => setShowForm(true)}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
+          >
+            <Plus size={13} /> Novo evento
+          </button>
+        )}
       </div>
+
+      {showForm && (
+        <form onSubmit={submit} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: 16, marginBottom: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Título do evento" style={{ ...sans, fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none" }} />
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px" }} />
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px" }} />
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              {COLOR_TAG_SWATCHES.map((sw) => (
+                <button key={sw.key} type="button" onClick={() => setColorTag(sw.key)} style={{ width: 20, height: 20, borderRadius: 999, background: sw.hex, border: colorTag === sw.key ? `2px solid ${c.ink}` : "2px solid transparent", cursor: "pointer" }} />
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="submit" disabled={addTask.isPending} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}>
+              {addTask.isPending ? "A guardar…" : "Criar"}
+            </button>
+            <button type="button" onClick={() => setShowForm(false)} style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+
       <div style={{ overflowX: "auto" }}>
         <div style={{ minWidth: 640 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 8, marginBottom: 8 }}>
@@ -4524,32 +4765,34 @@ function CalendarioGeral() {
             ))}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 8 }}>
-            {CALENDAR_DAYS.map((d, i) => (
-              <div
-                key={i}
-                style={{
-                  background: "#fff", border: `1px solid ${c.line}`, borderRadius: 10, padding: 8, minHeight: 84,
-                  opacity: d.month === "jun" ? 0.5 : 1,
-                }}
-              >
-                <div style={{ ...sans, fontSize: 11, color: d.day === 4 ? c.boss : c.mist, fontWeight: d.day === 4 ? 700 : 500, marginBottom: 6 }}>
-                  {d.day}
+            {days.map((day) => {
+              const dayEvents = eventsForDay(day);
+              const dayNum = parseInt(day.slice(8, 10), 10);
+              const isToday = day === todayStr;
+              return (
+                <div key={day} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 10, padding: 8, minHeight: 84 }}>
+                  <div style={{ ...sans, fontSize: 11, color: isToday ? c.boss : c.mist, fontWeight: isToday ? 700 : 500, marginBottom: 6 }}>
+                    {dayNum}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    {dayEvents.map((e) => (
+                      <div
+                        key={e.id}
+                        onClick={() => deleteTask.mutate(e.id)}
+                        title="Clicar para eliminar"
+                        style={{
+                          ...sans, fontSize: 9, color: "#fff",
+                          background: (COLOR_TAG_SWATCHES.find((s) => s.key === e.colorTag) || COLOR_TAG_SWATCHES[0]).hex,
+                          borderRadius: 4, padding: "2px 5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer",
+                        }}
+                      >
+                        {e.text}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  {d.events.map((e, j) => (
-                    <div
-                      key={j}
-                      style={{
-                        ...sans, fontSize: 9, color: "#fff", background: e.color, borderRadius: 4, padding: "2px 5px",
-                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                      }}
-                    >
-                  {e.label}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -4557,31 +4800,140 @@ function CalendarioGeral() {
   );
 }
 
-function CalendarioPessoal() {
+function PersonalPendingItem({ task, onToggle, onDelete }) {
+  const bg = COLOR_TAG_BG[task.colorTag] || COLOR_TAG_BG.purple;
   return (
-    <div>
-      <h2 style={{ ...serif, fontSize: 16, color: c.ink, fontWeight: 500, margin: "0 0 12px" }}>Pendências (sem dia definido)</h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
-        {PERSONAL_PENDING.map((t) => (
-          <div key={t.id} style={{ background: t.color, borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ ...sans, fontSize: 12.5, color: c.ink }}>{t.text}</span>
-            <span style={{ ...sans, fontSize: 10.5, color: c.mist }}>{t.tag}</span>
-          </div>
+    <div style={{ background: bg, borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+      <button onClick={onToggle} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", flexShrink: 0 }}>
+        {task.done ? <CheckCircle2 size={15} color={c.sage} /> : <span style={{ width: 15, height: 15, borderRadius: 999, border: `1.5px solid ${c.mist}` }} />}
+      </button>
+      <span style={{ ...sans, fontSize: 12.5, color: c.ink, flex: 1, textDecoration: task.done ? "line-through" : "none" }}>{task.text}</span>
+      {task.weekReference && <span style={{ ...sans, fontSize: 10.5, color: c.mist, flexShrink: 0 }}>{task.weekReference}</span>}
+      <button onClick={onDelete} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 0, flexShrink: 0 }}>
+        <Trash2 size={13} />
+      </button>
+    </div>
+  );
+}
+
+function NewPendingForm({ onAdd, onDone }) {
+  const [text, setText] = useState("");
+  const [weekReference, setWeekReference] = useState("");
+  const [colorTag, setColorTag] = useState("purple");
+  const submit = (e) => {
+    e.preventDefault();
+    if (!text.trim()) return;
+    onAdd({ text: text.trim(), allocationType: "sem_dia", weekReference, colorTag });
+    onDone();
+  };
+  return (
+    <form onSubmit={submit} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 10, padding: 12, marginBottom: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+      <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Nova pendência" style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 10px", outline: "none" }} />
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <input value={weekReference} onChange={(e) => setWeekReference(e.target.value)} placeholder="Etiqueta (ex: 4ª Semana)" style={{ ...sans, fontSize: 12, border: `1px solid ${c.line}`, borderRadius: 8, padding: "6px 9px", flex: 1, minWidth: 120, outline: "none" }} />
+        {COLOR_TAG_SWATCHES.map((sw) => (
+          <button key={sw.key} type="button" onClick={() => setColorTag(sw.key)} style={{ width: 18, height: 18, borderRadius: 999, background: sw.hex, border: colorTag === sw.key ? `2px solid ${c.ink}` : "2px solid transparent", cursor: "pointer" }} />
         ))}
       </div>
-      <h2 style={{ ...serif, fontSize: 16, color: c.ink, fontWeight: 500, margin: "0 0 12px" }}>Tarefas por dia da semana</h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {PERSONAL_BY_DAY.map((d) => (
-          <div key={d.day}>
-            <div style={{ ...sans, fontSize: 12, fontWeight: 600, color: c.ink, marginBottom: 8 }}>{d.day}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {d.tasks.map((t, i) => (
-                <div key={i} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", ...sans, fontSize: 12.5, color: c.ink }}>
-                  {t}
-                </div>
-              ))}
-            </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button type="submit" style={{ ...sans, fontSize: 12, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}>Adicionar</button>
+        <button type="button" onClick={onDone} style={{ ...sans, fontSize: 12, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>Cancelar</button>
+      </div>
+    </form>
+  );
+}
+
+function WeekdayTaskColumn({ day, tasks, onAdd, onDelete }) {
+  const [adding, setAdding] = useState(false);
+  const [text, setText] = useState("");
+  const submit = () => {
+    if (!text.trim()) return;
+    onAdd({ text: text.trim(), allocationType: "dia_especifico", weekdays: [day.key] });
+    setText("");
+    setAdding(false);
+  };
+  return (
+    <div>
+      <div style={{ ...sans, fontSize: 12, fontWeight: 600, color: c.ink, marginBottom: 8 }}>{day.label}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+        {tasks.map((t) => (
+          <div key={t.id} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ ...sans, fontSize: 12.5, color: c.ink, flex: 1 }}>{t.text}</span>
+            <button onClick={() => onDelete(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 0, flexShrink: 0 }}>
+              <Trash2 size={12} />
+            </button>
           </div>
+        ))}
+        {tasks.length === 0 && <div style={{ ...sans, fontSize: 11.5, color: c.mistLight }}>Sem tarefas.</div>}
+      </div>
+      {adding ? (
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            autoFocus
+            placeholder="Nova tarefa"
+            style={{ ...sans, flex: 1, fontSize: 12, border: `1px solid ${c.line}`, borderRadius: 7, padding: "6px 8px", outline: "none" }}
+          />
+          <button onClick={submit} style={{ ...sans, fontSize: 11, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "6px 9px", cursor: "pointer" }}>OK</button>
+        </div>
+      ) : (
+        <button onClick={() => setAdding(true)} style={{ ...sans, fontSize: 11, color: c.boss, background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
+          <Plus size={11} /> Adicionar
+        </button>
+      )}
+    </div>
+  );
+}
+
+function CalendarioPessoal({ session }) {
+  const [showPendingForm, setShowPendingForm] = useState(false);
+  const tasksQuery = usePersonalTasks(session, session.role === "admin_geral");
+  const addTask = useAddPersonalTask(session);
+  const toggleTask = useTogglePersonalTask(session);
+  const deleteTask = useDeletePersonalTask(session);
+
+  if (session.role !== "admin_geral") {
+    return <div style={{ ...sans, fontSize: 13, color: c.mist }}>Só disponível para o Admin Geral.</div>;
+  }
+
+  const tasks = tasksQuery.data || [];
+  const pending = tasks.filter((t) => t.allocationType === "sem_dia");
+  const byDay = tasks.filter((t) => t.allocationType === "dia_especifico");
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <h2 style={{ ...serif, fontSize: 16, color: c.ink, fontWeight: 500, margin: 0 }}>Pendências (sem dia definido)</h2>
+        {!showPendingForm && (
+          <button
+            onClick={() => setShowPendingForm(true)}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 7, padding: "6px 11px", cursor: "pointer" }}
+          >
+            <Plus size={12} /> Nova pendência
+          </button>
+        )}
+      </div>
+      {showPendingForm && <NewPendingForm onAdd={(t) => addTask.mutate(t)} onDone={() => setShowPendingForm(false)} />}
+      {tasksQuery.isLoading && <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 10 }}>A carregar…</div>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+        {pending.map((t) => (
+          <PersonalPendingItem key={t.id} task={t} onToggle={() => toggleTask.mutate({ id: t.id, done: !t.done })} onDelete={() => deleteTask.mutate(t.id)} />
+        ))}
+        {!tasksQuery.isLoading && pending.length === 0 && <div style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>Sem pendências.</div>}
+      </div>
+
+      <h2 style={{ ...serif, fontSize: 16, color: c.ink, fontWeight: 500, margin: "0 0 12px" }}>Tarefas por dia da semana</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-4, repeat(4, 1fr))", gap: 16 }}>
+        {WEEKDAYS.map((day) => (
+          <WeekdayTaskColumn
+            key={day.key}
+            day={day}
+            tasks={byDay.filter((t) => t.weekdays.includes(day.key))}
+            onAdd={(t) => addTask.mutate(t)}
+            onDelete={(id) => deleteTask.mutate(id)}
+          />
         ))}
       </div>
     </div>
@@ -4594,7 +4946,7 @@ function MinhasTarefas({ session }) {
   const addTask = useAddPersonalTask(session);
   const toggleTask = useTogglePersonalTask(session);
   const deleteTask = useDeletePersonalTask(session);
-  const tasks = tasksQuery.data || [];
+  const tasks = (tasksQuery.data || []).filter((t) => t.allocationType === "sem_dia");
 
   if (session.role !== "admin_geral") {
     return <div style={{ ...sans, fontSize: 13, color: c.mist }}>Só disponível para o Admin Geral.</div>;
@@ -4602,7 +4954,7 @@ function MinhasTarefas({ session }) {
 
   const submitNew = () => {
     if (!newText.trim()) return;
-    addTask.mutate(newText.trim());
+    addTask.mutate({ text: newText.trim(), allocationType: "sem_dia" });
     setNewText("");
   };
 
@@ -4680,8 +5032,8 @@ function CentroComandoModule({ session }) {
           </button>
         ))}
       </div>
-      {tab === "geral" && <CalendarioGeral />}
-      {tab === "pessoal" && <CalendarioPessoal />}
+      {tab === "geral" && <CalendarioGeral session={session} />}
+      {tab === "pessoal" && <CalendarioPessoal session={session} />}
       {tab === "tarefas" && <MinhasTarefas session={session} />}
     </div>
   );
@@ -5257,7 +5609,7 @@ function PortfolioModule({ session }) {
         </div>
       </div>
       <div style={{ ...sans, fontSize: 12, color: c.mist, marginBottom: 20, maxWidth: 560, lineHeight: 1.6 }}>
-        3 modelos já vêm prontos a editar — ou carrega uma apresentação que já tenhas para a recriares aqui dentro, com branding próprio.
+        Cria uma apresentação do zero, com o teu branding — ou carrega uma que já tenhas para a recriares aqui dentro.
       </div>
 
       {decksQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
@@ -5336,7 +5688,93 @@ function SocialRow({ platforms, size = 15 }) {
   );
 }
 
+function quizLinkLabel(product) {
+  if (!product) return "Ver mais";
+  if (product.linkType === "calendar") return "Marcar agora";
+  if (product.linkType === "whatsapp") return "Falar no WhatsApp";
+  return "Ver";
+}
+
+function LinkPageQuiz({ quiz, products, onExit }) {
+  const [step, setStep] = useState(0);
+  const [votes, setVotes] = useState({});
+
+  const answer = (productId) => {
+    if (productId) setVotes((v) => ({ ...v, [productId]: (v[productId] || 0) + 1 }));
+    setStep((s) => s + 1);
+  };
+
+  const isResult = step >= quiz.questions.length;
+  let winner = null;
+  if (isResult) {
+    const entries = Object.entries(votes).sort((a, b) => b[1] - a[1]);
+    const winnerId = entries.length > 0 ? entries[0][0] : null;
+    winner = products.find((p) => p.id === winnerId) || null;
+  }
+
+  return (
+    <div style={{ background: "#fff", borderRadius: 14, padding: "16px 14px", width: "100%" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <span style={{ ...sans, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: c.boss }}>{quiz.title}</span>
+        <button onClick={onExit} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 0 }}>
+          <XCircle size={14} />
+        </button>
+      </div>
+
+      {!isResult && (
+        <div>
+          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 12, lineHeight: 1.4 }}>{quiz.questions[step].text}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {quiz.questions[step].options.map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => answer(opt.productId)}
+                style={{ ...sans, fontSize: 12.5, color: c.ink, background: c.paper, border: "none", borderRadius: 8, padding: "9px 12px", cursor: "pointer", textAlign: "left" }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ ...sans, fontSize: 10, color: c.mistLight, marginTop: 10, textAlign: "center" }}>
+            {step + 1} / {quiz.questions.length}
+          </div>
+        </div>
+      )}
+
+      {isResult && (
+        <div style={{ textAlign: "center" }}>
+          {winner ? (
+            <>
+              <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 4 }}>Recomendamos-te:</div>
+              <div style={{ ...serif, fontSize: 17, color: c.ink, marginBottom: 12 }}>{winner.name}</div>
+              <a
+                href={winner.linkUrl || "#"}
+                target="_blank"
+                rel="noreferrer"
+                style={{ ...sans, display: "inline-block", fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, borderRadius: 999, padding: "9px 18px", textDecoration: "none" }}
+              >
+                {quizLinkLabel(winner)}
+              </a>
+            </>
+          ) : (
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>Não foi possível gerar uma recomendação.</div>
+          )}
+          <div>
+            <button onClick={onExit} style={{ ...sans, fontSize: 11, color: c.mistLight, background: "none", border: "none", cursor: "pointer", marginTop: 12 }}>
+              ‹ Voltar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LinkPagePreview({ page }) {
+  const [quizOpen, setQuizOpen] = useState(false);
+  const quiz = page.quiz || DEFAULT_QUIZ;
+  const canShowQuiz = quiz.enabled && quiz.questions.length > 0;
+
   return (
     <div
       style={{
@@ -5358,24 +5796,32 @@ function LinkPagePreview({ page }) {
       <div style={{ ...sans, fontSize: 10.5, color: "rgba(255,255,255,0.85)", textAlign: "center", marginBottom: 20, lineHeight: 1.5, textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>
         {page.about}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
-        {page.blocks.map((b) =>
-          b.type === "social" ? (
-            <div key={b.id} style={{ padding: "6px 0 2px" }}>
-              <SocialRow platforms={b.platforms} />
-            </div>
-          ) : (
-            <div key={b.id} style={{ background: "rgba(255,255,255,0.18)", backdropFilter: "blur(2px)", borderRadius: 10, padding: "10px 12px", ...sans, fontSize: 11, color: "#fff", textAlign: "center" }}>
-              {b.label}
-            </div>
-          )
-        )}
-        {page.quizEnabled && (
-          <div style={{ background: "#fff", borderRadius: 10, padding: "10px 12px", ...sans, fontSize: 11, color: c.boss, textAlign: "center", fontWeight: 700, marginTop: 4 }}>
-            ✦ Não sabes por onde começar?
-          </div>
-        )}
-      </div>
+
+      {quizOpen && canShowQuiz ? (
+        <LinkPageQuiz quiz={quiz} products={page.products || []} onExit={() => setQuizOpen(false)} />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+          {page.blocks.map((b) =>
+            b.type === "social" ? (
+              <div key={b.id} style={{ padding: "6px 0 2px" }}>
+                <SocialRow platforms={b.platforms} />
+              </div>
+            ) : (
+              <div key={b.id} style={{ background: "rgba(255,255,255,0.18)", backdropFilter: "blur(2px)", borderRadius: 10, padding: "10px 12px", ...sans, fontSize: 11, color: "#fff", textAlign: "center" }}>
+                {b.label}
+              </div>
+            )
+          )}
+          {canShowQuiz && (
+            <button
+              onClick={() => setQuizOpen(true)}
+              style={{ background: "#fff", borderRadius: 10, padding: "10px 12px", ...sans, fontSize: 11, color: c.boss, textAlign: "center", fontWeight: 700, marginTop: 4, border: "none", cursor: "pointer", width: "100%" }}
+            >
+              ✦ {quiz.title}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -5598,6 +6044,30 @@ function LinkNaBioEditor({ initialPage, onBack }) {
       return { ...p, blocks };
     });
   };
+
+  const addProduct = () => {
+    setPage((p) => ({ ...p, products: [...p.products, { id: `p${Date.now()}`, name: "Novo produto", type: "product", targetAudience: "", linkType: "product", linkUrl: "" }] }));
+  };
+  const updateProduct = (id, patch) => setPage((p) => ({ ...p, products: p.products.map((pr) => (pr.id === id ? { ...pr, ...patch } : pr)) }));
+  const removeProduct = (id) => setPage((p) => ({
+    ...p,
+    products: p.products.filter((pr) => pr.id !== id),
+    quiz: { ...p.quiz, questions: p.quiz.questions.map((q) => ({ ...q, options: q.options.map((o) => (o.productId === id ? { ...o, productId: "" } : o)) })) },
+  }));
+
+  const updateQuiz = (patch) => setPage((p) => ({ ...p, quiz: { ...p.quiz, ...patch } }));
+  const addQuestion = () => updateQuiz({ questions: [...page.quiz.questions, { id: `q${Date.now()}`, text: "", options: [{ id: `o${Date.now()}`, label: "", productId: "" }] }] });
+  const updateQuestion = (qid, text) => updateQuiz({ questions: page.quiz.questions.map((q) => (q.id === qid ? { ...q, text } : q)) });
+  const removeQuestion = (qid) => updateQuiz({ questions: page.quiz.questions.filter((q) => q.id !== qid) });
+  const addOption = (qid) => updateQuiz({
+    questions: page.quiz.questions.map((q) => (q.id === qid ? { ...q, options: [...q.options, { id: `o${Date.now()}`, label: "", productId: "" }] } : q)),
+  });
+  const updateOption = (qid, oid, patch) => updateQuiz({
+    questions: page.quiz.questions.map((q) => (q.id === qid ? { ...q, options: q.options.map((o) => (o.id === oid ? { ...o, ...patch } : o)) } : q)),
+  });
+  const removeOption = (qid, oid) => updateQuiz({
+    questions: page.quiz.questions.map((q) => (q.id === qid ? { ...q, options: q.options.filter((o) => o.id !== oid) } : q)),
+  });
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1080 }}>
@@ -5912,23 +6382,144 @@ function LinkNaBioEditor({ initialPage, onBack }) {
           </ChartCard>
 
           <ChartCard
-            title="Quiz de recomendação"
-            sub="Até 5 perguntas → produto ou WhatsApp"
+            title="Produtos e serviços"
+            sub="Para recomendar no quiz — nome, público-alvo e para onde enviar"
             right={
-              <button
-                onClick={() => setPage((p) => ({ ...p, quizEnabled: !p.quizEnabled }))}
-                style={{
-                  ...sans, fontSize: 11.5, fontWeight: 600, color: page.quizEnabled ? c.sage : c.mist,
-                  background: page.quizEnabled ? "#E7F5EC" : c.paper, border: "none", borderRadius: 999, padding: "4px 10px", cursor: "pointer",
-                }}
-              >
-                {page.quizEnabled ? "Ativo" : "Inativo"}
+              <button onClick={addProduct} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
+                <Plus size={13} /> Produto/serviço
               </button>
             }
           >
-            <div style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.6 }}>
-              Cada pergunta tem 2-4 opções; a combinação de respostas determina o produto (ou o WhatsApp) para onde a pessoa é levada no fim.
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {page.products.map((pr) => (
+                <div key={pr.id} style={{ background: c.paper, borderRadius: 10, padding: "12px 14px" }}>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+                    <input
+                      value={pr.name}
+                      onChange={(e) => updateProduct(pr.id, { name: e.target.value })}
+                      placeholder="Nome"
+                      style={{ ...sans, flex: 1, fontSize: 13, fontWeight: 600, color: c.ink, border: "none", outline: "none", background: "none" }}
+                    />
+                    <select
+                      value={pr.type}
+                      onChange={(e) => updateProduct(pr.id, { type: e.target.value })}
+                      style={{ ...sans, fontSize: 11, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 6, padding: "5px 8px", cursor: "pointer" }}
+                    >
+                      {Object.entries(PRODUCT_TYPES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                    </select>
+                    <button onClick={() => removeProduct(pr.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.rose, flexShrink: 0 }}>
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  <input
+                    value={pr.targetAudience}
+                    onChange={(e) => updateProduct(pr.id, { targetAudience: e.target.value })}
+                    placeholder="Para que público é isto?"
+                    style={{ ...sans, width: "100%", fontSize: 12.5, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px", outline: "none", background: "#fff", marginBottom: 8 }}
+                  />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <select
+                      value={pr.linkType}
+                      onChange={(e) => updateProduct(pr.id, { linkType: e.target.value })}
+                      style={{ ...sans, fontSize: 12, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 9px", cursor: "pointer" }}
+                    >
+                      {Object.entries(LINK_TYPES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                    </select>
+                    <input
+                      value={pr.linkUrl}
+                      onChange={(e) => updateProduct(pr.id, { linkUrl: e.target.value })}
+                      placeholder="https://..."
+                      style={{ ...sans, flex: 1, fontSize: 12.5, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 10px", outline: "none", background: "#fff" }}
+                    />
+                  </div>
+                </div>
+              ))}
+              {page.products.length === 0 && (
+                <div style={{ ...sans, fontSize: 12, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>Ainda sem produtos/serviços.</div>
+              )}
             </div>
+          </ChartCard>
+
+          <ChartCard
+            title="Quiz de recomendação"
+            sub="Cada resposta aponta para um produto/serviço"
+            right={
+              <button
+                onClick={() => updateQuiz({ enabled: !page.quiz.enabled })}
+                style={{
+                  ...sans, fontSize: 11.5, fontWeight: 600, color: page.quiz.enabled ? c.sage : c.mist,
+                  background: page.quiz.enabled ? "#E7F5EC" : c.paper, border: "none", borderRadius: 999, padding: "4px 10px", cursor: "pointer",
+                }}
+              >
+                {page.quiz.enabled ? "Ativo" : "Inativo"}
+              </button>
+            }
+          >
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 5 }}>Título do quiz</div>
+              <input
+                value={page.quiz.title}
+                onChange={(e) => updateQuiz({ title: e.target.value })}
+                style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink }}
+              />
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12 }}>
+              {page.quiz.questions.map((q, qi) => (
+                <div key={q.id} style={{ background: c.paper, borderRadius: 10, padding: "12px 14px" }}>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+                    <span style={{ ...sans, fontSize: 10.5, fontWeight: 700, color: c.boss, flexShrink: 0 }}>P{qi + 1}</span>
+                    <input
+                      value={q.text}
+                      onChange={(e) => updateQuestion(q.id, e.target.value)}
+                      placeholder="Texto da pergunta"
+                      style={{ ...sans, flex: 1, fontSize: 13, fontWeight: 600, color: c.ink, border: "none", outline: "none", background: "none" }}
+                    />
+                    <button onClick={() => removeQuestion(q.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.rose, flexShrink: 0 }}>
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+                    {q.options.map((opt) => (
+                      <div key={opt.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <input
+                          value={opt.label}
+                          onChange={(e) => updateOption(q.id, opt.id, { label: e.target.value })}
+                          placeholder="Texto da resposta"
+                          style={{ ...sans, flex: 1, fontSize: 12.5, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 10px", outline: "none", background: "#fff" }}
+                        />
+                        <select
+                          value={opt.productId}
+                          onChange={(e) => updateOption(q.id, opt.id, { productId: e.target.value })}
+                          style={{ ...sans, fontSize: 11.5, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 8px", cursor: "pointer", maxWidth: 140 }}
+                        >
+                          <option value="">Recomenda...</option>
+                          {page.products.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
+                        </select>
+                        <button onClick={() => removeOption(q.id, opt.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, flexShrink: 0 }}>
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => addOption(q.id)}
+                    style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: c.boss, background: "none", border: `1px dashed ${c.line}`, borderRadius: 7, padding: "6px 10px", cursor: "pointer", width: "100%" }}
+                  >
+                    <Plus size={11} style={{ verticalAlign: "middle", marginRight: 4 }} /> Adicionar resposta
+                  </button>
+                </div>
+              ))}
+              {page.quiz.questions.length === 0 && (
+                <div style={{ ...sans, fontSize: 12, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>Ainda sem perguntas.</div>
+              )}
+            </div>
+            <button
+              onClick={addQuestion}
+              style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 7, padding: "8px 12px", cursor: "pointer", justifyContent: "center", width: "100%" }}
+            >
+              <Plus size={13} /> Adicionar pergunta
+            </button>
           </ChartCard>
         </div>
       </div>
@@ -7481,7 +8072,7 @@ export function PublicLinkPage() {
     let active = true;
     supabase
       .from("link_pages")
-      .select("profile_photo_url, background_removed, background_style, about_text, blocks, quiz")
+      .select("profile_photo_url, background_removed, background_style, about_text, blocks, products, quiz")
       .eq("slug", slug)
       .maybeSingle()
       .then(({ data, error }) => {
@@ -7500,7 +8091,10 @@ export function PublicLinkPage() {
             avatarBgRemoved: !!data.background_removed,
             bg: data.background_style && Object.keys(data.background_style).length ? data.background_style : DEFAULT_LINK_BG,
             blocks: data.blocks || [],
-            quizEnabled: !!(data.quiz && data.quiz.enabled),
+            products: data.products || [],
+            quiz: data.quiz && Object.keys(data.quiz).length
+              ? { enabled: !!data.quiz.enabled, title: data.quiz.title || DEFAULT_QUIZ.title, questions: data.quiz.questions || [] }
+              : { ...DEFAULT_QUIZ },
           },
         });
       });
