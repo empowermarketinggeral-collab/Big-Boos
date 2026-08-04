@@ -1412,6 +1412,33 @@ function useDeleteArticle() {
   });
 }
 
+function useUpdateArticle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, title, steps }) => {
+      const { error } = await supabase.from("knowledge_articles").update({ title, steps }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["knowledge_articles"] }),
+  });
+}
+
+function splitStepsFromText(raw) {
+  const text = (raw || "").trim();
+  if (!text) return [];
+  let parts;
+  const numberedMatches = text.match(/(?:^|\s)\d+[.)]\s/g);
+  if (numberedMatches && numberedMatches.length > 1) {
+    parts = text.split(/(?:^|\s)(?=\d+[.)]\s)/);
+  } else {
+    const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+    parts = lines.length > 1 ? lines : text.split(/(?<=[.!?])\s+(?=[A-ZÀ-ÖØ-Ý0-9])/);
+  }
+  return parts
+    .map((p) => p.replace(/^[-•*]\s*/, "").replace(/^\d+[.)]\s*/, "").trim())
+    .filter(Boolean);
+}
+
 const SLIDE_LAYOUTS = [
   { key: "title", label: "Título", icon: FileText },
   { key: "stat", label: "Estatística", icon: TrendingUp },
@@ -5107,7 +5134,43 @@ function CentroComandoModule({ session }) {
 /* ---------------------------------------------------------
    BASE DE CONHECIMENTO — SOPs interativos (não PDF)
 --------------------------------------------------------- */
-function ArticleDetail({ article, onBack, onDelete }) {
+function ArticleDetail({ article, onBack, onDelete, session }) {
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(article.title);
+  const [steps, setSteps] = useState(article.steps);
+  const [pasteText, setPasteText] = useState("");
+  const updateArticle = useUpdateArticle();
+  const canManage = CAN_MANAGE_ROLES.includes(session.role);
+
+  const startEditing = () => {
+    setTitle(article.title);
+    setSteps(article.steps);
+    setPasteText("");
+    setEditing(true);
+  };
+
+  const applySplit = () => {
+    const parsed = splitStepsFromText(pasteText);
+    if (parsed.length) setSteps(parsed);
+    setPasteText("");
+  };
+
+  const moveStep = (from, to) => {
+    setSteps((prev) => {
+      const next = [...prev];
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item);
+      return next;
+    });
+  };
+
+  const save = async () => {
+    await updateArticle.mutateAsync({ id: article.id, title: title.trim() || "Sem título", steps: steps.map((s) => s.trim()).filter(Boolean) });
+    setEditing(false);
+  };
+
+  const iconBtn = { background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 3, display: "flex" };
+
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 720 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
@@ -5117,20 +5180,83 @@ function ArticleDetail({ article, onBack, onDelete }) {
         >
           <ArrowLeft size={14} /> Base de Conhecimento
         </button>
-        <button
-          onClick={onDelete}
-          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}
-        >
-          <Trash2 size={13} /> Eliminar
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          {canManage && editing && (
+            <>
+              <button
+                onClick={save}
+                disabled={updateArticle.isPending}
+                style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
+              >
+                {updateArticle.isPending ? "A guardar…" : "Guardar"}
+              </button>
+              <button
+                onClick={() => setEditing(false)}
+                style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+              >
+                Cancelar
+              </button>
+            </>
+          )}
+          {canManage && !editing && (
+            <button
+              onClick={startEditing}
+              style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.ink, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}
+            >
+              <Pencil size={13} /> Editar
+            </button>
+          )}
+          {!editing && (
+            <button
+              onClick={onDelete}
+              style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}
+            >
+              <Trash2 size={13} /> Eliminar
+            </button>
+          )}
+        </div>
       </div>
       <span style={{ ...sans, fontSize: 10.5, fontWeight: 700, color: c.boss, background: c.bossSoft, borderRadius: 6, padding: "3px 8px" }}>
         {article.category}
       </span>
-      <h1 style={{ ...serif, fontSize: 26, fontWeight: 500, color: c.ink, margin: "12px 0 24px" }}>{article.title}</h1>
+      {editing ? (
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          style={{ ...serif, fontSize: 24, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", width: "100%", margin: "12px 0 20px", display: "block" }}
+        />
+      ) : (
+        <h1 style={{ ...serif, fontSize: 26, fontWeight: 500, color: c.ink, margin: "12px 0 24px" }}>{article.title}</h1>
+      )}
+
+      {editing && (
+        <div style={{ background: c.paper, border: `1px solid ${c.line}`, borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.ink, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+            <Sparkles size={13} color={c.boss} /> Colar o processo
+          </div>
+          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 10, lineHeight: 1.5 }}>
+            Cola o texto todo corrido (com ou sem linhas/numeração) — o Big Boss separa automaticamente em passos. Podes depois ajustar cada passo abaixo.
+          </div>
+          <textarea
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            rows={5}
+            placeholder="Ex: Primeiro contacta o cliente. Depois envia o briefing. Por fim agenda a reunião de kickoff."
+            style={{ ...sans, fontSize: 13, color: c.ink, width: "100%", border: `1px solid ${c.line}`, borderRadius: 8, padding: "10px 12px", outline: "none", resize: "vertical", marginBottom: 10, boxSizing: "border-box" }}
+          />
+          <button
+            onClick={applySplit}
+            disabled={!pasteText.trim()}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "#fff", background: pasteText.trim() ? c.boss : c.mistLight, border: "none", borderRadius: 7, padding: "8px 13px", cursor: pasteText.trim() ? "pointer" : "default" }}
+          >
+            <Sparkles size={12} /> Separar em passos
+          </button>
+        </div>
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {article.steps.map((s, i) => (
-          <div key={i} style={{ display: "flex", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 16px" }}>
+        {steps.map((s, i) => (
+          <div key={i} style={{ display: "flex", gap: 14, alignItems: "center", background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 16px" }}>
             <span
               style={{
                 ...sans, fontSize: 11.5, fontWeight: 700, color: c.boss, background: c.bossSoft, borderRadius: 999,
@@ -5139,10 +5265,41 @@ function ArticleDetail({ article, onBack, onDelete }) {
             >
               {i + 1}
             </span>
-            <span style={{ ...sans, fontSize: 13.5, color: c.ink, lineHeight: 1.6, paddingTop: 1 }}>{s}</span>
+            {editing ? (
+              <>
+                <input
+                  value={s}
+                  onChange={(e) => setSteps(steps.map((st, idx) => (idx === i ? e.target.value : st)))}
+                  style={{ ...sans, fontSize: 13.5, color: c.ink, flex: 1, border: `1px solid ${c.line}`, borderRadius: 7, padding: "8px 10px", outline: "none" }}
+                />
+                <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+                  <button onClick={() => i > 0 && moveStep(i, i - 1)} disabled={i === 0} style={{ ...iconBtn, opacity: i === 0 ? 0.3 : 1 }}>
+                    <ChevronUp size={13} />
+                  </button>
+                  <button onClick={() => i < steps.length - 1 && moveStep(i, i + 1)} disabled={i === steps.length - 1} style={{ ...iconBtn, opacity: i === steps.length - 1 ? 0.3 : 1 }}>
+                    <ChevronDown size={13} />
+                  </button>
+                  <button onClick={() => setSteps(steps.filter((_, idx) => idx !== i))} style={iconBtn}>
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <span style={{ ...sans, fontSize: 13.5, color: c.ink, lineHeight: 1.6, paddingTop: 1 }}>{s}</span>
+            )}
           </div>
         ))}
+        {steps.length === 0 && <div style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>Sem passos ainda.</div>}
       </div>
+
+      {editing && (
+        <button
+          onClick={() => setSteps([...steps, ""])}
+          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: c.boss, background: "none", border: "none", cursor: "pointer", padding: "12px 0 0" }}
+        >
+          <Plus size={12} /> Adicionar passo manual
+        </button>
+      )}
     </div>
   );
 }
@@ -5166,6 +5323,7 @@ function BaseConhecimentoModule({ session }) {
         article={article}
         onBack={() => setOpenId(null)}
         onDelete={() => deleteArticle.mutate(article.id, { onSuccess: () => setOpenId(null) })}
+        session={session}
       />
     );
   }
