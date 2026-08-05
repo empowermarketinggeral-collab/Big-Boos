@@ -1564,13 +1564,17 @@ const DEFAULT_LINK_BG = {
 const DEFAULT_QUIZ = { enabled: false, title: "Não sabes por onde começar?", questions: [] };
 const PRODUCT_TYPES = { product: "Produto", collection: "Coleção", service: "Serviço" };
 const LINK_TYPES = { product: "Link do produto/coleção", calendar: "Link de marcação/calendário", whatsapp: "Link do WhatsApp" };
-const DEFAULT_PILL_STYLE = { color: "", textColor: "#ffffff", radius: 10, shadow: "none" };
+const DEFAULT_PILL_STYLE = { color: "", textColor: "#ffffff", radius: 10, shadow: "none", layout: "lista" };
 const PILL_COLOR_SWATCHES = ["", "#ffffff", "#1C1526", c.boss, "#2F9E63", "#C9821F", "#D3455B", "#3B5FC2"];
 const PILL_RADIUS_OPTIONS = [{ key: 6, label: "Quadrada" }, { key: 14, label: "Arredondada" }, { key: 999, label: "Pílula" }];
 const PILL_SHADOW_OPTIONS = [
   { key: "none", label: "Sem sombra", value: "none" },
   { key: "soft", label: "Subtil", value: "0 4px 14px rgba(0,0,0,0.18)" },
   { key: "strong", label: "Forte", value: "0 10px 26px rgba(0,0,0,0.35)" },
+];
+const PILL_LAYOUT_OPTIONS = [
+  { key: "lista", label: "Lista" },
+  { key: "grelha", label: "Grelha quadrada" },
 ];
 function pillCssFromStyle(pillStyle) {
   const ps = pillStyle || DEFAULT_PILL_STYLE;
@@ -6214,11 +6218,56 @@ function LinkPageQuiz({ quiz, products, onExit }) {
   );
 }
 
+function LinkBlockPill({ block, pillCss, layout }) {
+  const hasUrl = !!block.url;
+  const Tag = hasUrl ? "a" : "div";
+  const linkProps = hasUrl ? { href: block.url, target: "_blank", rel: "noopener noreferrer" } : {};
+
+  if (layout === "grelha") {
+    return (
+      <Tag
+        {...linkProps}
+        style={{
+          position: "relative", aspectRatio: "1", borderRadius: pillCss.borderRadius, overflow: "hidden",
+          background: block.imageUrl ? `url(${block.imageUrl}) center/cover` : pillCss.background,
+          boxShadow: pillCss.boxShadow, display: "flex", alignItems: "flex-end", textDecoration: "none",
+          opacity: hasUrl ? 1 : 0.6,
+        }}
+      >
+        {block.imageUrl && (
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.65) 100%)" }} />
+        )}
+        <span style={{ position: "relative", ...sans, fontSize: 10.5, fontWeight: 700, color: block.imageUrl ? "#fff" : pillCss.color, padding: "8px", textAlign: "center", width: "100%" }}>
+          {block.label}{!hasUrl && <><br /><span style={{ fontSize: 8.5, fontWeight: 500 }}>(sem link)</span></>}
+        </span>
+      </Tag>
+    );
+  }
+
+  return (
+    <Tag
+      {...linkProps}
+      style={{
+        ...pillCss, backdropFilter: "blur(2px)", padding: "8px 12px", ...sans, fontSize: 11, textAlign: "center",
+        textDecoration: "none", display: "flex", alignItems: "center", gap: 9, opacity: hasUrl ? 1 : 0.6,
+      }}
+    >
+      {block.imageUrl && (
+        <span style={{ width: 30, height: 30, borderRadius: 7, flexShrink: 0, background: `url(${block.imageUrl}) center/cover` }} />
+      )}
+      <span style={{ flex: 1, textAlign: block.imageUrl ? "left" : "center" }}>
+        {block.label}{!hasUrl && <span style={{ fontSize: 9 }}> (sem link)</span>}
+      </span>
+    </Tag>
+  );
+}
+
 function LinkPagePreview({ page }) {
   const [quizOpen, setQuizOpen] = useState(false);
   const quiz = page.quiz || DEFAULT_QUIZ;
   const canShowQuiz = quiz.enabled && quiz.questions.length > 0;
   const pillCss = pillCssFromStyle(page.pillStyle);
+  const layout = (page.pillStyle && page.pillStyle.layout) || "lista";
 
   return (
     <div
@@ -6245,32 +6294,24 @@ function LinkPagePreview({ page }) {
       {quizOpen && canShowQuiz ? (
         <LinkPageQuiz quiz={quiz} products={page.products || []} onExit={() => setQuizOpen(false)} />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+        <div style={{ display: layout === "grelha" ? "grid" : "flex", gridTemplateColumns: layout === "grelha" ? "1fr 1fr" : undefined, flexDirection: layout === "grelha" ? undefined : "column", gap: 8, width: "100%" }}>
           {page.blocks.map((b) =>
             b.type === "social" ? (
-              <div key={b.id} style={{ padding: "6px 0 2px" }}>
+              <div key={b.id} style={{ padding: "6px 0 2px", gridColumn: layout === "grelha" ? "1 / -1" : undefined }}>
                 <SocialRow platforms={b.platforms} />
               </div>
-            ) : b.url ? (
-              <a
-                key={b.id}
-                href={b.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ ...pillCss, backdropFilter: "blur(2px)", padding: "10px 12px", ...sans, fontSize: 11, textAlign: "center", textDecoration: "none", display: "block" }}
-              >
-                {b.label}
-              </a>
             ) : (
-              <div key={b.id} style={{ ...pillCss, backdropFilter: "blur(2px)", padding: "10px 12px", ...sans, fontSize: 11, textAlign: "center", opacity: 0.6 }}>
-                {b.label} <span style={{ fontSize: 9 }}>(sem link)</span>
-              </div>
+              <LinkBlockPill key={b.id} block={b} pillCss={pillCss} layout={layout} />
             )
           )}
           {canShowQuiz && (
             <button
               onClick={() => setQuizOpen(true)}
-              style={{ background: "#fff", borderRadius: 10, padding: "10px 12px", ...sans, fontSize: 11, color: c.boss, textAlign: "center", fontWeight: 700, marginTop: 4, border: "none", cursor: "pointer", width: "100%" }}
+              style={{
+                background: "#fff", borderRadius: 10, padding: "10px 12px", ...sans, fontSize: 11, color: c.boss, textAlign: "center",
+                fontWeight: 700, marginTop: 4, border: "none", cursor: "pointer", width: "100%",
+                gridColumn: layout === "grelha" ? "1 / -1" : undefined,
+              }}
             >
               ✦ {quiz.title}
             </button>
@@ -6474,13 +6515,29 @@ function LinkNaBioEditor({ initialPage, onBack }) {
 
   const addBlock = (type) => {
     const defaults = { link: "Novo link", video: "Novo vídeo", product: "Novo produto — 0€", podcast: "Novo episódio", social: "Redes sociais" };
-    const extra = type === "social" ? { platforms: ["instagram", "whatsapp"] } : { url: "" };
+    const extra = type === "social" ? { platforms: ["instagram", "whatsapp"] } : { url: "", imageUrl: "" };
     setPage((p) => ({ ...p, blocks: [...p.blocks, { id: Date.now(), type, label: defaults[type], ...extra }] }));
     setAddingBlock(false);
   };
   const removeBlock = (id) => setPage((p) => ({ ...p, blocks: p.blocks.filter((b) => b.id !== id) }));
   const renameBlock = (id, label) => setPage((p) => ({ ...p, blocks: p.blocks.map((b) => (b.id === id ? { ...b, label } : b)) }));
   const updateBlockUrl = (id, url) => setPage((p) => ({ ...p, blocks: p.blocks.map((b) => (b.id === id ? { ...b, url } : b)) }));
+  const updateBlockImage = (id, imageUrl) => setPage((p) => ({ ...p, blocks: p.blocks.map((b) => (b.id === id ? { ...b, imageUrl } : b)) }));
+  const onBlockImageSelected = async (id, e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    setError("");
+    try {
+      const url = await uploadLinkMedia(page.ownerId, file, `block-${id}`);
+      updateBlockImage(id, url);
+    } catch (err) {
+      setError(err.message || "Não foi possível carregar a imagem.");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
   const toggleSocialPlatform = (id, key) => {
     setPage((p) => ({
       ...p,
@@ -6808,13 +6865,35 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                     </button>
                   </div>
                   {b.type !== "social" && (
-                    <div style={{ marginTop: 6, paddingLeft: 2 }}>
+                    <div style={{ marginTop: 6, paddingLeft: 2, display: "flex", gap: 8, alignItems: "center" }}>
                       <input
                         value={b.url || ""}
                         onChange={(e) => updateBlockUrl(b.id, e.target.value)}
                         placeholder="https://... (para onde vai quando a pessoa carrega)"
-                        style={{ ...sans, width: "100%", fontSize: 11.5, color: c.ink, background: "#fff", border: `1px solid ${b.url ? c.line : c.rose}`, borderRadius: 6, padding: "6px 9px", outline: "none", boxSizing: "border-box" }}
+                        style={{ ...sans, flex: 1, fontSize: 11.5, color: c.ink, background: "#fff", border: `1px solid ${b.url ? c.line : c.rose}`, borderRadius: 6, padding: "6px 9px", outline: "none", boxSizing: "border-box" }}
                       />
+                      <label
+                        style={{
+                          width: 28, height: 28, borderRadius: 6, flexShrink: 0, cursor: "pointer", position: "relative", overflow: "hidden",
+                          background: b.imageUrl ? `url(${b.imageUrl}) center/cover` : c.paper,
+                          border: `1px dashed ${b.imageUrl ? "transparent" : c.line}`,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}
+                        title="Foto da pílula (opcional)"
+                      >
+                        {!b.imageUrl && <ImageIcon size={12} color={c.mistLight} />}
+                        <input type="file" accept="image/*" onChange={(e) => onBlockImageSelected(b.id, e)} style={{ display: "none" }} />
+                      </label>
+                      {b.imageUrl && (
+                        <button
+                          type="button"
+                          onClick={() => updateBlockImage(b.id, "")}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: c.mistLight, padding: 2, flexShrink: 0 }}
+                          title="Remover foto"
+                        >
+                          <XCircle size={13} />
+                        </button>
+                      )}
                     </div>
                   )}
                   {b.type === "social" && (
@@ -6859,6 +6938,14 @@ function LinkNaBioEditor({ initialPage, onBack }) {
               const label = { ...sans, fontSize: 11.5, fontWeight: 600, color: c.mist, marginBottom: 7 };
               return (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div>
+                    <div style={label}>Formato</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {PILL_LAYOUT_OPTIONS.map((l) => (
+                        <button key={l.key} type="button" onClick={() => updatePillStyle({ layout: l.key })} style={toggleBtn((ps.layout || "lista") === l.key)}>{l.label}</button>
+                      ))}
+                    </div>
+                  </div>
                   <div>
                     <div style={label}>Cor da pílula</div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
