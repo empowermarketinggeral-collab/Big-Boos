@@ -2133,7 +2133,7 @@ function TopBar({ onLogout }) {
           <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
           <div
             style={{
-              position: "absolute", top: 44, right: 40, width: 300, background: "#fff", border: `1px solid ${c.line}`,
+              position: "absolute", top: 44, right: 0, width: 300, maxWidth: "calc(100vw - 32px)", background: "#fff", border: `1px solid ${c.line}`,
               borderRadius: 14, boxShadow: "0 12px 30px rgba(23,21,31,0.14)", zIndex: 41, overflow: "hidden",
             }}
           >
