@@ -5,7 +5,7 @@ import { supabase } from "./lib/supabaseClient.js";
 import {
   LayoutGrid, Briefcase, FileText, BarChart3, Users, Settings,
   Calendar, BookOpen, ArrowLeft, Bell, Plus, CheckCircle2, XCircle,
-  Clock, ChevronRight, BookMarked, ClipboardList, Layers, Video,
+  Clock, ChevronRight, ChevronLeft, BookMarked, ClipboardList, Layers, Video,
   Link2, Calculator, Sparkles, Eye, Zap, Target, TrendingUp,
   Trash2, Pencil, ChevronUp, ChevronDown, Image as ImageIcon,
   Instagram, Facebook, Youtube, MessageCircle, Music2, Palette, Handshake,
@@ -256,12 +256,18 @@ function formatDatePt(isoDate) {
   return d.toLocaleDateString("pt-PT", { day: "numeric", month: "short" });
 }
 
-function guessMediaKind(mediaUrl) {
-  if (!mediaUrl) return null;
-  const ext = mediaUrl.split(".").pop().toLowerCase();
-  if (["mp4", "mov", "webm"].includes(ext)) return "video";
-  if (["zip"].includes(ext)) return "carousel";
-  return "image";
+function mediaKindOf(url) {
+  const ext = (url || "").split(".").pop().toLowerCase();
+  return ["mp4", "mov", "webm"].includes(ext) ? "video" : "image";
+}
+
+async function uploadContentMedia(brandId, file) {
+  const ext = file.name.split(".").pop();
+  const path = `${brandId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await supabase.storage.from("content-media").upload(path, file);
+  if (error) throw error;
+  const { data } = supabase.storage.from("content-media").getPublicUrl(path);
+  return data.publicUrl;
 }
 
 function mapContentRow(row) {
@@ -273,10 +279,9 @@ function mapContentRow(row) {
     title: row.title || "(sem título)",
     status: row.approval_status,
     date: formatDatePt(row.scheduled_date),
+    dateIso: row.scheduled_date,
     note: row.client_note || "",
-    mediaKind: guessMediaKind(row.media_url),
-    mediaLabel: row.media_url ? row.media_url.split("/").pop() : null,
-    mediaUrl: row.media_url,
+    mediaUrls: row.media_urls || [],
     copy: row.caption || "",
   };
 }
@@ -298,7 +303,7 @@ function useContents(brandId, enabled) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contents")
-        .select("id, type, platform, title, approval_status, scheduled_date, client_note, media_url, caption, created_at")
+        .select("id, type, platform, title, approval_status, scheduled_date, client_note, media_urls, caption, created_at")
         .eq("brand_id", brandId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -348,7 +353,7 @@ function useApproveScript(brandId) {
 function useAddContent(brandId) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ createdBy, typeLabel, platformKeys, title, scheduledDate, copy }) => {
+    mutationFn: async ({ createdBy, typeLabel, platformKeys, title, scheduledDate, copy, mediaUrls }) => {
       const { data, error } = await supabase
         .from("contents")
         .insert({
@@ -359,11 +364,23 @@ function useAddContent(brandId) {
           title,
           scheduled_date: scheduledDate || null,
           caption: copy,
+          media_urls: mediaUrls || [],
         })
         .select()
         .single();
       if (error) throw error;
       return mapContentRow(data);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contents", brandId] }),
+  });
+}
+
+function useUpdateContentMedia(brandId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, mediaUrls }) => {
+      const { error } = await supabase.from("contents").update({ media_urls: mediaUrls }).eq("id", id);
+      if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contents", brandId] }),
   });
@@ -2597,82 +2614,62 @@ const PLATFORM_STYLE = {
   TikTok: { bg: "#EDEAF5", color: "#2E2A45" },
 };
 
-function MediaPreview({ item, onView }) {
-  const label = { video: "Vídeo", image: "Imagem", carousel: "Carrossel" }[item.mediaKind];
+function MediaPreview({ item, onView, onRemove, canManage }) {
+  if (!item.mediaUrls || item.mediaUrls.length === 0) return null;
   return (
-    <div
-      style={{
-        background: c.paper,
-        border: `1px solid ${c.line}`,
-        borderRadius: 10,
-        padding: "12px 14px",
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        marginBottom: 14,
-      }}
-    >
-      <div
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 8,
-          background: c.bossSoft,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        {item.mediaKind === "video" ? (
-          <Video size={17} color={c.boss} strokeWidth={1.8} />
-        ) : (
-          <FileText size={17} color={c.boss} strokeWidth={1.8} />
-        )}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ ...sans, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: c.mist }}>
-          {label} anexado
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+      {item.mediaUrls.map((url, i) => (
+        <div key={i} style={{ position: "relative" }}>
+          <button
+            type="button"
+            onClick={() => onView(i)}
+            style={{
+              width: 64, height: 64, borderRadius: 8, overflow: "hidden", border: `1px solid ${c.line}`,
+              padding: 0, cursor: "pointer", background: c.paper, display: "block",
+            }}
+          >
+            {mediaKindOf(url) === "video" ? (
+              <video src={url} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted />
+            ) : (
+              <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            )}
+          </button>
+          {canManage && onRemove && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onRemove(i); }}
+              style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: 999, background: c.rose, border: "2px solid #fff", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
+            >
+              <XCircle size={11} />
+            </button>
+          )}
         </div>
-        <div style={{ ...sans, fontSize: 12.5, color: c.ink, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          {item.mediaLabel}
-        </div>
-      </div>
-      <button
-        onClick={onView}
-        style={{
-          ...sans, fontSize: 11.5, fontWeight: 600, color: c.boss, background: "#fff",
-          border: `1px solid ${c.line}`, borderRadius: 7, padding: "6px 10px", cursor: "pointer", flexShrink: 0,
-        }}
-      >
-        Ver
-      </button>
+      ))}
     </div>
   );
 }
 
-function MediaLightbox({ item, onClose }) {
+function MediaLightbox({ item, index, onClose }) {
+  const url = item.mediaUrls[index];
+  const kind = mediaKindOf(url);
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(23,21,31,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20, overflowY: "auto" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: 24, maxWidth: 420, width: "100%", maxHeight: "85vh", overflowY: "auto", margin: "auto" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <span style={{ ...sans, fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: c.boss }}>Pré-visualização</span>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 0 }}>
-            <XCircle size={18} />
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(23,21,31,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520, width: "100%", maxHeight: "85vh" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+          <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#fff", padding: 0 }}>
+            <XCircle size={22} />
           </button>
         </div>
-        <div
-          style={{
-            height: 260, borderRadius: 12, background: c.paper, display: "flex", flexDirection: "column",
-            alignItems: "center", justifyContent: "center", gap: 10, border: `1px solid ${c.line}`,
-          }}
-        >
-          {item.mediaKind === "video" ? <Video size={26} color={c.boss} /> : <FileText size={26} color={c.boss} />}
-          <span style={{ ...sans, fontSize: 12.5, color: c.mist }}>{item.mediaLabel}</span>
-        </div>
-        <div style={{ ...sans, fontSize: 11.5, color: c.mistLight, marginTop: 10, textAlign: "center" }}>
-          No produto final, aqui aparece o ficheiro real carregado pela equipa.
-        </div>
+        {kind === "video" ? (
+          <video src={url} controls autoPlay style={{ width: "100%", maxHeight: "75vh", borderRadius: 12, background: "#000" }} />
+        ) : (
+          <img src={url} alt="" style={{ width: "100%", maxHeight: "75vh", objectFit: "contain", borderRadius: 12 }} />
+        )}
+        {item.mediaUrls.length > 1 && (
+          <div style={{ ...sans, fontSize: 12, color: "#fff", textAlign: "center", marginTop: 8 }}>
+            {index + 1} / {item.mediaUrls.length}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2680,17 +2677,145 @@ function MediaLightbox({ item, onClose }) {
 
 const CAN_MANAGE_ROLES = ["admin_geral", "membro", "agencia_admin", "agencia_membro"];
 
-function NewContentForm({ brandId, session, onDone }) {
+function AttachMoreMedia({ item, brandId, updateContentMedia }) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  const onChange = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploading(true);
+    setError("");
+    try {
+      const urls = await Promise.all(files.map((f) => uploadContentMedia(brandId, f)));
+      await updateContentMedia.mutateAsync({ id: item.id, mediaUrls: [...item.mediaUrls, ...urls] });
+    } catch (err) {
+      setError(err.message || "Não foi possível carregar.");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: c.boss, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}>
+        <Plus size={12} /> {uploading ? "A carregar…" : "Anexar imagem/vídeo"}
+        <input type="file" multiple accept="image/*,video/*" onChange={onChange} disabled={uploading} style={{ display: "none" }} />
+      </label>
+      {error && <div style={{ ...sans, fontSize: 11.5, color: c.rose, marginTop: 4 }}>{error}</div>}
+    </div>
+  );
+}
+
+const WEEKDAY_SHORT_PT = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+const MONTH_LABELS_PT = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+const CONTENT_STATUS_DOT = { pending: c.amber, approved: c.sage, rejected: c.rose };
+
+function isoDateOf(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function monthGridCells(year, month) {
+  const startWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < startWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
+function ContentCalendar({ content, onDayClick, onItemClick }) {
+  const today = new Date();
+  const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const cells = monthGridCells(cursor.getFullYear(), cursor.getMonth());
+  const todayIso = isoDateOf(today);
+  const byDate = {};
+  content.forEach((item) => {
+    if (!item.dateIso) return;
+    (byDate[item.dateIso] = byDate[item.dateIso] || []).push(item);
+  });
+  const navBtn = { width: 30, height: 30, borderRadius: 999, border: `1px solid ${c.line}`, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 };
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <button type="button" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))} style={navBtn}>
+          <ChevronLeft size={15} color={c.mist} />
+        </button>
+        <div style={{ ...serif, fontSize: 16, color: c.ink, fontWeight: 500 }}>
+          {MONTH_LABELS_PT[cursor.getMonth()]} {cursor.getFullYear()}
+        </div>
+        <button type="button" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} style={navBtn}>
+          <ChevronRight size={15} color={c.mist} />
+        </button>
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <div style={{ minWidth: 560 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, marginBottom: 6 }}>
+            {WEEKDAY_SHORT_PT.map((d) => (
+              <div key={d} style={{ ...sans, fontSize: 10.5, fontWeight: 700, color: c.mist, textAlign: "center", padding: "4px 0" }}>{d}</div>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
+            {cells.map((date, i) => {
+              if (!date) return <div key={i} />;
+              const iso = isoDateOf(date);
+              const items = byDate[iso] || [];
+              const isToday = iso === todayIso;
+              return (
+                <div
+                  key={i}
+                  onClick={() => onDayClick(iso)}
+                  style={{
+                    minHeight: 86, border: `1px solid ${isToday ? c.boss : c.line}`, borderRadius: 8,
+                    padding: 6, cursor: "pointer", background: "#fff", display: "flex", flexDirection: "column", gap: 3,
+                  }}
+                >
+                  <span style={{ ...sans, fontSize: 11, fontWeight: isToday ? 700 : 600, color: isToday ? c.boss : c.ink }}>{date.getDate()}</span>
+                  {items.slice(0, 3).map((it) => (
+                    <button
+                      type="button"
+                      key={it.id}
+                      onClick={(e) => { e.stopPropagation(); onItemClick(it.id); }}
+                      style={{
+                        ...sans, fontSize: 9.5, fontWeight: 600, textAlign: "left", padding: "2px 5px 2px 7px", borderRadius: 5, border: "none", cursor: "pointer",
+                        background: c.bossSoft, color: c.boss, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        borderLeft: `2px solid ${CONTENT_STATUS_DOT[it.status] || c.boss}`,
+                      }}
+                    >
+                      {it.title}
+                    </button>
+                  ))}
+                  {items.length > 3 && <span style={{ ...sans, fontSize: 9, color: c.mistLight }}>+{items.length - 3} mais</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NewContentForm({ brandId, session, onDone, initialDate }) {
   const [type, setType] = useState("Post");
   const [platformKeys, setPlatformKeys] = useState([]);
   const [title, setTitle] = useState("");
-  const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledDate, setScheduledDate] = useState(initialDate || "");
   const [copy, setCopy] = useState("");
+  const [files, setFiles] = useState([]);
   const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
   const addContent = useAddContent(brandId);
 
   const togglePlatform = (key) => {
     setPlatformKeys((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  };
+
+  const onFilesSelected = (e) => {
+    setFiles(Array.from(e.target.files || []));
   };
 
   const submit = async (e) => {
@@ -2701,6 +2826,12 @@ function NewContentForm({ brandId, session, onDone }) {
     }
     setError("");
     try {
+      let mediaUrls = [];
+      if (files.length) {
+        setUploading(true);
+        mediaUrls = await Promise.all(files.map((f) => uploadContentMedia(brandId, f)));
+        setUploading(false);
+      }
       await addContent.mutateAsync({
         createdBy: session.id,
         typeLabel: type,
@@ -2708,9 +2839,11 @@ function NewContentForm({ brandId, session, onDone }) {
         title: title.trim(),
         scheduledDate: scheduledDate || null,
         copy,
+        mediaUrls,
       });
       onDone();
     } catch (err) {
+      setUploading(false);
       setError(err.message || "Não foi possível criar o conteúdo.");
     }
   };
@@ -2759,10 +2892,27 @@ function NewContentForm({ brandId, session, onDone }) {
         rows={3}
         style={{ ...sans, fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", resize: "vertical" }}
       />
+      <div>
+        <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 6 }}>
+          Imagem, vídeo ou várias imagens (carrossel)
+        </div>
+        <input
+          type="file"
+          multiple
+          accept="image/*,video/*"
+          onChange={onFilesSelected}
+          style={{ ...sans, fontSize: 12, width: "100%" }}
+        />
+        {files.length > 0 && (
+          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 4 }}>
+            {files.length} ficheiro{files.length > 1 ? "s" : ""} selecionado{files.length > 1 ? "s" : ""}
+          </div>
+        )}
+      </div>
       {error && <div style={{ ...sans, fontSize: 12, color: c.rose }}>{error}</div>}
       <div style={{ display: "flex", gap: 8 }}>
-        <button type="submit" disabled={addContent.isPending} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}>
-          {addContent.isPending ? "A guardar…" : "Criar"}
+        <button type="submit" disabled={addContent.isPending || uploading} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}>
+          {uploading ? "A carregar ficheiros…" : addContent.isPending ? "A guardar…" : "Criar"}
         </button>
         <button type="button" onClick={onDone} style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
           Cancelar
@@ -2773,14 +2923,17 @@ function NewContentForm({ brandId, session, onDone }) {
 }
 
 function ConteudosView({ brand, onBack, session }) {
+  const [view, setView] = useState("lista");
   const [openId, setOpenId] = useState(null);
   const [viewing, setViewing] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectNote, setRejectNote] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [formInitialDate, setFormInitialDate] = useState(null);
 
   const contentsQuery = useContents(brand.id, true);
   const approveContent = useApproveContent(brand.id);
+  const updateContentMedia = useUpdateContentMedia(brand.id);
   const content = contentsQuery.data || [];
   const canManage = CAN_MANAGE_ROLES.includes(session.role);
 
@@ -2789,6 +2942,21 @@ function ConteudosView({ brand, onBack, session }) {
     approveContent.mutate({ id, status: "rejected", note: rejectNote });
     setRejectingId(null);
     setRejectNote("");
+  };
+  const removeMedia = (item, index) => {
+    updateContentMedia.mutate({ id: item.id, mediaUrls: item.mediaUrls.filter((_, i) => i !== index) });
+  };
+  const openNewForm = (dateIso) => {
+    setFormInitialDate(dateIso || null);
+    setShowForm(true);
+  };
+  const closeForm = () => {
+    setShowForm(false);
+    setFormInitialDate(null);
+  };
+  const openItemFromCalendar = (id) => {
+    setView("lista");
+    setOpenId(id);
   };
 
   return (
@@ -2810,7 +2978,7 @@ function ConteudosView({ brand, onBack, session }) {
       >
         <ArrowLeft size={14} /> {brand.name}
       </button>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 10 }}>
         <div>
           <Eyebrow>Conteúdos</Eyebrow>
           <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: "0 0 20px" }}>
@@ -2819,7 +2987,7 @@ function ConteudosView({ brand, onBack, session }) {
         </div>
         {canManage && !showForm && (
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => openNewForm(null)}
             style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 14px", cursor: "pointer" }}
           >
             <Plus size={14} /> Novo conteúdo
@@ -2827,14 +2995,40 @@ function ConteudosView({ brand, onBack, session }) {
         )}
       </div>
 
-      {showForm && <NewContentForm brandId={brand.id} session={session} onDone={() => setShowForm(false)} />}
+      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+        {[{ key: "lista", label: "Lista" }, { key: "calendario", label: "Calendário" }].map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setView(t.key)}
+            style={{
+              ...sans, fontSize: 12.5, fontWeight: 600, borderRadius: 8, padding: "7px 14px", cursor: "pointer",
+              border: `1px solid ${view === t.key ? c.boss : c.line}`,
+              color: view === t.key ? c.boss : c.mist,
+              background: view === t.key ? c.bossSoft : "#fff",
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {showForm && <NewContentForm brandId={brand.id} session={session} onDone={closeForm} initialDate={formInitialDate} />}
 
       {contentsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
       {contentsQuery.error && <div style={{ ...sans, fontSize: 13, color: c.rose }}>{contentsQuery.error.message}</div>}
-      {!contentsQuery.isLoading && content.length === 0 && (
+      {!contentsQuery.isLoading && content.length === 0 && view === "lista" && (
         <div style={{ ...sans, fontSize: 13, color: c.mist }}>Ainda não há conteúdos para esta marca.</div>
       )}
 
+      {view === "calendario" && !contentsQuery.isLoading && (
+        <ContentCalendar
+          content={content}
+          onDayClick={(iso) => canManage && openNewForm(iso)}
+          onItemClick={openItemFromCalendar}
+        />
+      )}
+
+      {view === "lista" && (
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {content.map((item) => {
           const isOpen = openId === item.id;
@@ -2895,7 +3089,13 @@ function ConteudosView({ brand, onBack, session }) {
 
               {isOpen && (
                 <div style={{ padding: "0 18px 20px" }}>
-                  {item.mediaUrl && <MediaPreview item={item} onView={() => setViewing(item)} />}
+                  <MediaPreview
+                    item={item}
+                    onView={(index) => setViewing({ item, index })}
+                    onRemove={canManage ? (index) => removeMedia(item, index) : null}
+                    canManage={canManage}
+                  />
+                  {canManage && <AttachMoreMedia item={item} brandId={brand.id} updateContentMedia={updateContentMedia} />}
 
                   <div style={{ marginBottom: 14 }}>
                     <div style={{ ...sans, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: c.mist, marginBottom: 6 }}>
@@ -2970,7 +3170,8 @@ function ConteudosView({ brand, onBack, session }) {
           );
         })}
       </div>
-      {viewing && <MediaLightbox item={viewing} onClose={() => setViewing(null)} />}
+      )}
+      {viewing && <MediaLightbox item={viewing.item} index={viewing.index} onClose={() => setViewing(null)} />}
     </div>
   );
 }
