@@ -6029,9 +6029,19 @@ function LinkPagePreview({ page }) {
               <div key={b.id} style={{ padding: "6px 0 2px" }}>
                 <SocialRow platforms={b.platforms} />
               </div>
-            ) : (
-              <div key={b.id} style={{ background: "rgba(255,255,255,0.18)", backdropFilter: "blur(2px)", borderRadius: 10, padding: "10px 12px", ...sans, fontSize: 11, color: "#fff", textAlign: "center" }}>
+            ) : b.url ? (
+              <a
+                key={b.id}
+                href={b.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ background: "rgba(255,255,255,0.18)", backdropFilter: "blur(2px)", borderRadius: 10, padding: "10px 12px", ...sans, fontSize: 11, color: "#fff", textAlign: "center", textDecoration: "none", display: "block" }}
+              >
                 {b.label}
+              </a>
+            ) : (
+              <div key={b.id} style={{ background: "rgba(255,255,255,0.18)", backdropFilter: "blur(2px)", borderRadius: 10, padding: "10px 12px", ...sans, fontSize: 11, color: "#fff", textAlign: "center", opacity: 0.6 }}>
+                {b.label} <span style={{ fontSize: 9 }}>(sem link)</span>
               </div>
             )
           )}
@@ -6241,12 +6251,13 @@ function LinkNaBioEditor({ initialPage, onBack }) {
 
   const addBlock = (type) => {
     const defaults = { link: "Novo link", video: "Novo vídeo", product: "Novo produto — 0€", podcast: "Novo episódio", social: "Redes sociais" };
-    const extra = type === "social" ? { platforms: ["instagram", "whatsapp"] } : {};
+    const extra = type === "social" ? { platforms: ["instagram", "whatsapp"] } : { url: "" };
     setPage((p) => ({ ...p, blocks: [...p.blocks, { id: Date.now(), type, label: defaults[type], ...extra }] }));
     setAddingBlock(false);
   };
   const removeBlock = (id) => setPage((p) => ({ ...p, blocks: p.blocks.filter((b) => b.id !== id) }));
   const renameBlock = (id, label) => setPage((p) => ({ ...p, blocks: p.blocks.map((b) => (b.id === id ? { ...b, label } : b)) }));
+  const updateBlockUrl = (id, url) => setPage((p) => ({ ...p, blocks: p.blocks.map((b) => (b.id === id ? { ...b, url } : b)) }));
   const toggleSocialPlatform = (id, key) => {
     setPage((p) => ({
       ...p,
@@ -6573,6 +6584,16 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                       <Trash2 size={13} />
                     </button>
                   </div>
+                  {b.type !== "social" && (
+                    <div style={{ marginTop: 6, paddingLeft: 2 }}>
+                      <input
+                        value={b.url || ""}
+                        onChange={(e) => updateBlockUrl(b.id, e.target.value)}
+                        placeholder="https://... (para onde vai quando a pessoa carrega)"
+                        style={{ ...sans, width: "100%", fontSize: 11.5, color: c.ink, background: "#fff", border: `1px solid ${b.url ? c.line : c.rose}`, borderRadius: 6, padding: "6px 9px", outline: "none", boxSizing: "border-box" }}
+                      />
+                    </div>
+                  )}
                   {b.type === "social" && (
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8, paddingLeft: 2 }}>
                       {SOCIAL_PLATFORMS.map((sp) => {
