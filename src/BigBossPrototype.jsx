@@ -1547,6 +1547,24 @@ const DEFAULT_LINK_BG = {
 const DEFAULT_QUIZ = { enabled: false, title: "Não sabes por onde começar?", questions: [] };
 const PRODUCT_TYPES = { product: "Produto", collection: "Coleção", service: "Serviço" };
 const LINK_TYPES = { product: "Link do produto/coleção", calendar: "Link de marcação/calendário", whatsapp: "Link do WhatsApp" };
+const DEFAULT_PILL_STYLE = { color: "", textColor: "#ffffff", radius: 10, shadow: "none" };
+const PILL_COLOR_SWATCHES = ["", "#ffffff", "#1C1526", c.boss, "#2F9E63", "#C9821F", "#D3455B", "#3B5FC2"];
+const PILL_RADIUS_OPTIONS = [{ key: 6, label: "Quadrada" }, { key: 14, label: "Arredondada" }, { key: 999, label: "Pílula" }];
+const PILL_SHADOW_OPTIONS = [
+  { key: "none", label: "Sem sombra", value: "none" },
+  { key: "soft", label: "Subtil", value: "0 4px 14px rgba(0,0,0,0.18)" },
+  { key: "strong", label: "Forte", value: "0 10px 26px rgba(0,0,0,0.35)" },
+];
+function pillCssFromStyle(pillStyle) {
+  const ps = pillStyle || DEFAULT_PILL_STYLE;
+  const shadowOpt = PILL_SHADOW_OPTIONS.find((s) => s.key === (ps.shadow || "none")) || PILL_SHADOW_OPTIONS[0];
+  return {
+    background: ps.color || "rgba(255,255,255,0.18)",
+    color: ps.textColor || "#ffffff",
+    borderRadius: ps.radius ?? 10,
+    boxShadow: shadowOpt.value,
+  };
+}
 
 function mapLinkPageRow(row) {
   const quiz = row.quiz && Object.keys(row.quiz).length
@@ -1564,6 +1582,7 @@ function mapLinkPageRow(row) {
     blocks: row.blocks || [],
     products: row.products || [],
     quiz,
+    pillStyle: row.pill_style && Object.keys(row.pill_style).length ? { ...DEFAULT_PILL_STYLE, ...row.pill_style } : { ...DEFAULT_PILL_STYLE },
   };
 }
 
@@ -1576,7 +1595,7 @@ function useLinkPages(enabled) {
       // e às marcas que a agência gere (owner_type=brand) — sem filtro extra aqui.
       const { data, error } = await supabase
         .from("link_pages")
-        .select("id, owner_type, owner_id, slug, about_text, profile_photo_url, background_removed, background_style, blocks, products, quiz, created_at")
+        .select("id, owner_type, owner_id, slug, about_text, profile_photo_url, background_removed, background_style, blocks, products, quiz, pill_style, created_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data.map(mapLinkPageRow);
@@ -1615,6 +1634,7 @@ function useSaveLinkPage() {
           blocks: page.blocks,
           products: page.products,
           quiz: page.quiz,
+          pill_style: page.pillStyle,
         })
         .eq("id", page.id);
       if (error) throw error;
@@ -5997,6 +6017,7 @@ function LinkPagePreview({ page }) {
   const [quizOpen, setQuizOpen] = useState(false);
   const quiz = page.quiz || DEFAULT_QUIZ;
   const canShowQuiz = quiz.enabled && quiz.questions.length > 0;
+  const pillCss = pillCssFromStyle(page.pillStyle);
 
   return (
     <div
@@ -6035,12 +6056,12 @@ function LinkPagePreview({ page }) {
                 href={b.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ background: "rgba(255,255,255,0.18)", backdropFilter: "blur(2px)", borderRadius: 10, padding: "10px 12px", ...sans, fontSize: 11, color: "#fff", textAlign: "center", textDecoration: "none", display: "block" }}
+                style={{ ...pillCss, backdropFilter: "blur(2px)", padding: "10px 12px", ...sans, fontSize: 11, textAlign: "center", textDecoration: "none", display: "block" }}
               >
                 {b.label}
               </a>
             ) : (
-              <div key={b.id} style={{ background: "rgba(255,255,255,0.18)", backdropFilter: "blur(2px)", borderRadius: 10, padding: "10px 12px", ...sans, fontSize: 11, color: "#fff", textAlign: "center", opacity: 0.6 }}>
+              <div key={b.id} style={{ ...pillCss, backdropFilter: "blur(2px)", padding: "10px 12px", ...sans, fontSize: 11, textAlign: "center", opacity: 0.6 }}>
                 {b.label} <span style={{ fontSize: 9 }}>(sem link)</span>
               </div>
             )
@@ -6207,6 +6228,7 @@ function LinkNaBioEditor({ initialPage, onBack }) {
 
   const updateBg = (patch) => setPage((p) => ({ ...p, bg: { ...p.bg, ...patch } }));
   const updateOverlay = (patch) => setPage((p) => ({ ...p, bg: { ...p.bg, overlay: { ...p.bg.overlay, ...patch } } }));
+  const updatePillStyle = (patch) => setPage((p) => ({ ...p, pillStyle: { ...(p.pillStyle || DEFAULT_PILL_STYLE), ...patch } }));
 
   const save = async () => {
     setError("");
@@ -6623,6 +6645,69 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                 </div>
               )}
             </div>
+          </ChartCard>
+
+          <ChartCard title="Estilo das pílulas" sub="Cor, arredondamento e sombra dos blocos de link">
+            {(() => {
+              const ps = page.pillStyle || DEFAULT_PILL_STYLE;
+              const toggleBtn = (active) => ({
+                ...sans, fontSize: 12, fontWeight: 600, color: active ? "#fff" : c.ink,
+                background: active ? c.boss : "#fff", border: `1px solid ${active ? c.boss : c.line}`,
+                borderRadius: 7, padding: "7px 12px", cursor: "pointer",
+              });
+              const label = { ...sans, fontSize: 11.5, fontWeight: 600, color: c.mist, marginBottom: 7 };
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div>
+                    <div style={label}>Cor da pílula</div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                      {PILL_COLOR_SWATCHES.map((hex, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => updatePillStyle({ color: hex })}
+                          title={hex || "Padrão (vidro)"}
+                          style={{
+                            width: 26, height: 26, borderRadius: 999, cursor: "pointer", flexShrink: 0,
+                            background: hex || "repeating-linear-gradient(45deg, #EDEAF5, #EDEAF5 4px, #E4DFF2 4px, #E4DFF2 8px)",
+                            border: (ps.color || "") === hex ? `2px solid ${c.boss}` : `1px solid ${c.line}`,
+                          }}
+                        />
+                      ))}
+                      <input
+                        type="color"
+                        value={ps.color || "#ffffff"}
+                        onChange={(e) => updatePillStyle({ color: e.target.value })}
+                        style={{ width: 30, height: 26, border: `1px solid ${c.line}`, borderRadius: 6, cursor: "pointer", padding: 0, flexShrink: 0 }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div style={label}>Cor do texto</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button type="button" onClick={() => updatePillStyle({ textColor: "#ffffff" })} style={toggleBtn(ps.textColor === "#ffffff")}>Branco</button>
+                      <button type="button" onClick={() => updatePillStyle({ textColor: "#1C1526" })} style={toggleBtn(ps.textColor === "#1C1526")}>Escuro</button>
+                    </div>
+                  </div>
+                  <div>
+                    <div style={label}>Arredondamento</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {PILL_RADIUS_OPTIONS.map((r) => (
+                        <button key={r.key} type="button" onClick={() => updatePillStyle({ radius: r.key })} style={toggleBtn((ps.radius ?? 10) === r.key)}>{r.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={label}>Sombra</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {PILL_SHADOW_OPTIONS.map((s) => (
+                        <button key={s.key} type="button" onClick={() => updatePillStyle({ shadow: s.key })} style={toggleBtn((ps.shadow || "none") === s.key)}>{s.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </ChartCard>
 
           <ChartCard
@@ -8316,7 +8401,7 @@ export function PublicLinkPage() {
     let active = true;
     supabase
       .from("link_pages")
-      .select("profile_photo_url, background_removed, background_style, about_text, blocks, products, quiz")
+      .select("profile_photo_url, background_removed, background_style, about_text, blocks, products, quiz, pill_style")
       .eq("slug", slug)
       .maybeSingle()
       .then(({ data, error }) => {
@@ -8339,6 +8424,7 @@ export function PublicLinkPage() {
             quiz: data.quiz && Object.keys(data.quiz).length
               ? { enabled: !!data.quiz.enabled, title: data.quiz.title || DEFAULT_QUIZ.title, questions: data.quiz.questions || [] }
               : { ...DEFAULT_QUIZ },
+            pillStyle: data.pill_style && Object.keys(data.pill_style).length ? { ...DEFAULT_PILL_STYLE, ...data.pill_style } : { ...DEFAULT_PILL_STYLE },
           },
         });
       });
