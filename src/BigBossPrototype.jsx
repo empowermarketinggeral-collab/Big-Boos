@@ -188,8 +188,9 @@ async function resolveDefaultAgencyId(session) {
     .from("agencies")
     .select("id")
     .eq("is_root", true)
-    .single();
+    .maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error("Não foi encontrada uma agência para associar — a tua conta não tem agência definida.");
   return data.id;
 }
 
@@ -2130,14 +2131,55 @@ function Sidebar({ active, onNavigate, session, roleInfo, onLogout }) {
   );
 }
 
-const MOCK_NOTIFICATIONS = [
-  { id: 1, text: "Harmoniae Aesthetics — houve atividade em Conteúdos", time: "há 12 min" },
-  { id: 2, text: "Luxe Atelier — roteiro reprovado com nota", time: "há 2h" },
-  { id: 3, text: "Astredik Studio — nova meta concluída no Plano Estratégico", time: "ontem" },
-];
+function relativeTimePt(iso) {
+  const then = new Date(iso).getTime();
+  const diffMin = Math.round((Date.now() - then) / 60000);
+  if (diffMin < 1) return "agora mesmo";
+  if (diffMin < 60) return `há ${diffMin} min`;
+  const diffHr = Math.round(diffMin / 60);
+  if (diffHr < 24) return `há ${diffHr}h`;
+  const diffDay = Math.round(diffHr / 24);
+  if (diffDay === 1) return "ontem";
+  if (diffDay < 7) return `há ${diffDay} dias`;
+  return new Date(iso).toLocaleDateString("pt-PT", { day: "numeric", month: "short" });
+}
 
-function TopBar({ onLogout }) {
+function useNotifications(session, enabled) {
+  return useQuery({
+    queryKey: ["notifications", session?.id],
+    enabled,
+    queryFn: async () => {
+      const [contentsRes, scriptsRes] = await Promise.all([
+        supabase.from("contents").select("id, approval_status, client_note, created_at, brands(name)").order("created_at", { ascending: false }).limit(8),
+        supabase.from("scripts").select("id, status, client_note, created_at, brands(name)").order("created_at", { ascending: false }).limit(8),
+      ]);
+      const items = [];
+      (contentsRes.data || []).forEach((r) => {
+        const brandName = r.brands?.name || "Marca";
+        items.push({
+          id: `content-${r.id}`,
+          text: r.approval_status === "rejected" && r.client_note ? `${brandName} — conteúdo reprovado com nota` : `${brandName} — houve atividade em Conteúdos`,
+          createdAt: r.created_at,
+        });
+      });
+      (scriptsRes.data || []).forEach((r) => {
+        const brandName = r.brands?.name || "Marca";
+        items.push({
+          id: `script-${r.id}`,
+          text: r.status === "rejected" && r.client_note ? `${brandName} — roteiro reprovado com nota` : `${brandName} — houve atividade em Roteiros`,
+          createdAt: r.created_at,
+        });
+      });
+      items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      return items.slice(0, 6);
+    },
+  });
+}
+
+function TopBar({ onLogout, session }) {
   const [open, setOpen] = useState(false);
+  const notificationsQuery = useNotifications(session, open);
+  const notifications = notificationsQuery.data || [];
   return (
     <div className="bb-topbar" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, padding: "18px 40px 0", position: "relative" }}>
       <button
@@ -2159,7 +2201,9 @@ function TopBar({ onLogout }) {
         }}
       >
         <Bell size={15} color={c.mist} strokeWidth={1.8} />
-        <span style={{ position: "absolute", top: 6, right: 7, width: 6, height: 6, borderRadius: 999, background: c.rose }} />
+        {notifications.length > 0 && (
+          <span style={{ position: "absolute", top: 6, right: 7, width: 6, height: 6, borderRadius: 999, background: c.rose }} />
+        )}
       </button>
       {open && (
         <>
@@ -2173,10 +2217,16 @@ function TopBar({ onLogout }) {
             <div style={{ ...sans, fontSize: 11.5, fontWeight: 700, color: c.ink, padding: "12px 16px", borderBottom: `1px solid ${c.line}` }}>
               Notificações
             </div>
-            {MOCK_NOTIFICATIONS.map((n) => (
+            {notificationsQuery.isLoading && (
+              <div style={{ ...sans, fontSize: 12, color: c.mist, padding: "12px 16px" }}>A carregar…</div>
+            )}
+            {!notificationsQuery.isLoading && notifications.length === 0 && (
+              <div style={{ ...sans, fontSize: 12, color: c.mistLight, padding: "12px 16px" }}>Sem notificações.</div>
+            )}
+            {notifications.map((n) => (
               <div key={n.id} style={{ padding: "12px 16px", borderBottom: `1px solid ${c.line}` }}>
                 <div style={{ ...sans, fontSize: 12.5, color: c.ink, lineHeight: 1.5 }}>{n.text}</div>
-                <div style={{ ...sans, fontSize: 10.5, color: c.mistLight, marginTop: 3 }}>{n.time}</div>
+                <div style={{ ...sans, fontSize: 10.5, color: c.mistLight, marginTop: 3 }}>{relativeTimePt(n.createdAt)}</div>
               </div>
             ))}
           </div>
@@ -2189,11 +2239,12 @@ function TopBar({ onLogout }) {
 /* ---------------------------------------------------------
    PAINEL GLOBAL
 --------------------------------------------------------- */
-function PainelGlobal({ brands, onOpenBrand, onNavigate }) {
+function PainelGlobal({ brands, onOpenBrand, onNavigate, session }) {
+  const notificationsQuery = useNotifications(session, true);
   const stats = [
     { label: "Marcas ativas", value: String(brands.length) },
     { label: "Tarefas hoje", value: "5" },
-    { label: "Notificações por ler", value: "2" },
+    { label: "Notificações por ler", value: String((notificationsQuery.data || []).length) },
   ];
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
@@ -2285,12 +2336,13 @@ function PainelGlobal({ brands, onOpenBrand, onNavigate }) {
 /* ---------------------------------------------------------
    LISTA DE MARCAS
 --------------------------------------------------------- */
-function MarcasList({ brands, onOpenBrand, onAddBrand, addBrandError, addingBrand }) {
+function MarcasList({ brands, onOpenBrand, onAddBrand, addBrandError, addingBrand, canManage }) {
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <Eyebrow>Marcas</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
         <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>Todas as marcas</h1>
+        {canManage && (
         <button
           onClick={onAddBrand}
           disabled={addingBrand}
@@ -2312,6 +2364,7 @@ function MarcasList({ brands, onOpenBrand, onAddBrand, addBrandError, addingBran
         >
           <Plus size={14} /> {addingBrand ? "A criar…" : "Nova marca"}
         </button>
+        )}
       </div>
       {addBrandError && (
         <div style={{ ...sans, fontSize: 12.5, color: c.rose, background: "#FBE9EC", borderRadius: 8, padding: "10px 14px", marginBottom: 18 }}>
@@ -5694,6 +5747,7 @@ function BaseConhecimentoModule({ session }) {
   const deleteArticle = useDeleteArticle();
   const articles = articlesQuery.data || [];
   const article = articles.find((a) => a.id === openId);
+  const canManage = CAN_MANAGE_ROLES.includes(session.role);
 
   const createArticle = async () => {
     const newArticle = await addArticle.mutateAsync({ session, title: "Novo artigo" });
@@ -5716,6 +5770,7 @@ function BaseConhecimentoModule({ session }) {
       <Eyebrow>Base de Conhecimento</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
         <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>SOPs e tutoriais</h1>
+        {canManage && (
         <button
           onClick={createArticle}
           disabled={addArticle.isPending}
@@ -5726,6 +5781,7 @@ function BaseConhecimentoModule({ session }) {
         >
           <Plus size={14} /> Novo artigo
         </button>
+        )}
       </div>
 
       {articlesQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
@@ -5742,12 +5798,14 @@ function BaseConhecimentoModule({ session }) {
             onClick={() => setOpenId(a.id)}
             style={{ position: "relative", textAlign: "left", background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20, cursor: "pointer" }}
           >
+            {canManage && (
             <button
               onClick={(e) => { e.stopPropagation(); deleteArticle.mutate(a.id); }}
               style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", cursor: "pointer", color: c.mistLight }}
             >
               <Trash2 size={14} />
             </button>
+            )}
             <BookMarked size={18} color={c.boss} strokeWidth={1.7} />
             <div style={{ ...serif, fontSize: 15, color: c.ink, fontWeight: 500, marginTop: 12 }}>{a.title}</div>
             <span style={{ ...sans, fontSize: 10, fontWeight: 700, color: c.mist, background: c.paper, borderRadius: 6, padding: "2px 6px", display: "inline-block", marginTop: 8 }}>
@@ -9009,7 +9067,7 @@ export default function BigBossPrototype() {
 
   let content;
   if (nav === "painel") {
-    content = <PainelGlobal brands={brands} onOpenBrand={openBrand} onNavigate={goToNav} />;
+    content = <PainelGlobal brands={brands} onOpenBrand={openBrand} onNavigate={goToNav} session={session} />;
   } else if (nav === "marcas" && !brandId) {
     content = (
       <MarcasList
@@ -9018,6 +9076,7 @@ export default function BigBossPrototype() {
         onAddBrand={addBrand}
         addBrandError={addBrandError}
         addingBrand={addBrandMutation.isPending}
+        canManage={session.role === "admin_geral" || session.role === "agencia_admin"}
       />
     );
   } else if (nav === "marcas" && brandId) {
@@ -9063,7 +9122,7 @@ export default function BigBossPrototype() {
       <style>{FONTS}</style>
       <Sidebar active={nav} onNavigate={goToNav} session={session} roleInfo={roleInfo} onLogout={logout} />
       <div style={{ flex: 1 }}>
-        <TopBar onLogout={logout} />
+        <TopBar onLogout={logout} session={session} />
         {content}
       </div>
       {import.meta.env.DEV && (
