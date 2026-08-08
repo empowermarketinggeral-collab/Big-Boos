@@ -42,6 +42,131 @@ const c = {
   rose: "#D3455B",
 };
 
+/* ---------------------------------------------------------
+   IDIOMA — PT/EN da interface (nunca traduz dados criados
+   pelo utilizador: nomes de marcas, copy, títulos, notas, etc.)
+--------------------------------------------------------- */
+const STRINGS = {
+  "login.title": { pt: "Entrar", en: "Log in" },
+  "login.subtitle": { pt: "Acede à tua plataforma de gestão de marcas.", en: "Access your brand management platform." },
+  "login.email": { pt: "Email", en: "Email" },
+  "login.password": { pt: "Password", en: "Password" },
+  "login.forgot": { pt: "Esqueci-me da password", en: "I forgot my password" },
+  "login.yourEmail": { pt: "O teu email", en: "Your email" },
+  "login.sendLink": { pt: "Enviar link", en: "Send link" },
+  "login.resetSent": { pt: "Link de recuperação enviado para", en: "Recovery link sent to" },
+  "login.resetSentFallback": { pt: "o teu email", en: "your email" },
+  "login.submitting": { pt: "A entrar…", en: "Logging in…" },
+  "login.fillFields": { pt: "Preenche o email e a password para continuar.", en: "Fill in email and password to continue." },
+  "login.enterEmail": { pt: "Introduz o teu email.", en: "Enter your email." },
+  "login.invalidCredentials": { pt: "Email ou password incorretos.", en: "Incorrect email or password." },
+  "login.emailNotConfirmed": { pt: "Confirma o teu email antes de entrares.", en: "Confirm your email before logging in." },
+  "nav.painel": { pt: "Painel Global", en: "Global Dashboard" },
+  "nav.marcas": { pt: "Marcas", en: "Brands" },
+  "nav.reunioes": { pt: "Reuniões", en: "Meetings" },
+  "nav.propostas": { pt: "Propostas", en: "Proposals" },
+  "nav.mapa-crescimento": { pt: "Mapa de Crescimento", en: "Growth Map" },
+  "nav.portfolio": { pt: "Portfólio", en: "Portfolio" },
+  "nav.link": { pt: "Link na Bio", en: "Link in Bio" },
+  "nav.precificacao": { pt: "Calculadora", en: "Calculator" },
+  "nav.centro": { pt: "Centro de Comando", en: "Command Center" },
+  "nav.conhecimento": { pt: "Base de Conhecimento", en: "Knowledge Base" },
+  "nav.equipa": { pt: "Equipa", en: "Team" },
+  "nav.definicoes": { pt: "Definições", en: "Settings" },
+  "role.admin_geral": { pt: "Admin Geral", en: "General Admin" },
+  "role.membro": { pt: "Membro Biamelo", en: "Biamelo Member" },
+  "role.aprovador_marca": { pt: "Cliente (Aprovador de Marca)", en: "Client (Brand Approver)" },
+  "role.agencia_admin": { pt: "Admin de Agência", en: "Agency Admin" },
+  "role.agencia_membro": { pt: "Membro de Agência", en: "Agency Member" },
+  "role.agencia_aprovador": { pt: "Cliente de Agência (Aprovador)", en: "Agency Client (Approver)" },
+  "common.save": { pt: "Guardar", en: "Save" },
+  "common.saving": { pt: "A guardar…", en: "Saving…" },
+  "common.cancel": { pt: "Cancelar", en: "Cancel" },
+  "common.edit": { pt: "Editar", en: "Edit" },
+  "common.delete": { pt: "Eliminar", en: "Delete" },
+  "common.create": { pt: "Criar", en: "Create" },
+  "common.creating": { pt: "A criar…", en: "Creating…" },
+  "common.loading": { pt: "A carregar…", en: "Loading…" },
+  "common.confirm": { pt: "Confirmar", en: "Confirm" },
+  "common.back": { pt: "Voltar", en: "Back" },
+  "common.logout": { pt: "Sair", en: "Log out" },
+  "common.view": { pt: "Ver", en: "View" },
+  "common.add": { pt: "Adicionar", en: "Add" },
+  "common.noLink": { pt: "sem link", en: "no link" },
+  "topbar.notifications": { pt: "Notificações", en: "Notifications" },
+  "topbar.noNotifications": { pt: "Sem notificações.", en: "No notifications." },
+  "notif.content_rejected": { pt: "conteúdo reprovado com nota", en: "content rejected with a note" },
+  "notif.content_activity": { pt: "houve atividade em Conteúdos", en: "there was activity in Content" },
+  "notif.script_rejected": { pt: "roteiro reprovado com nota", en: "script rejected with a note" },
+  "notif.script_activity": { pt: "houve atividade em Roteiros", en: "there was activity in Scripts" },
+  "painel.eyebrow": { pt: "Painel Global", en: "Global Dashboard" },
+  "painel.greeting": { pt: "Bom dia, Bia.", en: "Good morning, Bia." },
+  "painel.activeBrands": { pt: "Marcas ativas", en: "Active brands" },
+  "painel.tasksToday": { pt: "Tarefas hoje", en: "Tasks today" },
+  "painel.unreadNotifications": { pt: "Notificações por ler", en: "Unread notifications" },
+  "painel.yourBrands": { pt: "As tuas marcas", en: "Your brands" },
+  "painel.viewAll": { pt: "Ver todas", en: "View all" },
+  "marcas.eyebrow": { pt: "Marcas", en: "Brands" },
+  "marcas.allBrands": { pt: "Todas as marcas", en: "All brands" },
+  "marcas.newBrand": { pt: "Nova marca", en: "New brand" },
+  "category.salao": { pt: "Salão", en: "Salon" },
+  "category.estetica": { pt: "Estética", en: "Aesthetics" },
+  "category.barbearia": { pt: "Barbearia", en: "Barbershop" },
+  "category.clinica": { pt: "Clínica", en: "Clinic" },
+  "category.restaurante": { pt: "Restaurante", en: "Restaurant" },
+  "category.varejo": { pt: "Varejo / Moda", en: "Retail / Fashion" },
+  "category.servicos": { pt: "Serviços", en: "Services" },
+  "category.outro": { pt: "Outro", en: "Other" },
+  "status.green": { pt: "Saudável", en: "Healthy" },
+  "status.yellow": { pt: "Atenção", en: "Attention" },
+  "status.red": { pt: "Crítico", en: "Critical" },
+};
+const LangContext = React.createContext({ lang: "pt", setLang: () => {}, t: (key, fallback) => fallback ?? key });
+function useT() {
+  return React.useContext(LangContext);
+}
+function LangProvider({ children }) {
+  const [lang, setLang] = useState(() => {
+    try {
+      return localStorage.getItem("bb_lang") || "pt";
+    } catch {
+      return "pt";
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("bb_lang", lang);
+    } catch {}
+  }, [lang]);
+  const t = (key, fallback) => {
+    const entry = STRINGS[key];
+    if (!entry) return fallback ?? key;
+    return entry[lang] || entry.pt || fallback || key;
+  };
+  return <LangContext.Provider value={{ lang, setLang, t }}>{children}</LangContext.Provider>;
+}
+function LangToggle({ compact }) {
+  const { lang, setLang } = useT();
+  return (
+    <div style={{ display: "flex", border: `1px solid ${c.line}`, borderRadius: 999, padding: 2, background: "#fff", flexShrink: 0 }}>
+      {["pt", "en"].map((l) => (
+        <button
+          key={l}
+          type="button"
+          onClick={() => setLang(l)}
+          style={{
+            ...sans, fontSize: compact ? 10.5 : 11.5, fontWeight: 700, border: "none", borderRadius: 999,
+            padding: compact ? "3px 8px" : "4px 10px", cursor: "pointer",
+            color: lang === l ? "#fff" : c.mist, background: lang === l ? c.boss : "transparent",
+          }}
+        >
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const FONTS = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap');
 
@@ -2020,6 +2145,7 @@ function Eyebrow({ children }) {
 }
 
 function Sidebar({ active, onNavigate, session, roleInfo, onLogout }) {
+  const { t } = useT();
   return (
     <div
       className="bb-sidebar"
@@ -2085,7 +2211,7 @@ function Sidebar({ active, onNavigate, session, roleInfo, onLogout }) {
               }}
             >
               <Icon size={16} strokeWidth={1.8} />
-              {item.label}
+              {t(`nav.${item.key}`, item.label)}
             </button>
           );
         })}
@@ -2112,7 +2238,7 @@ function Sidebar({ active, onNavigate, session, roleInfo, onLogout }) {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ ...sans, color: c.ink, fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {roleInfo.label}
+              {t(`role.${roleInfo.key}`, roleInfo.label)}
             </div>
             <div style={{ ...sans, color: c.mistLight, fontSize: 10.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {session.email}
@@ -2120,7 +2246,7 @@ function Sidebar({ active, onNavigate, session, roleInfo, onLogout }) {
           </div>
           <button
             onClick={onLogout}
-            title="Sair"
+            title={t("common.logout")}
             style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, flexShrink: 0, padding: 4 }}
           >
             <XCircle size={16} />
@@ -2131,17 +2257,18 @@ function Sidebar({ active, onNavigate, session, roleInfo, onLogout }) {
   );
 }
 
-function relativeTimePt(iso) {
+function relativeTime(iso, lang) {
+  const isEn = lang === "en";
   const then = new Date(iso).getTime();
   const diffMin = Math.round((Date.now() - then) / 60000);
-  if (diffMin < 1) return "agora mesmo";
-  if (diffMin < 60) return `há ${diffMin} min`;
+  if (diffMin < 1) return isEn ? "just now" : "agora mesmo";
+  if (diffMin < 60) return isEn ? `${diffMin} min ago` : `há ${diffMin} min`;
   const diffHr = Math.round(diffMin / 60);
-  if (diffHr < 24) return `há ${diffHr}h`;
+  if (diffHr < 24) return isEn ? `${diffHr}h ago` : `há ${diffHr}h`;
   const diffDay = Math.round(diffHr / 24);
-  if (diffDay === 1) return "ontem";
-  if (diffDay < 7) return `há ${diffDay} dias`;
-  return new Date(iso).toLocaleDateString("pt-PT", { day: "numeric", month: "short" });
+  if (diffDay === 1) return isEn ? "yesterday" : "ontem";
+  if (diffDay < 7) return isEn ? `${diffDay} days ago` : `há ${diffDay} dias`;
+  return new Date(iso).toLocaleDateString(isEn ? "en-GB" : "pt-PT", { day: "numeric", month: "short" });
 }
 
 function useNotifications(session, enabled) {
@@ -2155,18 +2282,18 @@ function useNotifications(session, enabled) {
       ]);
       const items = [];
       (contentsRes.data || []).forEach((r) => {
-        const brandName = r.brands?.name || "Marca";
         items.push({
           id: `content-${r.id}`,
-          text: r.approval_status === "rejected" && r.client_note ? `${brandName} — conteúdo reprovado com nota` : `${brandName} — houve atividade em Conteúdos`,
+          brandName: r.brands?.name || "",
+          kind: r.approval_status === "rejected" && r.client_note ? "content_rejected" : "content_activity",
           createdAt: r.created_at,
         });
       });
       (scriptsRes.data || []).forEach((r) => {
-        const brandName = r.brands?.name || "Marca";
         items.push({
           id: `script-${r.id}`,
-          text: r.status === "rejected" && r.client_note ? `${brandName} — roteiro reprovado com nota` : `${brandName} — houve atividade em Roteiros`,
+          brandName: r.brands?.name || "",
+          kind: r.status === "rejected" && r.client_note ? "script_rejected" : "script_activity",
           createdAt: r.created_at,
         });
       });
@@ -2178,13 +2305,15 @@ function useNotifications(session, enabled) {
 
 function TopBar({ onLogout, session }) {
   const [open, setOpen] = useState(false);
+  const { t, lang } = useT();
   const notificationsQuery = useNotifications(session, open);
   const notifications = notificationsQuery.data || [];
   return (
     <div className="bb-topbar" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, padding: "18px 40px 0", position: "relative" }}>
+      <LangToggle />
       <button
         onClick={onLogout}
-        title="Sair"
+        title={t("common.logout")}
         className="bb-topbar-logout"
         style={{
           width: 34, height: 34, borderRadius: 999, border: `1px solid ${c.line}`, background: "#fff",
@@ -2215,18 +2344,20 @@ function TopBar({ onLogout, session }) {
             }}
           >
             <div style={{ ...sans, fontSize: 11.5, fontWeight: 700, color: c.ink, padding: "12px 16px", borderBottom: `1px solid ${c.line}` }}>
-              Notificações
+              {t("topbar.notifications")}
             </div>
             {notificationsQuery.isLoading && (
-              <div style={{ ...sans, fontSize: 12, color: c.mist, padding: "12px 16px" }}>A carregar…</div>
+              <div style={{ ...sans, fontSize: 12, color: c.mist, padding: "12px 16px" }}>{t("common.loading")}</div>
             )}
             {!notificationsQuery.isLoading && notifications.length === 0 && (
-              <div style={{ ...sans, fontSize: 12, color: c.mistLight, padding: "12px 16px" }}>Sem notificações.</div>
+              <div style={{ ...sans, fontSize: 12, color: c.mistLight, padding: "12px 16px" }}>{t("topbar.noNotifications")}</div>
             )}
             {notifications.map((n) => (
               <div key={n.id} style={{ padding: "12px 16px", borderBottom: `1px solid ${c.line}` }}>
-                <div style={{ ...sans, fontSize: 12.5, color: c.ink, lineHeight: 1.5 }}>{n.text}</div>
-                <div style={{ ...sans, fontSize: 10.5, color: c.mistLight, marginTop: 3 }}>{relativeTimePt(n.createdAt)}</div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.ink, lineHeight: 1.5 }}>
+                  {n.brandName ? `${n.brandName} — ` : ""}{t(`notif.${n.kind}`)}
+                </div>
+                <div style={{ ...sans, fontSize: 10.5, color: c.mistLight, marginTop: 3 }}>{relativeTime(n.createdAt, lang)}</div>
               </div>
             ))}
           </div>
@@ -2240,17 +2371,18 @@ function TopBar({ onLogout, session }) {
    PAINEL GLOBAL
 --------------------------------------------------------- */
 function PainelGlobal({ brands, onOpenBrand, onNavigate, session }) {
+  const { t } = useT();
   const notificationsQuery = useNotifications(session, true);
   const stats = [
-    { label: "Marcas ativas", value: String(brands.length) },
-    { label: "Tarefas hoje", value: "5" },
-    { label: "Notificações por ler", value: String((notificationsQuery.data || []).length) },
+    { label: t("painel.activeBrands"), value: String(brands.length) },
+    { label: t("painel.tasksToday"), value: "5" },
+    { label: t("painel.unreadNotifications"), value: String((notificationsQuery.data || []).length) },
   ];
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
-      <Eyebrow>Painel Global</Eyebrow>
+      <Eyebrow>{t("painel.eyebrow")}</Eyebrow>
       <h1 style={{ ...serif, fontSize: 34, fontWeight: 500, color: c.ink, margin: "0 0 32px" }}>
-        Bom dia, Bia.
+        {t("painel.greeting")}
       </h1>
 
       <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-3, repeat(3, 1fr))", gap: 14, marginBottom: 40 }}>
@@ -2271,7 +2403,7 @@ function PainelGlobal({ brands, onOpenBrand, onNavigate, session }) {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <h2 style={{ ...serif, fontSize: 19, color: c.ink, fontWeight: 500, margin: 0 }}>As tuas marcas</h2>
+        <h2 style={{ ...serif, fontSize: 19, color: c.ink, fontWeight: 500, margin: 0 }}>{t("painel.yourBrands")}</h2>
         <button
           onClick={() => onNavigate("marcas")}
           style={{
@@ -2287,7 +2419,7 @@ function PainelGlobal({ brands, onOpenBrand, onNavigate, session }) {
             cursor: "pointer",
           }}
         >
-          Ver todas <ChevronRight size={14} />
+          {t("painel.viewAll")} <ChevronRight size={14} />
         </button>
       </div>
 
@@ -2324,7 +2456,7 @@ function PainelGlobal({ brands, onOpenBrand, onNavigate, session }) {
             </div>
             <div style={{ ...serif, fontSize: 16, color: c.ink, fontWeight: 500 }}>{b.name}</div>
             <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 4, display: "flex", alignItems: "center", gap: 6 }}>
-              <StatusDot status={b.status} /> {b.category}
+              <StatusDot status={b.status} /> {t(`category.${b.categoryKey}`, b.category)}
             </div>
           </button>
         ))}
@@ -2337,11 +2469,12 @@ function PainelGlobal({ brands, onOpenBrand, onNavigate, session }) {
    LISTA DE MARCAS
 --------------------------------------------------------- */
 function MarcasList({ brands, onOpenBrand, onAddBrand, addBrandError, addingBrand, canManage }) {
+  const { t } = useT();
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
-      <Eyebrow>Marcas</Eyebrow>
+      <Eyebrow>{t("marcas.eyebrow")}</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>Todas as marcas</h1>
+        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>{t("marcas.allBrands")}</h1>
         {canManage && (
         <button
           onClick={onAddBrand}
@@ -2362,7 +2495,7 @@ function MarcasList({ brands, onOpenBrand, onAddBrand, addBrandError, addingBran
             opacity: addingBrand ? 0.7 : 1,
           }}
         >
-          <Plus size={14} /> {addingBrand ? "A criar…" : "Nova marca"}
+          <Plus size={14} /> {addingBrand ? t("common.creating") : t("marcas.newBrand")}
         </button>
         )}
       </div>
@@ -2407,11 +2540,11 @@ function MarcasList({ brands, onOpenBrand, onAddBrand, addBrandError, addingBran
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ ...serif, fontSize: 15.5, color: c.ink, fontWeight: 500 }}>{b.name}</div>
-              <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 2 }}>{b.category}</div>
+              <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 2 }}>{t(`category.${b.categoryKey}`, b.category)}</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, ...sans, fontSize: 12, color: c.mist }}>
               <StatusDot status={b.status} />
-              {b.status === "green" ? "Saudável" : b.status === "yellow" ? "Atenção" : "Crítico"}
+              {t(`status.${b.status}`, b.status)}
             </div>
             <ChevronRight size={16} color={c.mist} />
           </button>
@@ -2742,8 +2875,28 @@ function MediaPreview({ item, onView, onRemove, canManage }) {
 }
 
 function MediaLightbox({ item, index, onClose }) {
-  const url = item.mediaUrls[index];
+  const [pos, setPos] = useState(index);
+  const total = item.mediaUrls.length;
+  const url = item.mediaUrls[pos];
   const kind = mediaKindOf(url);
+  const goPrev = (e) => { e.stopPropagation(); setPos((p) => (p - 1 + total) % total); };
+  const goNext = (e) => { e.stopPropagation(); setPos((p) => (p + 1) % total); };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "ArrowLeft") setPos((p) => (p - 1 + total) % total);
+      if (e.key === "ArrowRight") setPos((p) => (p + 1) % total);
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [total, onClose]);
+
+  const navBtn = {
+    position: "absolute", top: "50%", transform: "translateY(-50%)", width: 38, height: 38, borderRadius: 999,
+    background: "rgba(0,0,0,0.45)", border: "none", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+  };
+
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(23,21,31,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520, width: "100%", maxHeight: "85vh" }}>
@@ -2752,14 +2905,26 @@ function MediaLightbox({ item, index, onClose }) {
             <XCircle size={22} />
           </button>
         </div>
-        {kind === "video" ? (
-          <video src={url} controls autoPlay style={{ width: "100%", maxHeight: "75vh", borderRadius: 12, background: "#000" }} />
-        ) : (
-          <img src={url} alt="" style={{ width: "100%", maxHeight: "75vh", objectFit: "contain", borderRadius: 12 }} />
-        )}
-        {item.mediaUrls.length > 1 && (
+        <div style={{ position: "relative" }}>
+          {kind === "video" ? (
+            <video key={url} src={url} controls autoPlay style={{ width: "100%", maxHeight: "75vh", borderRadius: 12, background: "#000" }} />
+          ) : (
+            <img key={url} src={url} alt="" style={{ width: "100%", maxHeight: "75vh", objectFit: "contain", borderRadius: 12 }} />
+          )}
+          {total > 1 && (
+            <>
+              <button type="button" onClick={goPrev} style={{ ...navBtn, left: 8 }}>
+                <ChevronLeft size={20} />
+              </button>
+              <button type="button" onClick={goNext} style={{ ...navBtn, right: 8 }}>
+                <ChevronRight size={20} />
+              </button>
+            </>
+          )}
+        </div>
+        {total > 1 && (
           <div style={{ ...sans, fontSize: 12, color: "#fff", textAlign: "center", marginTop: 8 }}>
-            {index + 1} / {item.mediaUrls.length}
+            {pos + 1} / {total}
           </div>
         )}
       </div>
@@ -8387,12 +8552,13 @@ const ROLES = [
   { key: "agencia_aprovador", label: "Cliente de Agência (Aprovador)", desc: "Acesso de aprovação dentro de uma agência parceira." },
 ];
 
-const AUTH_ERROR_MESSAGES = {
-  "Invalid login credentials": "Email ou password incorretos.",
-  "Email not confirmed": "Confirma o teu email antes de entrares.",
+const AUTH_ERROR_KEYS = {
+  "Invalid login credentials": "login.invalidCredentials",
+  "Email not confirmed": "login.emailNotConfirmed",
 };
 
 function LoginPage() {
+  const { t } = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -8405,7 +8571,7 @@ function LoginPage() {
   const submit = async (e) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
-      setError("Preenche o email e a password para continuar.");
+      setError(t("login.fillFields"));
       return;
     }
     setError("");
@@ -8416,7 +8582,8 @@ function LoginPage() {
     });
     setLoading(false);
     if (authError) {
-      setError(AUTH_ERROR_MESSAGES[authError.message] || authError.message);
+      const key = AUTH_ERROR_KEYS[authError.message];
+      setError(key ? t(key) : authError.message);
     }
     // Em caso de sucesso não há mais nada a fazer aqui — o listener
     // onAuthStateChange no componente raiz trata de construir a sessão.
@@ -8424,7 +8591,7 @@ function LoginPage() {
 
   const sendResetLink = async () => {
     if (!forgotEmail.trim()) {
-      setForgotError("Introduz o teu email.");
+      setForgotError(t("login.enterEmail"));
       return;
     }
     setForgotError("");
@@ -8442,6 +8609,9 @@ function LoginPage() {
     <div style={{ minHeight: "100vh", background: c.paper, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, ...sans }}>
       <style>{FONTS}</style>
       <div style={{ width: "100%", maxWidth: 420 }}>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+          <LangToggle />
+        </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, marginBottom: 28 }}>
           <div
             style={{
@@ -8458,11 +8628,11 @@ function LoginPage() {
         </div>
 
         <form onSubmit={submit} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 18, padding: 28 }}>
-          <div style={{ ...serif, fontSize: 21, color: c.ink, marginBottom: 4 }}>Entrar</div>
-          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 22 }}>Acede à tua plataforma de gestão de marcas.</div>
+          <div style={{ ...serif, fontSize: 21, color: c.ink, marginBottom: 4 }}>{t("login.title")}</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 22 }}>{t("login.subtitle")}</div>
 
           <div style={{ marginBottom: 14 }}>
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Email</div>
+            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>{t("login.email")}</div>
             <input
               type="email"
               value={email}
@@ -8472,7 +8642,7 @@ function LoginPage() {
             />
           </div>
           <div style={{ marginBottom: 8 }}>
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Password</div>
+            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>{t("login.password")}</div>
             <input
               type="password"
               value={password}
@@ -8488,7 +8658,7 @@ function LoginPage() {
               onClick={() => setForgotOpen((v) => !v)}
               style={{ ...sans, fontSize: 11.5, color: c.boss, background: "none", border: "none", cursor: "pointer", padding: 0 }}
             >
-              Esqueci-me da password
+              {t("login.forgot")}
             </button>
           </div>
 
@@ -8496,7 +8666,7 @@ function LoginPage() {
             <div style={{ background: c.paper, borderRadius: 10, padding: 14, marginBottom: 18 }}>
               {forgotSent ? (
                 <div style={{ ...sans, fontSize: 12, color: c.sage, display: "flex", alignItems: "center", gap: 6 }}>
-                  <CheckCircle2 size={14} /> Link de recuperação enviado para {forgotEmail || "o teu email"}.
+                  <CheckCircle2 size={14} /> {t("login.resetSent")} {forgotEmail || t("login.resetSentFallback")}.
                 </div>
               ) : (
                 <>
@@ -8505,7 +8675,7 @@ function LoginPage() {
                       type="email"
                       value={forgotEmail}
                       onChange={(e) => setForgotEmail(e.target.value)}
-                      placeholder="O teu email"
+                      placeholder={t("login.yourEmail")}
                       style={{ ...sans, flex: 1, minWidth: 140, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 11px", outline: "none", color: c.ink }}
                     />
                     <button
@@ -8513,7 +8683,7 @@ function LoginPage() {
                       onClick={sendResetLink}
                       style={{ ...sans, fontSize: 12, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 13px", cursor: "pointer" }}
                     >
-                      Enviar link
+                      {t("login.sendLink")}
                     </button>
                   </div>
                   {forgotError && (
@@ -8535,7 +8705,7 @@ function LoginPage() {
             disabled={loading}
             style={{ ...sans, width: "100%", fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 10, padding: "11px 14px", cursor: loading ? "default" : "pointer", opacity: loading ? 0.7 : 1 }}
           >
-            {loading ? "A entrar…" : "Entrar"}
+            {loading ? t("login.submitting") : t("login.title")}
           </button>
         </form>
       </div>
@@ -8950,6 +9120,14 @@ export function PublicLinkPage() {
 }
 
 export default function BigBossPrototype() {
+  return (
+    <LangProvider>
+      <BigBossPrototypeInner />
+    </LangProvider>
+  );
+}
+
+function BigBossPrototypeInner() {
   const [session, setSession] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [nav, setNav] = useState("painel");
