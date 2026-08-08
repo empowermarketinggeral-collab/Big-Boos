@@ -191,6 +191,31 @@ const STRINGS = {
   "module.plano.sub": { pt: "Fases e tarefas", en: "Phases and tasks" },
   "module.dashboards": { pt: "Dashboards", en: "Dashboards" },
   "module.dashboards.sub": { pt: "Performance da marca", en: "Brand performance" },
+  "team.eyebrow": { pt: "Equipa", en: "Team" },
+  "team.title": { pt: "Membros e acessos", en: "Members and access" },
+  "team.invite": { pt: "Convidar pessoa", en: "Invite person" },
+  "team.inviteHelp1": { pt: "Por segurança, novas contas não podem ser criadas a partir daqui. Pede a quem administra o Supabase para:", en: "For security, new accounts can't be created from here. Ask whoever administers Supabase to:" },
+  "team.inviteHelp2": { pt: "Ir a Authentication → Users → Add user e criar o login da pessoa.", en: "Go to Authentication → Users → Add user and create the person's login." },
+  "team.inviteHelp3": { pt: "Voltar aqui — a pessoa aparece nesta lista assim que tiver uma linha na tabela profiles associada (README, secção 4).", en: "Come back here — the person appears in this list once they have a row in the profiles table (README, section 4)." },
+  "team.empty": { pt: "Sem membros visíveis para a tua conta.", en: "No members visible to your account." },
+  "team.noName": { pt: "Sem nome", en: "No name" },
+  "team.fullAccess": { pt: "Acesso total", en: "Full access" },
+  "team.noScope": { pt: "Sem âmbito definido", en: "No scope defined" },
+  "team.brandSingular": { pt: "marca", en: "brand" },
+  "team.brandsPlural": { pt: "marcas", en: "brands" },
+  "settings.eyebrow": { pt: "Definições", en: "Settings" },
+  "settings.title": { pt: "Conta e branding", en: "Account and branding" },
+  "settings.brandingTitle": { pt: "Branding da agência", en: "Agency branding" },
+  "settings.brandingSub": { pt: "Cor principal usada em relatórios, propostas e portfólio", en: "Main color used in reports, proposals, and portfolio" },
+  "settings.currentColor": { pt: "Cor atual:", en: "Current color:" },
+  "settings.currentColorSuffix": { pt: "— qualquer cor é válida, não só as sugeridas acima.", en: "— any color works, not just the ones suggested above." },
+  "settings.accountTitle": { pt: "Conta", en: "Account" },
+  "settings.accountSub": { pt: "Dados de acesso", en: "Access details" },
+  "settings.name": { pt: "Nome", en: "Name" },
+  "settings.newPassword": { pt: "Nova palavra-passe (opcional)", en: "New password (optional)" },
+  "settings.newPasswordPlaceholder": { pt: "Deixa em branco para não alterar", en: "Leave blank to keep unchanged" },
+  "settings.saveError": { pt: "Não foi possível guardar.", en: "Couldn't save." },
+  "settings.saved": { pt: "Alterações guardadas.", en: "Changes saved." },
 };
 const LangContext = React.createContext({ lang: "pt", setLang: () => {}, t: (key, fallback) => fallback ?? key });
 function useT() {
@@ -2082,19 +2107,20 @@ function useDeleteProduct() {
    vez de fingir criar a conta.
 --------------------------------------------------------- */
 function computeMemberScope(row) {
-  if (row.role === "admin_geral") return "Acesso total";
-  if (row.agencies?.name) return row.agencies.name;
-  if (row.brand_ids && row.brand_ids.length) return `${row.brand_ids.length} marca${row.brand_ids.length > 1 ? "s" : ""}`;
-  return "Sem âmbito definido";
+  if (row.role === "admin_geral") return { type: "full" };
+  if (row.agencies?.name) return { type: "agency", name: row.agencies.name };
+  if (row.brand_ids && row.brand_ids.length) return { type: "brands", count: row.brand_ids.length };
+  return { type: "none" };
 }
 
 function mapMemberRow(row) {
   const roleInfo = ROLES.find((r) => r.key === row.role);
   return {
     id: row.id,
-    name: row.name || row.email || "Sem nome",
+    name: row.name || row.email || "",
     email: row.email,
     role: roleInfo ? roleInfo.label : row.role,
+    roleKey: row.role,
     scope: computeMemberScope(row),
     initial: (row.name || row.email || "?").charAt(0).toUpperCase(),
   };
@@ -8023,7 +8049,13 @@ function CalculadoraModule({ session }) {
    EQUIPA
 --------------------------------------------------------- */
 function TeamMemberRow({ member, canManage, onRename, onRemove }) {
+  const { t } = useT();
   const [name, setName] = useState(member.name);
+  const scope = member.scope;
+  const scopeText = scope.type === "full" ? t("team.fullAccess")
+    : scope.type === "agency" ? scope.name
+    : scope.type === "brands" ? `${scope.count} ${t(scope.count > 1 ? "team.brandsPlural" : "team.brandSingular")}`
+    : t("team.noScope");
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px" }}>
       <div style={{ width: 38, height: 38, borderRadius: 999, background: c.bossSoft, color: c.boss, display: "flex", alignItems: "center", justifyContent: "center", ...serif, fontSize: 15, flexShrink: 0 }}>
@@ -8035,12 +8067,13 @@ function TeamMemberRow({ member, canManage, onRename, onRemove }) {
           onChange={(e) => setName(e.target.value)}
           onBlur={() => name.trim() && name !== member.name && onRename(name.trim())}
           readOnly={!canManage}
+          placeholder={t("team.noName")}
           style={{ ...serif, fontSize: 14.5, color: c.ink, border: "none", outline: "none", background: "none", width: "100%" }}
         />
-        <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>{member.scope} · {member.email}</div>
+        <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>{scopeText} · {member.email}</div>
       </div>
       <span style={{ ...sans, fontSize: 11, fontWeight: 600, color: c.boss, background: c.bossSoft, borderRadius: 999, padding: "4px 10px" }}>
-        {member.role}
+        {t(`role.${member.roleKey}`, member.role)}
       </span>
       {canManage && (
         <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, flexShrink: 0 }}>
@@ -8052,6 +8085,7 @@ function TeamMemberRow({ member, canManage, onRename, onRemove }) {
 }
 
 function EquipaModule({ session }) {
+  const { t } = useT();
   const [showInvite, setShowInvite] = useState(false);
   const membersQuery = useTeamMembers(true);
   const renameMember = useRenameMember();
@@ -8061,9 +8095,9 @@ function EquipaModule({ session }) {
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
-      <Eyebrow>Equipa</Eyebrow>
+      <Eyebrow>{t("team.eyebrow")}</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>Membros e acessos</h1>
+        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>{t("team.title")}</h1>
         {canManage && (
           <button
             onClick={() => setShowInvite((v) => !v)}
@@ -8072,20 +8106,20 @@ function EquipaModule({ session }) {
               background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer",
             }}
           >
-            <Plus size={14} /> Convidar pessoa
+            <Plus size={14} /> {t("team.invite")}
           </button>
         )}
       </div>
 
       {showInvite && (
         <div style={{ background: c.bossSoft, borderRadius: 12, padding: "16px 18px", marginBottom: 20, ...sans, fontSize: 12.5, color: c.ink, lineHeight: 1.7 }}>
-          Por segurança, novas contas não podem ser criadas a partir daqui. Pede a quem administra o Supabase para:
-          <br />1. Ir a <strong>Authentication → Users → Add user</strong> e criar o login da pessoa.
-          <br />2. Voltar aqui — a pessoa aparece nesta lista assim que tiver uma linha na tabela <code>profiles</code> associada (README, secção 4).
+          {t("team.inviteHelp1")}
+          <br />1. {t("team.inviteHelp2")}
+          <br />2. {t("team.inviteHelp3")}
         </div>
       )}
 
-      {membersQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
+      {membersQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>{t("common.loading")}</div>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {members.map((m) => (
@@ -8099,7 +8133,7 @@ function EquipaModule({ session }) {
         ))}
         {!membersQuery.isLoading && members.length === 0 && (
           <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
-            Sem membros visíveis para a tua conta.
+            {t("team.empty")}
           </div>
         )}
       </div>
@@ -8135,6 +8169,7 @@ function useSaveAgencyColor() {
 }
 
 function DefinicoesModule({ session }) {
+  const { t } = useT();
   const canManageAgency = session.role === "admin_geral" || session.role === "agencia_admin";
   const brandingQuery = useAgencyBranding(session, canManageAgency);
   const saveColor = useSaveAgencyColor();
@@ -8173,7 +8208,7 @@ function DefinicoesModule({ session }) {
       }
       setAccountSaved(true);
     } catch (err) {
-      setAccountError(err.message || "Não foi possível guardar.");
+      setAccountError(err.message || t("settings.saveError"));
     } finally {
       setSavingAccount(false);
     }
@@ -8181,21 +8216,21 @@ function DefinicoesModule({ session }) {
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 760 }}>
-      <Eyebrow>Definições</Eyebrow>
-      <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: "0 0 24px" }}>Conta e branding</h1>
+      <Eyebrow>{t("settings.eyebrow")}</Eyebrow>
+      <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: "0 0 24px" }}>{t("settings.title")}</h1>
 
       {canManageAgency && (
         <div style={{ marginBottom: 14 }}>
           <ChartCard
-            title="Branding da agência"
-            sub="Cor principal usada em relatórios, propostas e portfólio"
+            title={t("settings.brandingTitle")}
+            sub={t("settings.brandingSub")}
             right={
               <button
                 onClick={saveBranding}
                 disabled={saveColor.isPending}
                 style={{ ...sans, fontSize: 12, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}
               >
-                {saveColor.isPending ? "A guardar…" : "Guardar"}
+                {saveColor.isPending ? t("common.saving") : t("common.save")}
               </button>
             }
           >
@@ -8217,40 +8252,40 @@ function DefinicoesModule({ session }) {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 22, height: 22, borderRadius: 6, background: colorValue, flexShrink: 0 }} />
-              <span style={{ ...sans, fontSize: 12, color: c.mist }}>Cor atual: {colorValue} — qualquer cor é válida, não só as sugeridas acima.</span>
+              <span style={{ ...sans, fontSize: 12, color: c.mist }}>{t("settings.currentColor")} {colorValue} {t("settings.currentColorSuffix")}</span>
             </div>
           </ChartCard>
         </div>
       )}
 
       <ChartCard
-        title="Conta"
-        sub="Dados de acesso"
+        title={t("settings.accountTitle")}
+        sub={t("settings.accountSub")}
         right={
           <button
             onClick={saveAccount}
             disabled={savingAccount}
             style={{ ...sans, fontSize: 12, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}
           >
-            {savingAccount ? "A guardar…" : "Guardar"}
+            {savingAccount ? t("common.saving") : t("common.save")}
           </button>
         }
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 380 }}>
           <div>
-            <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 5 }}>Nome</div>
+            <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 5 }}>{t("settings.name")}</div>
             <input value={name} onChange={(e) => setName(e.target.value)} style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink }} />
           </div>
           <div>
-            <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 5 }}>Email</div>
+            <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 5 }}>{t("login.email")}</div>
             <input value={email} onChange={(e) => setEmail(e.target.value)} style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink }} />
           </div>
           <div>
-            <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 5 }}>Nova palavra-passe (opcional)</div>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Deixa em branco para não alterar" style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink }} />
+            <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 5 }}>{t("settings.newPassword")}</div>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("settings.newPasswordPlaceholder")} style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink }} />
           </div>
           {accountError && <div style={{ ...sans, fontSize: 12, color: c.rose }}>{accountError}</div>}
-          {accountSaved && <div style={{ ...sans, fontSize: 12, color: c.sage }}>Alterações guardadas.</div>}
+          {accountSaved && <div style={{ ...sans, fontSize: 12, color: c.sage }}>{t("settings.saved")}</div>}
         </div>
       </ChartCard>
     </div>
