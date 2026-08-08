@@ -386,6 +386,39 @@ function useUpdateContentMedia(brandId) {
   });
 }
 
+function useUpdateContent(brandId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, typeLabel, platformKeys, title, scheduledDate, copy, mediaUrls, status }) => {
+      const { error } = await supabase
+        .from("contents")
+        .update({
+          type: CONTENT_TYPE_KEY_BY_LABEL[typeLabel] || "post",
+          platform: platformKeys || [],
+          title,
+          scheduled_date: scheduledDate || null,
+          caption: copy,
+          media_urls: mediaUrls || [],
+          approval_status: status,
+        })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contents", brandId] }),
+  });
+}
+
+function useDeleteContent(brandId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from("contents").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contents", brandId] }),
+  });
+}
+
 function useAddScript(brandId) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -2590,6 +2623,8 @@ function StatusPill({ status }) {
     approved: { label: "Aprovado", bg: "#E7F5EC", color: c.sage, Icon: CheckCircle2 },
     pending: { label: "Pendente", bg: "#F5EFDF", color: c.amber, Icon: Clock },
     rejected: { label: "Reprovado", bg: "#FBE9EC", color: c.rose, Icon: XCircle },
+    scheduled: { label: "Agendado", bg: "#E4EAFB", color: "#3B5FC2", Icon: Calendar },
+    published: { label: "Publicado", bg: c.bossSoft, color: c.boss, Icon: Eye },
   };
   const { label, bg, color, Icon } = map[status];
   return (
@@ -2714,7 +2749,14 @@ function AttachMoreMedia({ item, brandId, updateContentMedia }) {
 
 const WEEKDAY_SHORT_PT = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const MONTH_LABELS_PT = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-const CONTENT_STATUS_DOT = { pending: c.amber, approved: c.sage, rejected: c.rose };
+const CONTENT_STATUS_DOT = { pending: c.amber, approved: c.sage, rejected: c.rose, scheduled: "#3B5FC2", published: c.boss };
+const CONTENT_STATUS_OPTIONS = [
+  { key: "pending", label: "Pendente" },
+  { key: "approved", label: "Aprovado" },
+  { key: "rejected", label: "Reprovado" },
+  { key: "scheduled", label: "Agendado" },
+  { key: "published", label: "Publicado" },
+];
 
 function isoDateOf(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -2803,16 +2845,21 @@ function ContentCalendar({ content, onDayClick, onItemClick }) {
   );
 }
 
-function NewContentForm({ brandId, session, onDone, initialDate }) {
-  const [type, setType] = useState("Post");
-  const [platformKeys, setPlatformKeys] = useState([]);
-  const [title, setTitle] = useState("");
-  const [scheduledDate, setScheduledDate] = useState(initialDate || "");
-  const [copy, setCopy] = useState("");
+function ContentForm({ brandId, session, onDone, initialDate, mode = "create", item }) {
+  const isEdit = mode === "edit";
+  const [type, setType] = useState(item?.type || "Post");
+  const [platformKeys, setPlatformKeys] = useState(item?.platformKeys || []);
+  const [title, setTitle] = useState(item?.title || "");
+  const [scheduledDate, setScheduledDate] = useState(item?.dateIso || initialDate || "");
+  const [copy, setCopy] = useState(item?.copy || "");
+  const [status, setStatus] = useState(item?.status || "pending");
+  const [mediaUrls, setMediaUrls] = useState(item?.mediaUrls || []);
   const [files, setFiles] = useState([]);
+  const [urlInput, setUrlInput] = useState("");
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const addContent = useAddContent(brandId);
+  const updateContent = useUpdateContent(brandId);
 
   const togglePlatform = (key) => {
     setPlatformKeys((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
@@ -2822,6 +2869,16 @@ function NewContentForm({ brandId, session, onDone, initialDate }) {
     setFiles(Array.from(e.target.files || []));
   };
 
+  const addUrlMedia = () => {
+    if (!urlInput.trim()) return;
+    setMediaUrls((prev) => [...prev, urlInput.trim()]);
+    setUrlInput("");
+  };
+
+  const removeMediaUrl = (index) => setMediaUrls((prev) => prev.filter((_, i) => i !== index));
+
+  const isPending = isEdit ? updateContent.isPending : addContent.isPending;
+
   const submit = async (e) => {
     e.preventDefault();
     if (!title.trim()) {
@@ -2830,25 +2887,28 @@ function NewContentForm({ brandId, session, onDone, initialDate }) {
     }
     setError("");
     try {
-      let mediaUrls = [];
+      let uploaded = [];
       if (files.length) {
         setUploading(true);
-        mediaUrls = await Promise.all(files.map((f) => uploadContentMedia(brandId, f)));
+        uploaded = await Promise.all(files.map((f) => uploadContentMedia(brandId, f)));
         setUploading(false);
       }
-      await addContent.mutateAsync({
-        createdBy: session.id,
-        typeLabel: type,
-        platformKeys,
-        title: title.trim(),
-        scheduledDate: scheduledDate || null,
-        copy,
-        mediaUrls,
-      });
+      const allMediaUrls = [...mediaUrls, ...uploaded];
+      if (isEdit) {
+        await updateContent.mutateAsync({
+          id: item.id, typeLabel: type, platformKeys, title: title.trim(),
+          scheduledDate: scheduledDate || null, copy, mediaUrls: allMediaUrls, status,
+        });
+      } else {
+        await addContent.mutateAsync({
+          createdBy: session.id, typeLabel: type, platformKeys, title: title.trim(),
+          scheduledDate: scheduledDate || null, copy, mediaUrls: allMediaUrls,
+        });
+      }
       onDone();
     } catch (err) {
       setUploading(false);
-      setError(err.message || "Não foi possível criar o conteúdo.");
+      setError(err.message || "Não foi possível guardar o conteúdo.");
     }
   };
 
@@ -2859,6 +2919,11 @@ function NewContentForm({ brandId, session, onDone, initialDate }) {
           {Object.keys(CONTENT_TYPE_KEY_BY_LABEL).map((l) => <option key={l} value={l}>{l}</option>)}
         </select>
         <input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px" }} />
+        {isEdit && (
+          <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px" }}>
+            {CONTENT_STATUS_OPTIONS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </select>
+        )}
       </div>
       <div>
         <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 6 }}>Redes sociais (pode escolher mais do que uma)</div>
@@ -2900,6 +2965,26 @@ function NewContentForm({ brandId, session, onDone, initialDate }) {
         <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 6 }}>
           Imagem, vídeo ou várias imagens (carrossel)
         </div>
+        {mediaUrls.length > 0 && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+            {mediaUrls.map((url, i) => (
+              <div key={i} style={{ position: "relative" }}>
+                {mediaKindOf(url) === "video" ? (
+                  <video src={url} style={{ width: 48, height: 48, borderRadius: 6, objectFit: "cover", border: `1px solid ${c.line}` }} muted />
+                ) : (
+                  <img src={url} alt="" style={{ width: 48, height: 48, borderRadius: 6, objectFit: "cover", border: `1px solid ${c.line}` }} />
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeMediaUrl(i)}
+                  style={{ position: "absolute", top: -6, right: -6, width: 16, height: 16, borderRadius: 999, background: c.rose, border: "2px solid #fff", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
+                >
+                  <XCircle size={9} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <input
           type="file"
           multiple
@@ -2912,11 +2997,27 @@ function NewContentForm({ brandId, session, onDone, initialDate }) {
             {files.length} ficheiro{files.length > 1 ? "s" : ""} selecionado{files.length > 1 ? "s" : ""}
           </div>
         )}
+        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+          <input
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            placeholder="ou cola o URL do ficheiro (ex: já alojado noutro sítio)"
+            style={{ ...sans, flex: 1, fontSize: 11.5, border: `1px solid ${c.line}`, borderRadius: 6, padding: "6px 9px", outline: "none" }}
+          />
+          <button
+            type="button"
+            onClick={addUrlMedia}
+            disabled={!urlInput.trim()}
+            style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 6, padding: "6px 11px", cursor: urlInput.trim() ? "pointer" : "default" }}
+          >
+            Adicionar
+          </button>
+        </div>
       </div>
       {error && <div style={{ ...sans, fontSize: 12, color: c.rose }}>{error}</div>}
       <div style={{ display: "flex", gap: 8 }}>
-        <button type="submit" disabled={addContent.isPending || uploading} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}>
-          {uploading ? "A carregar ficheiros…" : addContent.isPending ? "A guardar…" : "Criar"}
+        <button type="submit" disabled={isPending || uploading} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}>
+          {uploading ? "A carregar ficheiros…" : isPending ? "A guardar…" : isEdit ? "Guardar alterações" : "Criar"}
         </button>
         <button type="button" onClick={onDone} style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
           Cancelar
@@ -2929,6 +3030,8 @@ function NewContentForm({ brandId, session, onDone, initialDate }) {
 function ConteudosView({ brand, onBack, session }) {
   const [view, setView] = useState("lista");
   const [openId, setOpenId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [viewing, setViewing] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectNote, setRejectNote] = useState("");
@@ -2938,6 +3041,7 @@ function ConteudosView({ brand, onBack, session }) {
   const contentsQuery = useContents(brand.id, true);
   const approveContent = useApproveContent(brand.id);
   const updateContentMedia = useUpdateContentMedia(brand.id);
+  const deleteContent = useDeleteContent(brand.id);
   const content = contentsQuery.data || [];
   const canManage = CAN_MANAGE_ROLES.includes(session.role);
 
@@ -2961,6 +3065,14 @@ function ConteudosView({ brand, onBack, session }) {
   const openItemFromCalendar = (id) => {
     setView("lista");
     setOpenId(id);
+  };
+  const confirmDelete = (id) => {
+    deleteContent.mutate(id, {
+      onSuccess: () => {
+        setDeletingId(null);
+        if (openId === id) setOpenId(null);
+      },
+    });
   };
 
   return (
@@ -3016,7 +3128,7 @@ function ConteudosView({ brand, onBack, session }) {
         ))}
       </div>
 
-      {showForm && <NewContentForm brandId={brand.id} session={session} onDone={closeForm} initialDate={formInitialDate} />}
+      {showForm && <ContentForm brandId={brand.id} session={session} onDone={closeForm} initialDate={formInitialDate} mode="create" />}
 
       {contentsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
       {contentsQuery.error && <div style={{ ...sans, fontSize: 13, color: c.rose }}>{contentsQuery.error.message}</div>}
@@ -3091,8 +3203,54 @@ function ConteudosView({ brand, onBack, session }) {
                 </div>
               </button>
 
-              {isOpen && (
+              {isOpen && editingId === item.id && (
                 <div style={{ padding: "0 18px 20px" }}>
+                  <ContentForm brandId={brand.id} session={session} mode="edit" item={item} onDone={() => setEditingId(null)} />
+                </div>
+              )}
+
+              {isOpen && editingId !== item.id && (
+                <div style={{ padding: "0 18px 20px" }}>
+                  {canManage && (
+                    <div style={{ marginBottom: 14 }}>
+                      {deletingId === item.id ? (
+                        <div style={{ background: "#FBE9EC", border: `1px solid ${c.rose}`, borderRadius: 10, padding: "10px 12px" }}>
+                          <div style={{ ...sans, fontSize: 12, color: c.ink, marginBottom: 8 }}>Eliminar este conteúdo? Não é possível desfazer.</div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              onClick={() => confirmDelete(item.id)}
+                              disabled={deleteContent.isPending}
+                              style={{ ...sans, fontSize: 12, fontWeight: 600, color: "#fff", background: c.rose, border: "none", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}
+                            >
+                              Eliminar
+                            </button>
+                            <button
+                              onClick={() => setDeletingId(null)}
+                              style={{ ...sans, fontSize: 12, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            onClick={() => setEditingId(item.id)}
+                            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: c.ink, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}
+                          >
+                            <Pencil size={12} /> Editar
+                          </button>
+                          <button
+                            onClick={() => setDeletingId(item.id)}
+                            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: c.rose, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}
+                          >
+                            <Trash2 size={12} /> Eliminar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <MediaPreview
                     item={item}
                     onView={(index) => setViewing({ item, index })}
