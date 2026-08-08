@@ -100,7 +100,9 @@ const STRINGS = {
   "notif.script_rejected": { pt: "roteiro reprovado com nota", en: "script rejected with a note" },
   "notif.script_activity": { pt: "houve atividade em Roteiros", en: "there was activity in Scripts" },
   "painel.eyebrow": { pt: "Painel Global", en: "Global Dashboard" },
-  "painel.greeting": { pt: "Bom dia, Bia.", en: "Good morning, Bia." },
+  "painel.greetingMorning": { pt: "Bom dia, {name}.", en: "Good morning, {name}." },
+  "painel.greetingAfternoon": { pt: "Boa tarde, {name}.", en: "Good afternoon, {name}." },
+  "painel.greetingEvening": { pt: "Boa noite, {name}.", en: "Good evening, {name}." },
   "painel.activeBrands": { pt: "Marcas ativas", en: "Active brands" },
   "painel.tasksToday": { pt: "Tarefas hoje", en: "Tasks today" },
   "painel.unreadNotifications": { pt: "Notificações por ler", en: "Unread notifications" },
@@ -120,6 +122,75 @@ const STRINGS = {
   "status.green": { pt: "Saudável", en: "Healthy" },
   "status.yellow": { pt: "Atenção", en: "Attention" },
   "status.red": { pt: "Crítico", en: "Critical" },
+  "content.eyebrow": { pt: "Conteúdos", en: "Content" },
+  "content.title": { pt: "Posts & Reels", en: "Posts & Reels" },
+  "content.new": { pt: "Novo conteúdo", en: "New content" },
+  "content.viewList": { pt: "Lista", en: "List" },
+  "content.viewCalendar": { pt: "Calendário", en: "Calendar" },
+  "content.empty": { pt: "Ainda não há conteúdos para esta marca.", en: "No content for this brand yet." },
+  "content.copy": { pt: "Copy", en: "Copy" },
+  "content.clientNote": { pt: "Nota do cliente:", en: "Client note:" },
+  "content.approve": { pt: "Aprovar", en: "Approve" },
+  "content.reject": { pt: "Reprovar", en: "Reject" },
+  "content.confirmReject": { pt: "Confirmar reprovação", en: "Confirm rejection" },
+  "content.rejectPlaceholder": { pt: "Explica o que gostarias de mudar (opcional)", en: "Explain what you'd like changed (optional)" },
+  "content.confirmDelete": { pt: "Eliminar este conteúdo? Não é possível desfazer.", en: "Delete this content? This cannot be undone." },
+  "content.status.pending": { pt: "Pendente", en: "Pending" },
+  "content.status.approved": { pt: "Aprovado", en: "Approved" },
+  "content.status.rejected": { pt: "Reprovado", en: "Rejected" },
+  "content.status.scheduled": { pt: "Agendado", en: "Scheduled" },
+  "content.status.published": { pt: "Publicado", en: "Published" },
+  "content.form.socialLabel": { pt: "Redes sociais (pode escolher mais do que uma)", en: "Social platforms (pick as many as you like)" },
+  "content.form.titlePlaceholder": { pt: "Título do conteúdo", en: "Content title" },
+  "content.form.copyPlaceholder": { pt: "Copy / legenda", en: "Copy / caption" },
+  "content.form.mediaLabel": { pt: "Imagem, vídeo ou várias imagens (carrossel)", en: "Image, video, or several images (carousel)" },
+  "content.form.urlPlaceholder": { pt: "ou cola o URL do ficheiro (ex: já alojado noutro sítio)", en: "or paste the file's URL (e.g. already hosted elsewhere)" },
+  "content.form.uploading": { pt: "A carregar ficheiros…", en: "Uploading files…" },
+  "content.form.saveEdit": { pt: "Guardar alterações", en: "Save changes" },
+  "content.form.needTitle": { pt: "Dá um título ao conteúdo.", en: "Give the content a title." },
+  "content.form.saveError": { pt: "Não foi possível guardar o conteúdo.", en: "Couldn't save the content." },
+  "content.attachMore": { pt: "Anexar imagem/vídeo", en: "Attach image/video" },
+  "content.attachError": { pt: "Não foi possível carregar.", en: "Couldn't upload." },
+  "content.filesSelected": { pt: "ficheiro(s) selecionado(s)", en: "file(s) selected" },
+  "scripts.eyebrow": { pt: "Roteiros", en: "Scripts" },
+  "scripts.title": { pt: "Roteiros de vídeo", en: "Video scripts" },
+  "scripts.new": { pt: "Novo roteiro", en: "New script" },
+  "scripts.empty": { pt: "Ainda não há roteiros para esta marca.", en: "No scripts for this brand yet." },
+  "scripts.titlePlaceholder": { pt: "Título do roteiro", en: "Script title" },
+  "scripts.textPlaceholder": { pt: "Texto do roteiro", en: "Script text" },
+  "scripts.needTitle": { pt: "Dá um título ao roteiro.", en: "Give the script a title." },
+  "scripts.createError": { pt: "Não foi possível criar o roteiro.", en: "Couldn't create the script." },
+  "kb.eyebrow": { pt: "Base de Conhecimento", en: "Knowledge Base" },
+  "kb.title": { pt: "SOPs e tutoriais", en: "SOPs and tutorials" },
+  "kb.new": { pt: "Novo artigo", en: "New article" },
+  "kb.empty": { pt: "Ainda sem artigos — cria o primeiro acima.", en: "No articles yet — create the first one above." },
+  "kb.untitled": { pt: "Sem título", en: "Untitled" },
+  "kb.pasteProcess": { pt: "Colar o processo", en: "Paste the process" },
+  "kb.pasteHelp": { pt: "Cola o texto todo corrido (com ou sem linhas/numeração) — o Big Boss separa automaticamente em passos. Podes depois ajustar cada passo abaixo.", en: "Paste the whole process as running text (with or without lines/numbering) — Big Boss automatically splits it into steps. You can adjust each step afterwards." },
+  "kb.pastePlaceholder": { pt: "Ex: Primeiro contacta o cliente. Depois envia o briefing. Por fim agenda a reunião de kickoff.", en: "E.g.: First contact the client. Then send the briefing. Finally schedule the kickoff meeting." },
+  "kb.splitSteps": { pt: "Separar em passos", en: "Split into steps" },
+  "kb.noSteps": { pt: "Sem passos ainda.", en: "No steps yet." },
+  "kb.addStepManual": { pt: "Adicionar passo manual", en: "Add step manually" },
+  "brand.backToList": { pt: "Marcas", en: "Brands" },
+  "brand.confirmDelete": { pt: "apaga também todos os conteúdos, roteiros, relatórios, plano estratégico e tudo o resto associado a esta marca. Não é possível desfazer.", en: "also deletes all content, scripts, reports, the strategic plan, and everything else linked to this brand. This cannot be undone." },
+  "brand.confirmDeleteYes": { pt: "Sim, eliminar definitivamente", en: "Yes, delete permanently" },
+  "brand.deleting": { pt: "A eliminar…", en: "Deleting…" },
+  "brand.goal": { pt: "Objetivo", en: "Goal" },
+  "brand.explore": { pt: "Explorar marca", en: "Explore brand" },
+  "module.brand-book": { pt: "Brand Book", en: "Brand Book" },
+  "module.brand-book.sub": { pt: "Identidade visual e diretrizes", en: "Visual identity and guidelines" },
+  "module.conteudos": { pt: "Conteúdos", en: "Content" },
+  "module.conteudos.sub": { pt: "Posts e reels — aprovação", en: "Posts and reels — approval" },
+  "module.cronograma-conteudos": { pt: "Cronograma de Conteúdos", en: "Content Schedule" },
+  "module.cronograma-conteudos.sub": { pt: "Planeamento do que vai sair", en: "Planning what goes out" },
+  "module.roteiros": { pt: "Roteiros", en: "Scripts" },
+  "module.roteiros.sub": { pt: "Roteiros de vídeo", en: "Video scripts" },
+  "module.stories": { pt: "Cronograma de Stories", en: "Stories Schedule" },
+  "module.stories.sub": { pt: "Planeamento semanal", en: "Weekly planning" },
+  "module.plano": { pt: "Plano Estratégico", en: "Strategic Plan" },
+  "module.plano.sub": { pt: "Fases e tarefas", en: "Phases and tasks" },
+  "module.dashboards": { pt: "Dashboards", en: "Dashboards" },
+  "module.dashboards.sub": { pt: "Performance da marca", en: "Brand performance" },
 };
 const LangContext = React.createContext({ lang: "pt", setLang: () => {}, t: (key, fallback) => fallback ?? key });
 function useT() {
@@ -2378,11 +2449,15 @@ function PainelGlobal({ brands, onOpenBrand, onNavigate, session }) {
     { label: t("painel.tasksToday"), value: "5" },
     { label: t("painel.unreadNotifications"), value: String((notificationsQuery.data || []).length) },
   ];
+  const firstName = (session.name || session.email || "").split(" ")[0] || "";
+  const hour = new Date().getHours();
+  const greetingKey = hour < 12 ? "painel.greetingMorning" : hour < 19 ? "painel.greetingAfternoon" : "painel.greetingEvening";
+  const greeting = t(greetingKey).replace("{name}", firstName);
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <Eyebrow>{t("painel.eyebrow")}</Eyebrow>
       <h1 style={{ ...serif, fontSize: 34, fontWeight: 500, color: c.ink, margin: "0 0 32px" }}>
-        {t("painel.greeting")}
+        {greeting}
       </h1>
 
       <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-3, repeat(3, 1fr))", gap: 14, marginBottom: 40 }}>
@@ -2558,6 +2633,7 @@ function MarcasList({ brands, onOpenBrand, onAddBrand, addBrandError, addingBran
    DETALHE DA MARCA
 --------------------------------------------------------- */
 function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
+  const { t } = useT();
   const [editing, setEditing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [editName, setEditName] = useState(brand.name);
@@ -2612,7 +2688,7 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
           marginBottom: 20,
         }}
       >
-        <ArrowLeft size={14} /> Marcas
+        <ArrowLeft size={14} /> {t("brand.backToList")}
       </button>
 
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, marginBottom: 28 }}>
@@ -2647,16 +2723,16 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
                   onChange={(e) => setEditCategory(e.target.value)}
                   style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "6px 9px", cursor: "pointer" }}
                 >
-                  {Object.entries(CATEGORY_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                  {Object.keys(CATEGORY_LABELS).map((k) => <option key={k} value={k}>{t(`category.${k}`, CATEGORY_LABELS[k])}</option>)}
                 </select>
                 <select
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value)}
                   style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "6px 9px", cursor: "pointer" }}
                 >
-                  <option value="green">Saudável</option>
-                  <option value="yellow">Atenção</option>
-                  <option value="red">Crítico</option>
+                  <option value="green">{t("status.green")}</option>
+                  <option value="yellow">{t("status.yellow")}</option>
+                  <option value="red">{t("status.red")}</option>
                 </select>
               </div>
             </div>
@@ -2664,7 +2740,7 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
             <div style={{ minWidth: 0 }}>
               <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: 0 }}>{brand.name}</h1>
               <div style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-                <StatusDot status={brand.status} /> {brand.category}
+                <StatusDot status={brand.status} /> {t(`category.${brand.categoryKey}`, brand.category)}
               </div>
             </div>
           )}
@@ -2678,13 +2754,13 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
                   disabled={updateBrand.isPending}
                   style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
                 >
-                  {updateBrand.isPending ? "A guardar…" : "Guardar"}
+                  {updateBrand.isPending ? t("common.saving") : t("common.save")}
                 </button>
                 <button
                   onClick={() => setEditing(false)}
                   style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
                 >
-                  Cancelar
+                  {t("common.cancel")}
                 </button>
               </>
             ) : (
@@ -2692,7 +2768,7 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
                 onClick={() => setEditing(true)}
                 style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.ink, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
               >
-                <Pencil size={13} /> Editar
+                <Pencil size={13} /> {t("common.edit")}
               </button>
             )}
             {canDelete && !editing && (
@@ -2700,7 +2776,7 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
                 onClick={() => setConfirmingDelete(true)}
                 style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
               >
-                <Trash2 size={13} /> Eliminar
+                <Trash2 size={13} /> {t("common.delete")}
               </button>
             )}
           </div>
@@ -2710,7 +2786,7 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
       {confirmingDelete && (
         <div style={{ background: "#FBE9EC", border: `1px solid ${c.rose}`, borderRadius: 12, padding: "16px 18px", marginBottom: 24 }}>
           <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 10, lineHeight: 1.5 }}>
-            Eliminar <strong>{brand.name}</strong> apaga também todos os conteúdos, roteiros, relatórios, plano estratégico e tudo o resto associado a esta marca. Não é possível desfazer.
+            {t("common.delete")} <strong>{brand.name}</strong> {t("brand.confirmDelete")}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button
@@ -2718,13 +2794,13 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
               disabled={deleteBrand.isPending}
               style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.rose, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}
             >
-              {deleteBrand.isPending ? "A eliminar…" : "Sim, eliminar definitivamente"}
+              {deleteBrand.isPending ? t("brand.deleting") : t("brand.confirmDeleteYes")}
             </button>
             <button
               onClick={() => setConfirmingDelete(false)}
               style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
             >
-              Cancelar
+              {t("common.cancel")}
             </button>
           </div>
         </div>
@@ -2753,7 +2829,7 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
           }}
         />
         <div style={{ ...sans, fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: c.boss, marginBottom: 12 }}>
-          Objetivo
+          {t("brand.goal")}
         </div>
         {editing ? (
           <textarea
@@ -2770,7 +2846,7 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
       </div>
 
       <h2 style={{ ...serif, fontSize: 17, color: c.ink, fontWeight: 500, margin: "0 0 14px" }}>
-        Explorar marca
+        {t("brand.explore")}
       </h2>
       <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-3, repeat(3, 1fr))", gap: 14 }}>
         {MODULES.map((m) => {
@@ -2790,9 +2866,9 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
             >
               <Icon size={19} color={c.boss} strokeWidth={1.7} />
               <div style={{ ...serif, fontSize: 15.5, color: c.ink, fontWeight: 500, marginTop: 14 }}>
-                {m.label}
+                {t(`module.${m.key}`, m.label)}
               </div>
-              <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 3 }}>{m.sub}</div>
+              <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 3 }}>{t(`module.${m.key}.sub`, m.sub)}</div>
             </button>
           );
         })}
@@ -2805,12 +2881,13 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
    CONTEÚDOS — demonstra fluxo de aprovação + nota
 --------------------------------------------------------- */
 function StatusPill({ status }) {
+  const { t } = useT();
   const map = {
-    approved: { label: "Aprovado", bg: "#E7F5EC", color: c.sage, Icon: CheckCircle2 },
-    pending: { label: "Pendente", bg: "#F5EFDF", color: c.amber, Icon: Clock },
-    rejected: { label: "Reprovado", bg: "#FBE9EC", color: c.rose, Icon: XCircle },
-    scheduled: { label: "Agendado", bg: "#E4EAFB", color: "#3B5FC2", Icon: Calendar },
-    published: { label: "Publicado", bg: c.bossSoft, color: c.boss, Icon: Eye },
+    approved: { label: t("content.status.approved"), bg: "#E7F5EC", color: c.sage, Icon: CheckCircle2 },
+    pending: { label: t("content.status.pending"), bg: "#F5EFDF", color: c.amber, Icon: Clock },
+    rejected: { label: t("content.status.rejected"), bg: "#FBE9EC", color: c.rose, Icon: XCircle },
+    scheduled: { label: t("content.status.scheduled"), bg: "#E4EAFB", color: "#3B5FC2", Icon: Calendar },
+    published: { label: t("content.status.published"), bg: c.bossSoft, color: c.boss, Icon: Eye },
   };
   const { label, bg, color, Icon } = map[status];
   return (
@@ -2935,6 +3012,7 @@ function MediaLightbox({ item, index, onClose }) {
 const CAN_MANAGE_ROLES = ["admin_geral", "membro", "agencia_admin", "agencia_membro"];
 
 function AttachMoreMedia({ item, brandId, updateContentMedia }) {
+  const { t } = useT();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
@@ -2947,7 +3025,7 @@ function AttachMoreMedia({ item, brandId, updateContentMedia }) {
       const urls = await Promise.all(files.map((f) => uploadContentMedia(brandId, f)));
       await updateContentMedia.mutateAsync({ id: item.id, mediaUrls: [...item.mediaUrls, ...urls] });
     } catch (err) {
-      setError(err.message || "Não foi possível carregar.");
+      setError(err.message || t("content.attachError"));
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -2957,7 +3035,7 @@ function AttachMoreMedia({ item, brandId, updateContentMedia }) {
   return (
     <div style={{ marginBottom: 14 }}>
       <label style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: c.boss, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}>
-        <Plus size={12} /> {uploading ? "A carregar…" : "Anexar imagem/vídeo"}
+        <Plus size={12} /> {uploading ? t("common.loading") : t("content.attachMore")}
         <input type="file" multiple accept="image/*,video/*" onChange={onChange} disabled={uploading} style={{ display: "none" }} />
       </label>
       {error && <div style={{ ...sans, fontSize: 11.5, color: c.rose, marginTop: 4 }}>{error}</div>}
@@ -2966,14 +3044,16 @@ function AttachMoreMedia({ item, brandId, updateContentMedia }) {
 }
 
 const WEEKDAY_SHORT_PT = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+const WEEKDAY_SHORT_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_LABELS_PT = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+const MONTH_LABELS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const CONTENT_STATUS_DOT = { pending: c.amber, approved: c.sage, rejected: c.rose, scheduled: "#3B5FC2", published: c.boss };
 const CONTENT_STATUS_OPTIONS = [
-  { key: "pending", label: "Pendente" },
-  { key: "approved", label: "Aprovado" },
-  { key: "rejected", label: "Reprovado" },
-  { key: "scheduled", label: "Agendado" },
-  { key: "published", label: "Publicado" },
+  { key: "pending" },
+  { key: "approved" },
+  { key: "rejected" },
+  { key: "scheduled" },
+  { key: "published" },
 ];
 
 function isoDateOf(d) {
@@ -2991,6 +3071,10 @@ function monthGridCells(year, month) {
 }
 
 function ContentCalendar({ content, onDayClick, onItemClick }) {
+  const { lang } = useT();
+  const weekdayShort = lang === "en" ? WEEKDAY_SHORT_EN : WEEKDAY_SHORT_PT;
+  const monthLabels = lang === "en" ? MONTH_LABELS_EN : MONTH_LABELS_PT;
+  const moreLabel = lang === "en" ? "more" : "mais";
   const today = new Date();
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const cells = monthGridCells(cursor.getFullYear(), cursor.getMonth());
@@ -3009,7 +3093,7 @@ function ContentCalendar({ content, onDayClick, onItemClick }) {
           <ChevronLeft size={15} color={c.mist} />
         </button>
         <div style={{ ...serif, fontSize: 16, color: c.ink, fontWeight: 500 }}>
-          {MONTH_LABELS_PT[cursor.getMonth()]} {cursor.getFullYear()}
+          {monthLabels[cursor.getMonth()]} {cursor.getFullYear()}
         </div>
         <button type="button" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} style={navBtn}>
           <ChevronRight size={15} color={c.mist} />
@@ -3018,7 +3102,7 @@ function ContentCalendar({ content, onDayClick, onItemClick }) {
       <div style={{ overflowX: "auto" }}>
         <div style={{ minWidth: 560 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, marginBottom: 6 }}>
-            {WEEKDAY_SHORT_PT.map((d) => (
+            {weekdayShort.map((d) => (
               <div key={d} style={{ ...sans, fontSize: 10.5, fontWeight: 700, color: c.mist, textAlign: "center", padding: "4px 0" }}>{d}</div>
             ))}
           </div>
@@ -3052,7 +3136,7 @@ function ContentCalendar({ content, onDayClick, onItemClick }) {
                       {it.title}
                     </button>
                   ))}
-                  {items.length > 3 && <span style={{ ...sans, fontSize: 9, color: c.mistLight }}>+{items.length - 3} mais</span>}
+                  {items.length > 3 && <span style={{ ...sans, fontSize: 9, color: c.mistLight }}>+{items.length - 3} {moreLabel}</span>}
                 </div>
               );
             })}
@@ -3064,6 +3148,7 @@ function ContentCalendar({ content, onDayClick, onItemClick }) {
 }
 
 function ContentForm({ brandId, session, onDone, initialDate, mode = "create", item }) {
+  const { t } = useT();
   const isEdit = mode === "edit";
   const [type, setType] = useState(item?.type || "Post");
   const [platformKeys, setPlatformKeys] = useState(item?.platformKeys || []);
@@ -3100,7 +3185,7 @@ function ContentForm({ brandId, session, onDone, initialDate, mode = "create", i
   const submit = async (e) => {
     e.preventDefault();
     if (!title.trim()) {
-      setError("Dá um título ao conteúdo.");
+      setError(t("content.form.needTitle"));
       return;
     }
     setError("");
@@ -3126,7 +3211,7 @@ function ContentForm({ brandId, session, onDone, initialDate, mode = "create", i
       onDone();
     } catch (err) {
       setUploading(false);
-      setError(err.message || "Não foi possível guardar o conteúdo.");
+      setError(err.message || t("content.form.saveError"));
     }
   };
 
@@ -3139,12 +3224,12 @@ function ContentForm({ brandId, session, onDone, initialDate, mode = "create", i
         <input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px" }} />
         {isEdit && (
           <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px" }}>
-            {CONTENT_STATUS_OPTIONS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+            {CONTENT_STATUS_OPTIONS.map((s) => <option key={s.key} value={s.key}>{t(`content.status.${s.key}`)}</option>)}
           </select>
         )}
       </div>
       <div>
-        <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 6 }}>Redes sociais (pode escolher mais do que uma)</div>
+        <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 6 }}>{t("content.form.socialLabel")}</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {Object.entries(PLATFORM_LABELS).map(([key, label]) => {
             const active = platformKeys.includes(key);
@@ -3169,19 +3254,19 @@ function ContentForm({ brandId, session, onDone, initialDate, mode = "create", i
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder="Título do conteúdo"
+        placeholder={t("content.form.titlePlaceholder")}
         style={{ ...sans, fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px" }}
       />
       <textarea
         value={copy}
         onChange={(e) => setCopy(e.target.value)}
-        placeholder="Copy / legenda"
+        placeholder={t("content.form.copyPlaceholder")}
         rows={3}
         style={{ ...sans, fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", resize: "vertical" }}
       />
       <div>
         <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 6 }}>
-          Imagem, vídeo ou várias imagens (carrossel)
+          {t("content.form.mediaLabel")}
         </div>
         {mediaUrls.length > 0 && (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
@@ -3212,14 +3297,14 @@ function ContentForm({ brandId, session, onDone, initialDate, mode = "create", i
         />
         {files.length > 0 && (
           <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 4 }}>
-            {files.length} ficheiro{files.length > 1 ? "s" : ""} selecionado{files.length > 1 ? "s" : ""}
+            {files.length} {t("content.filesSelected")}
           </div>
         )}
         <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
           <input
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
-            placeholder="ou cola o URL do ficheiro (ex: já alojado noutro sítio)"
+            placeholder={t("content.form.urlPlaceholder")}
             style={{ ...sans, flex: 1, fontSize: 11.5, border: `1px solid ${c.line}`, borderRadius: 6, padding: "6px 9px", outline: "none" }}
           />
           <button
@@ -3228,17 +3313,17 @@ function ContentForm({ brandId, session, onDone, initialDate, mode = "create", i
             disabled={!urlInput.trim()}
             style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 6, padding: "6px 11px", cursor: urlInput.trim() ? "pointer" : "default" }}
           >
-            Adicionar
+            {t("common.add")}
           </button>
         </div>
       </div>
       {error && <div style={{ ...sans, fontSize: 12, color: c.rose }}>{error}</div>}
       <div style={{ display: "flex", gap: 8 }}>
         <button type="submit" disabled={isPending || uploading} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}>
-          {uploading ? "A carregar ficheiros…" : isPending ? "A guardar…" : isEdit ? "Guardar alterações" : "Criar"}
+          {uploading ? t("content.form.uploading") : isPending ? t("common.saving") : isEdit ? t("content.form.saveEdit") : t("common.create")}
         </button>
         <button type="button" onClick={onDone} style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
-          Cancelar
+          {t("common.cancel")}
         </button>
       </div>
     </form>
@@ -3246,6 +3331,7 @@ function ContentForm({ brandId, session, onDone, initialDate, mode = "create", i
 }
 
 function ConteudosView({ brand, onBack, session }) {
+  const { t } = useT();
   const [view, setView] = useState("lista");
   const [openId, setOpenId] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -3314,9 +3400,9 @@ function ConteudosView({ brand, onBack, session }) {
       </button>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 10 }}>
         <div>
-          <Eyebrow>Conteúdos</Eyebrow>
+          <Eyebrow>{t("content.eyebrow")}</Eyebrow>
           <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: "0 0 20px" }}>
-            Posts &amp; Reels
+            {t("content.title")}
           </h1>
         </div>
         {canManage && !showForm && (
@@ -3324,34 +3410,34 @@ function ConteudosView({ brand, onBack, session }) {
             onClick={() => openNewForm(null)}
             style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 14px", cursor: "pointer" }}
           >
-            <Plus size={14} /> Novo conteúdo
+            <Plus size={14} /> {t("content.new")}
           </button>
         )}
       </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-        {[{ key: "lista", label: "Lista" }, { key: "calendario", label: "Calendário" }].map((t) => (
+        {[{ key: "lista", label: t("content.viewList") }, { key: "calendario", label: t("content.viewCalendar") }].map((vt) => (
           <button
-            key={t.key}
-            onClick={() => setView(t.key)}
+            key={vt.key}
+            onClick={() => setView(vt.key)}
             style={{
               ...sans, fontSize: 12.5, fontWeight: 600, borderRadius: 8, padding: "7px 14px", cursor: "pointer",
-              border: `1px solid ${view === t.key ? c.boss : c.line}`,
-              color: view === t.key ? c.boss : c.mist,
-              background: view === t.key ? c.bossSoft : "#fff",
+              border: `1px solid ${view === vt.key ? c.boss : c.line}`,
+              color: view === vt.key ? c.boss : c.mist,
+              background: view === vt.key ? c.bossSoft : "#fff",
             }}
           >
-            {t.label}
+            {vt.label}
           </button>
         ))}
       </div>
 
       {showForm && <ContentForm brandId={brand.id} session={session} onDone={closeForm} initialDate={formInitialDate} mode="create" />}
 
-      {contentsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
+      {contentsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>{t("common.loading")}</div>}
       {contentsQuery.error && <div style={{ ...sans, fontSize: 13, color: c.rose }}>{contentsQuery.error.message}</div>}
       {!contentsQuery.isLoading && content.length === 0 && view === "lista" && (
-        <div style={{ ...sans, fontSize: 13, color: c.mist }}>Ainda não há conteúdos para esta marca.</div>
+        <div style={{ ...sans, fontSize: 13, color: c.mist }}>{t("content.empty")}</div>
       )}
 
       {view === "calendario" && !contentsQuery.isLoading && (
@@ -3433,20 +3519,20 @@ function ConteudosView({ brand, onBack, session }) {
                     <div style={{ marginBottom: 14 }}>
                       {deletingId === item.id ? (
                         <div style={{ background: "#FBE9EC", border: `1px solid ${c.rose}`, borderRadius: 10, padding: "10px 12px" }}>
-                          <div style={{ ...sans, fontSize: 12, color: c.ink, marginBottom: 8 }}>Eliminar este conteúdo? Não é possível desfazer.</div>
+                          <div style={{ ...sans, fontSize: 12, color: c.ink, marginBottom: 8 }}>{t("content.confirmDelete")}</div>
                           <div style={{ display: "flex", gap: 8 }}>
                             <button
                               onClick={() => confirmDelete(item.id)}
                               disabled={deleteContent.isPending}
                               style={{ ...sans, fontSize: 12, fontWeight: 600, color: "#fff", background: c.rose, border: "none", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}
                             >
-                              Eliminar
+                              {t("common.delete")}
                             </button>
                             <button
                               onClick={() => setDeletingId(null)}
                               style={{ ...sans, fontSize: 12, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
                             >
-                              Cancelar
+                              {t("common.cancel")}
                             </button>
                           </div>
                         </div>
@@ -3456,13 +3542,13 @@ function ConteudosView({ brand, onBack, session }) {
                             onClick={() => setEditingId(item.id)}
                             style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: c.ink, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}
                           >
-                            <Pencil size={12} /> Editar
+                            <Pencil size={12} /> {t("common.edit")}
                           </button>
                           <button
                             onClick={() => setDeletingId(item.id)}
                             style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: c.rose, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}
                           >
-                            <Trash2 size={12} /> Eliminar
+                            <Trash2 size={12} /> {t("common.delete")}
                           </button>
                         </div>
                       )}
@@ -3479,7 +3565,7 @@ function ConteudosView({ brand, onBack, session }) {
 
                   <div style={{ marginBottom: 14 }}>
                     <div style={{ ...sans, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: c.mist, marginBottom: 6 }}>
-                      Copy
+                      {t("content.copy")}
                     </div>
                     <div style={{ ...sans, fontSize: 13, color: c.ink, lineHeight: 1.6, background: c.paper, borderRadius: 10, padding: "12px 14px" }}>
                       {item.copy || "—"}
@@ -3488,7 +3574,7 @@ function ConteudosView({ brand, onBack, session }) {
 
                   {item.note && (
                     <div style={{ ...sans, fontSize: 12.5, color: c.mist, fontStyle: "italic", marginBottom: 14 }}>
-                      Nota do cliente: "{item.note}"
+                      {t("content.clientNote")} "{item.note}"
                     </div>
                   )}
 
@@ -3503,7 +3589,7 @@ function ConteudosView({ brand, onBack, session }) {
                           display: "flex", alignItems: "center", gap: 6,
                         }}
                       >
-                        <CheckCircle2 size={14} /> Aprovar
+                        <CheckCircle2 size={14} /> {t("content.approve")}
                       </button>
                       <button
                         onClick={() => { setRejectingId(item.id); setRejectNote(""); }}
@@ -3513,7 +3599,7 @@ function ConteudosView({ brand, onBack, session }) {
                           display: "flex", alignItems: "center", gap: 6,
                         }}
                       >
-                        <XCircle size={14} /> Reprovar
+                        <XCircle size={14} /> {t("content.reject")}
                       </button>
                     </div>
                   )}
@@ -3523,7 +3609,7 @@ function ConteudosView({ brand, onBack, session }) {
                       <textarea
                         value={rejectNote}
                         onChange={(e) => setRejectNote(e.target.value)}
-                        placeholder="Explica o que gostarias de mudar (opcional)"
+                        placeholder={t("content.rejectPlaceholder")}
                         rows={2}
                         style={{ ...sans, width: "100%", fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px", marginBottom: 8, resize: "vertical" }}
                       />
@@ -3533,13 +3619,13 @@ function ConteudosView({ brand, onBack, session }) {
                           disabled={approveContent.isPending}
                           style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.rose, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}
                         >
-                          Confirmar reprovação
+                          {t("content.confirmReject")}
                         </button>
                         <button
                           onClick={() => setRejectingId(null)}
                           style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
                         >
-                          Cancelar
+                          {t("common.cancel")}
                         </button>
                       </div>
                     </div>
@@ -3560,6 +3646,7 @@ function ConteudosView({ brand, onBack, session }) {
    ROTEIROS — texto simples + aprovar/reprovar com nota
 --------------------------------------------------------- */
 function NewScriptForm({ brandId, onDone }) {
+  const { t } = useT();
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
   const [error, setError] = useState("");
@@ -3568,7 +3655,7 @@ function NewScriptForm({ brandId, onDone }) {
   const submit = async (e) => {
     e.preventDefault();
     if (!title.trim()) {
-      setError("Dá um título ao roteiro.");
+      setError(t("scripts.needTitle"));
       return;
     }
     setError("");
@@ -3576,7 +3663,7 @@ function NewScriptForm({ brandId, onDone }) {
       await addScript.mutateAsync({ title: title.trim(), text });
       onDone();
     } catch (err) {
-      setError(err.message || "Não foi possível criar o roteiro.");
+      setError(err.message || t("scripts.createError"));
     }
   };
 
@@ -3585,23 +3672,23 @@ function NewScriptForm({ brandId, onDone }) {
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder="Título do roteiro"
+        placeholder={t("scripts.titlePlaceholder")}
         style={{ ...sans, fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px" }}
       />
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Texto do roteiro"
+        placeholder={t("scripts.textPlaceholder")}
         rows={5}
         style={{ ...sans, fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", resize: "vertical" }}
       />
       {error && <div style={{ ...sans, fontSize: 12, color: c.rose }}>{error}</div>}
       <div style={{ display: "flex", gap: 8 }}>
         <button type="submit" disabled={addScript.isPending} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}>
-          {addScript.isPending ? "A guardar…" : "Criar"}
+          {addScript.isPending ? t("common.saving") : t("common.create")}
         </button>
         <button type="button" onClick={onDone} style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
-          Cancelar
+          {t("common.cancel")}
         </button>
       </div>
     </form>
@@ -3609,6 +3696,7 @@ function NewScriptForm({ brandId, onDone }) {
 }
 
 function RoteirosView({ brand, onBack, session }) {
+  const { t } = useT();
   const [openId, setOpenId] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectNote, setRejectNote] = useState("");
@@ -3636,9 +3724,9 @@ function RoteirosView({ brand, onBack, session }) {
       </button>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <div>
-          <Eyebrow>Roteiros</Eyebrow>
+          <Eyebrow>{t("scripts.eyebrow")}</Eyebrow>
           <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: "0 0 20px" }}>
-            Roteiros de vídeo
+            {t("scripts.title")}
           </h1>
         </div>
         {canManage && !showForm && (
@@ -3646,17 +3734,17 @@ function RoteirosView({ brand, onBack, session }) {
             onClick={() => setShowForm(true)}
             style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 14px", cursor: "pointer" }}
           >
-            <Plus size={14} /> Novo roteiro
+            <Plus size={14} /> {t("scripts.new")}
           </button>
         )}
       </div>
 
       {showForm && <NewScriptForm brandId={brand.id} onDone={() => setShowForm(false)} />}
 
-      {scriptsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
+      {scriptsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>{t("common.loading")}</div>}
       {scriptsQuery.error && <div style={{ ...sans, fontSize: 13, color: c.rose }}>{scriptsQuery.error.message}</div>}
       {!scriptsQuery.isLoading && scripts.length === 0 && (
-        <div style={{ ...sans, fontSize: 13, color: c.mist }}>Ainda não há roteiros para esta marca.</div>
+        <div style={{ ...sans, fontSize: 13, color: c.mist }}>{t("scripts.empty")}</div>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -3700,7 +3788,7 @@ function RoteirosView({ brand, onBack, session }) {
                   </div>
                   {s.note && (
                     <div style={{ ...sans, fontSize: 12.5, color: c.mist, fontStyle: "italic", marginBottom: 14 }}>
-                      Nota do cliente: "{s.note}"
+                      {t("content.clientNote")} "{s.note}"
                     </div>
                   )}
                   {s.status === "pending" && rejectingId !== s.id && (
@@ -3714,7 +3802,7 @@ function RoteirosView({ brand, onBack, session }) {
                           display: "flex", alignItems: "center", gap: 6,
                         }}
                       >
-                        <CheckCircle2 size={14} /> Aprovar
+                        <CheckCircle2 size={14} /> {t("content.approve")}
                       </button>
                       <button
                         onClick={() => { setRejectingId(s.id); setRejectNote(""); }}
@@ -3724,7 +3812,7 @@ function RoteirosView({ brand, onBack, session }) {
                           display: "flex", alignItems: "center", gap: 6,
                         }}
                       >
-                        <XCircle size={14} /> Reprovar
+                        <XCircle size={14} /> {t("content.reject")}
                       </button>
                     </div>
                   )}
@@ -3734,7 +3822,7 @@ function RoteirosView({ brand, onBack, session }) {
                       <textarea
                         value={rejectNote}
                         onChange={(e) => setRejectNote(e.target.value)}
-                        placeholder="Explica o que gostarias de mudar (opcional)"
+                        placeholder={t("content.rejectPlaceholder")}
                         rows={2}
                         style={{ ...sans, width: "100%", fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px", marginBottom: 8, resize: "vertical" }}
                       />
@@ -3744,13 +3832,13 @@ function RoteirosView({ brand, onBack, session }) {
                           disabled={approveScript.isPending}
                           style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.rose, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}
                         >
-                          Confirmar reprovação
+                          {t("content.confirmReject")}
                         </button>
                         <button
                           onClick={() => setRejectingId(null)}
                           style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
                         >
-                          Cancelar
+                          {t("common.cancel")}
                         </button>
                       </div>
                     </div>
@@ -5736,6 +5824,7 @@ function CentroComandoModule({ session }) {
    BASE DE CONHECIMENTO — SOPs interativos (não PDF)
 --------------------------------------------------------- */
 function ArticleDetail({ article, onBack, onDelete, session }) {
+  const { t } = useT();
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(article.title);
   const [steps, setSteps] = useState(article.steps);
@@ -5766,7 +5855,7 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
   };
 
   const save = async () => {
-    await updateArticle.mutateAsync({ id: article.id, title: title.trim() || "Sem título", steps: steps.map((s) => s.trim()).filter(Boolean) });
+    await updateArticle.mutateAsync({ id: article.id, title: title.trim() || t("kb.untitled"), steps: steps.map((s) => s.trim()).filter(Boolean) });
     setEditing(false);
   };
 
@@ -5779,7 +5868,7 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
           onClick={onBack}
           style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
         >
-          <ArrowLeft size={14} /> Base de Conhecimento
+          <ArrowLeft size={14} /> {t("kb.eyebrow")}
         </button>
         <div style={{ display: "flex", gap: 8 }}>
           {canManage && editing && (
@@ -5789,13 +5878,13 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
                 disabled={updateArticle.isPending}
                 style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
               >
-                {updateArticle.isPending ? "A guardar…" : "Guardar"}
+                {updateArticle.isPending ? t("common.saving") : t("common.save")}
               </button>
               <button
                 onClick={() => setEditing(false)}
                 style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
               >
-                Cancelar
+                {t("common.cancel")}
               </button>
             </>
           )}
@@ -5804,7 +5893,7 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
               onClick={startEditing}
               style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.ink, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}
             >
-              <Pencil size={13} /> Editar
+              <Pencil size={13} /> {t("common.edit")}
             </button>
           )}
           {!editing && (
@@ -5812,7 +5901,7 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
               onClick={onDelete}
               style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}
             >
-              <Trash2 size={13} /> Eliminar
+              <Trash2 size={13} /> {t("common.delete")}
             </button>
           )}
         </div>
@@ -5833,16 +5922,16 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
       {editing && (
         <div style={{ background: c.paper, border: `1px solid ${c.line}`, borderRadius: 12, padding: 16, marginBottom: 20 }}>
           <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.ink, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-            <Sparkles size={13} color={c.boss} /> Colar o processo
+            <Sparkles size={13} color={c.boss} /> {t("kb.pasteProcess")}
           </div>
           <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 10, lineHeight: 1.5 }}>
-            Cola o texto todo corrido (com ou sem linhas/numeração) — o Big Boss separa automaticamente em passos. Podes depois ajustar cada passo abaixo.
+            {t("kb.pasteHelp")}
           </div>
           <textarea
             value={pasteText}
             onChange={(e) => setPasteText(e.target.value)}
             rows={5}
-            placeholder="Ex: Primeiro contacta o cliente. Depois envia o briefing. Por fim agenda a reunião de kickoff."
+            placeholder={t("kb.pastePlaceholder")}
             style={{ ...sans, fontSize: 13, color: c.ink, width: "100%", border: `1px solid ${c.line}`, borderRadius: 8, padding: "10px 12px", outline: "none", resize: "vertical", marginBottom: 10, boxSizing: "border-box" }}
           />
           <button
@@ -5850,7 +5939,7 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
             disabled={!pasteText.trim()}
             style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "#fff", background: pasteText.trim() ? c.boss : c.mistLight, border: "none", borderRadius: 7, padding: "8px 13px", cursor: pasteText.trim() ? "pointer" : "default" }}
           >
-            <Sparkles size={12} /> Separar em passos
+            <Sparkles size={12} /> {t("kb.splitSteps")}
           </button>
         </div>
       )}
@@ -5890,7 +5979,7 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
             )}
           </div>
         ))}
-        {steps.length === 0 && <div style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>Sem passos ainda.</div>}
+        {steps.length === 0 && <div style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>{t("kb.noSteps")}</div>}
       </div>
 
       {editing && (
@@ -5898,7 +5987,7 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
           onClick={() => setSteps([...steps, ""])}
           style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: c.boss, background: "none", border: "none", cursor: "pointer", padding: "12px 0 0" }}
         >
-          <Plus size={12} /> Adicionar passo manual
+          <Plus size={12} /> {t("kb.addStepManual")}
         </button>
       )}
     </div>
@@ -5906,6 +5995,7 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
 }
 
 function BaseConhecimentoModule({ session }) {
+  const { t } = useT();
   const [openId, setOpenId] = useState(null);
   const articlesQuery = useArticles(true);
   const addArticle = useAddArticle();
@@ -5915,7 +6005,7 @@ function BaseConhecimentoModule({ session }) {
   const canManage = CAN_MANAGE_ROLES.includes(session.role);
 
   const createArticle = async () => {
-    const newArticle = await addArticle.mutateAsync({ session, title: "Novo artigo" });
+    const newArticle = await addArticle.mutateAsync({ session, title: t("kb.new") });
     setOpenId(newArticle.id);
   };
 
@@ -5932,9 +6022,9 @@ function BaseConhecimentoModule({ session }) {
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
-      <Eyebrow>Base de Conhecimento</Eyebrow>
+      <Eyebrow>{t("kb.eyebrow")}</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>SOPs e tutoriais</h1>
+        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>{t("kb.title")}</h1>
         {canManage && (
         <button
           onClick={createArticle}
@@ -5944,15 +6034,15 @@ function BaseConhecimentoModule({ session }) {
             background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer",
           }}
         >
-          <Plus size={14} /> Novo artigo
+          <Plus size={14} /> {t("kb.new")}
         </button>
         )}
       </div>
 
-      {articlesQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
+      {articlesQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>{t("common.loading")}</div>}
       {!articlesQuery.isLoading && articles.length === 0 && (
         <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
-          Ainda sem artigos — cria o primeiro acima.
+          {t("kb.empty")}
         </div>
       )}
 
