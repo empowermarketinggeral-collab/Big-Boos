@@ -765,10 +765,12 @@ function mapReportRow(row) {
   const demographics = row.demographics && Object.keys(row.demographics).length
     ? row.demographics
     : { idade: [], genero: [], local: [] };
+  // Relatórios antigos guardavam reach como { value, trend } — normaliza para número simples.
+  const reach = tm.reach && typeof tm.reach === "object" ? Number(tm.reach.value) || 0 : Number(tm.reach) || 0;
   return {
     id: row.id,
     title: row.title,
-    reach: tm.reach,
+    reach,
     totalViews: tm.totalViews,
     totalInteractions: tm.totalInteractions,
     interactionsFollowers: tm.interactionsFollowers,
