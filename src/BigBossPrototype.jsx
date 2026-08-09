@@ -809,6 +809,44 @@ function useSaveNextSteps(brandId) {
   });
 }
 
+function useUpdateReport(brandId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, title, reach, reachTrend, engagement, engagementTrend, conversions, conversionsTrend, roi, roiTrend, demographics, campaigns, history, bestTimes }) => {
+      const { error } = await supabase
+        .from("reports")
+        .update({
+          title,
+          period_label: title,
+          top_metrics: {
+            reach: { value: reach, trend: reachTrend },
+            engagement: { value: engagement, trend: engagementTrend },
+            conversions: { value: conversions, trend: conversionsTrend },
+            roi: { value: roi, trend: roiTrend },
+          },
+          demographics,
+          campaigns,
+          history_projection: history,
+          best_times: bestTimes,
+        })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["reports", brandId] }),
+  });
+}
+
+function useDeleteReport(brandId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from("reports").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["reports", brandId] }),
+  });
+}
+
 /* ---------------------------------------------------------
    CRONOGRAMA DE STORIES — ligação ao Supabase (story_week_plans)
 --------------------------------------------------------- */
@@ -4060,8 +4098,10 @@ function PlanoEstrategicoView({ brand, onBack, session }) {
 --------------------------------------------------------- */
 function DashboardsView({ brand, onBack, session }) {
   const [openReportId, setOpenReportId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const reportsQuery = useReports(brand.id, true);
   const addReport = useAddReport(brand.id);
+  const deleteReport = useDeleteReport(brand.id);
   const reports = reportsQuery.data || [];
   const canManage = CAN_MANAGE_ROLES.includes(session.role);
 
@@ -4112,33 +4152,65 @@ function DashboardsView({ brand, onBack, session }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-2, repeat(2, 1fr))", gap: 14 }}>
         {reports.map((r) => (
-          <button
-            key={r.id}
-            onClick={() => setOpenReportId(r.id)}
-            style={{ textAlign: "left", background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 22, cursor: "pointer" }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <BarChart3 size={16} color={c.boss} strokeWidth={1.8} />
-                <div style={{ ...serif, fontSize: 16, color: c.ink, fontWeight: 500 }}>{r.title}</div>
+          deletingId === r.id ? (
+            <div key={r.id} style={{ background: "#FBE9EC", border: `1px solid ${c.rose}`, borderRadius: 14, padding: 22 }}>
+              <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 12 }}>
+                Eliminar <strong>{r.title}</strong>? Não é possível desfazer.
               </div>
-              <ChevronRight size={16} color={c.mist} />
-            </div>
-            <div style={{ display: "flex", gap: 22 }}>
-              <div>
-                <div style={{ ...serif, fontSize: 19, color: c.ink }}>{r.reach}</div>
-                <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>Alcance</div>
-              </div>
-              <div>
-                <div style={{ ...serif, fontSize: 19, color: c.ink }}>{r.engagement}</div>
-                <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>Engajamento</div>
-              </div>
-              <div>
-                <div style={{ ...serif, fontSize: 19, color: c.sage }}>{r.roi}</div>
-                <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>ROI</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => deleteReport.mutate(r.id, { onSuccess: () => setDeletingId(null) })}
+                  disabled={deleteReport.isPending}
+                  style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.rose, border: "none", borderRadius: 7, padding: "7px 14px", cursor: "pointer" }}
+                >
+                  Eliminar
+                </button>
+                <button
+                  onClick={() => setDeletingId(null)}
+                  style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+                >
+                  Cancelar
+                </button>
               </div>
             </div>
-          </button>
+          ) : (
+          <div key={r.id} style={{ position: "relative", background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14 }}>
+            {canManage && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setDeletingId(r.id); }}
+                style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", cursor: "pointer", color: c.mistLight, zIndex: 1 }}
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+            <button
+              onClick={() => setOpenReportId(r.id)}
+              style={{ width: "100%", textAlign: "left", background: "none", border: "none", borderRadius: 14, padding: 22, cursor: "pointer" }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <BarChart3 size={16} color={c.boss} strokeWidth={1.8} />
+                  <div style={{ ...serif, fontSize: 16, color: c.ink, fontWeight: 500 }}>{r.title}</div>
+                </div>
+                <ChevronRight size={16} color={c.mist} />
+              </div>
+              <div style={{ display: "flex", gap: 22 }}>
+                <div>
+                  <div style={{ ...serif, fontSize: 19, color: c.ink }}>{r.reach}</div>
+                  <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>Alcance</div>
+                </div>
+                <div>
+                  <div style={{ ...serif, fontSize: 19, color: c.ink }}>{r.engagement}</div>
+                  <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>Engajamento</div>
+                </div>
+                <div>
+                  <div style={{ ...serif, fontSize: 19, color: c.sage }}>{r.roi}</div>
+                  <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>ROI</div>
+                </div>
+              </div>
+            </button>
+          </div>
+          )
         ))}
       </div>
     </div>
@@ -4151,7 +4223,7 @@ function DashboardsView({ brand, onBack, session }) {
 const PIE_COLORS = ["#4C2889", "#7C4DE0", "#9B72E8", "#B794F0", "#DCCBFA"];
 const METRIC_ICONS = { reach: Eye, engagement: Zap, conversions: Target, roi: TrendingUp };
 
-function MetricCard({ metricKey, label, value, trend }) {
+function MetricCard({ metricKey, label, value, trend, editable, onValue, onTrend }) {
   const Icon = METRIC_ICONS[metricKey];
   return (
     <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: "18px 20px" }}>
@@ -4159,7 +4231,14 @@ function MetricCard({ metricKey, label, value, trend }) {
         <div style={{ width: 32, height: 32, borderRadius: 10, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Icon size={15} color={c.boss} strokeWidth={2} />
         </div>
-        {trend && (
+        {editable ? (
+          <input
+            value={trend}
+            onChange={(e) => onTrend(e.target.value)}
+            placeholder="+0%"
+            style={{ ...sans, fontSize: 10.5, fontWeight: 600, color: c.sage, background: "#E7F5EC", borderRadius: 999, padding: "2px 7px", border: "none", outline: "none", width: 56, textAlign: "center" }}
+          />
+        ) : trend && (
           <span style={{ ...sans, fontSize: 10.5, fontWeight: 600, color: c.sage, background: "#E7F5EC", borderRadius: 999, padding: "2px 7px" }}>
             {trend}
           </span>
@@ -4168,7 +4247,15 @@ function MetricCard({ metricKey, label, value, trend }) {
       <div style={{ ...sans, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: c.mist, marginBottom: 4 }}>
         {label}
       </div>
-      <div style={{ ...serif, fontSize: 24, color: c.ink }}>{value}</div>
+      {editable ? (
+        <input
+          value={value}
+          onChange={(e) => onValue(e.target.value)}
+          style={{ ...serif, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", padding: 0 }}
+        />
+      ) : (
+        <div style={{ ...serif, fontSize: 24, color: c.ink }}>{value}</div>
+      )}
     </div>
   );
 }
@@ -4191,8 +4278,13 @@ function ChartCard({ title, sub, right, children }) {
 function ReportDetail({ report, brand, onBack, session }) {
   const [demoTab, setDemoTab] = useState("idade");
   const [newStep, setNewStep] = useState("");
+  const [draft, setDraft] = useState(report);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [saved, setSaved] = useState(false);
   const canManage = CAN_MANAGE_ROLES.includes(session.role);
   const saveNextSteps = useSaveNextSteps(brand.id);
+  const updateReport = useUpdateReport(brand.id);
+  const deleteReport = useDeleteReport(brand.id);
   const steps = report.nextSteps;
 
   const toggleStep = (i) => {
@@ -4205,7 +4297,55 @@ function ReportDetail({ report, brand, onBack, session }) {
     setNewStep("");
   };
   const doneCount = steps.filter((s) => s.done).length;
-  const demoData = report.demographics[demoTab];
+  const demoData = draft.demographics[demoTab];
+
+  const updateMetric = (key, value) => setDraft((d) => ({ ...d, [key]: value }));
+  const updateMetricTrend = (key, value) => setDraft((d) => ({ ...d, [`${key}Trend`]: value }));
+
+  const updateDemoItem = (idx, field, value) => setDraft((d) => ({
+    ...d,
+    demographics: { ...d.demographics, [demoTab]: d.demographics[demoTab].map((it, i) => (i === idx ? { ...it, [field]: field === "pct" ? Number(value) || 0 : value } : it)) },
+  }));
+  const addDemoItem = () => setDraft((d) => ({ ...d, demographics: { ...d.demographics, [demoTab]: [...d.demographics[demoTab], { label: "Novo", pct: 0 }] } }));
+  const removeDemoItem = (idx) => setDraft((d) => ({ ...d, demographics: { ...d.demographics, [demoTab]: d.demographics[demoTab].filter((_, i) => i !== idx) } }));
+
+  const updateCampaign = (idx, field, value) => setDraft((d) => ({
+    ...d,
+    campaigns: d.campaigns.map((cp, i) => (i === idx ? { ...cp, [field]: field === "invest" || field === "revenue" ? Number(value) || 0 : value } : cp)),
+  }));
+  const addCampaign = () => setDraft((d) => ({ ...d, campaigns: [...d.campaigns, { name: "Nova campanha", invest: 0, revenue: 0, roi: "0%" }] }));
+  const removeCampaign = (idx) => setDraft((d) => ({ ...d, campaigns: d.campaigns.filter((_, i) => i !== idx) }));
+
+  const updateHistoryPoint = (idx, field, value) => setDraft((d) => ({
+    ...d,
+    history: d.history.map((h, i) => (i === idx ? { ...h, [field]: field === "month" ? value : Number(value) || 0 } : h)),
+  }));
+  const addHistoryPoint = () => setDraft((d) => ({ ...d, history: [...d.history, { month: `Mês ${d.history.length + 1}`, real: 0, proj: 0 }] }));
+  const removeHistoryPoint = (idx) => setDraft((d) => ({ ...d, history: d.history.filter((_, i) => i !== idx) }));
+
+  const updateBestTime = (idx, field, value) => setDraft((d) => ({ ...d, bestTimes: d.bestTimes.map((bt, i) => (i === idx ? { ...bt, [field]: value } : bt)) }));
+  const addBestTime = () => setDraft((d) => ({ ...d, bestTimes: [...d.bestTimes, { day: "Segunda", hour: "18:00", eng: "0%" }] }));
+  const removeBestTime = (idx) => setDraft((d) => ({ ...d, bestTimes: d.bestTimes.filter((_, i) => i !== idx) }));
+
+  const save = async () => {
+    setSaved(false);
+    await updateReport.mutateAsync({
+      id: report.id,
+      title: draft.title,
+      reach: draft.reach, reachTrend: draft.reachTrend,
+      engagement: draft.engagement, engagementTrend: draft.engagementTrend,
+      conversions: draft.conversions, conversionsTrend: draft.conversionsTrend,
+      roi: draft.roi, roiTrend: draft.roiTrend,
+      demographics: draft.demographics,
+      campaigns: draft.campaigns,
+      history: draft.history,
+      bestTimes: draft.bestTimes,
+    });
+    setSaved(true);
+  };
+
+  const rowInput = { ...sans, fontSize: 11.5, border: `1px solid ${c.line}`, borderRadius: 6, padding: "5px 7px", outline: "none", color: c.ink };
+  const addLink = { ...sans, fontSize: 11.5, color: c.boss, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, padding: 0 };
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1080 }}>
@@ -4215,16 +4355,64 @@ function ReportDetail({ report, brand, onBack, session }) {
       >
         <ArrowLeft size={14} /> Dashboards
       </button>
-      <Eyebrow>Relatório · {brand.name}</Eyebrow>
-      <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: "0 0 24px" }}>
-        {report.title}
-      </h1>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, marginBottom: 10 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Eyebrow>Relatório · {brand.name}</Eyebrow>
+          {canManage ? (
+            <input
+              value={draft.title}
+              onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
+              style={{ ...serif, fontSize: 24, fontWeight: 500, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "6px 10px", outline: "none", width: "100%", maxWidth: 380, display: "block" }}
+            />
+          ) : (
+            <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: 0 }}>{report.title}</h1>
+          )}
+        </div>
+        {canManage && (
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button
+              onClick={save}
+              disabled={updateReport.isPending}
+              style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
+            >
+              {updateReport.isPending ? "A guardar…" : "Guardar"}
+            </button>
+            <button
+              onClick={() => setConfirmingDelete(true)}
+              style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
+            >
+              <Trash2 size={13} /> Eliminar
+            </button>
+          </div>
+        )}
+      </div>
+      {saved && <div style={{ ...sans, fontSize: 12, color: c.sage, marginBottom: 14 }}>Alterações guardadas.</div>}
+      {confirmingDelete && (
+        <div style={{ background: "#FBE9EC", border: `1px solid ${c.rose}`, borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
+          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 10 }}>Eliminar este relatório? Não é possível desfazer.</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => deleteReport.mutate(report.id, { onSuccess: onBack })}
+              disabled={deleteReport.isPending}
+              style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.rose, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}
+            >
+              {deleteReport.isPending ? "A eliminar…" : "Eliminar"}
+            </button>
+            <button
+              onClick={() => setConfirmingDelete(false)}
+              style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-4, repeat(4, 1fr))", gap: 12, marginBottom: 14 }}>
-        <MetricCard metricKey="reach" label="Alcance" value={report.reach} trend={report.reachTrend} />
-        <MetricCard metricKey="engagement" label="Engajamento" value={report.engagement} trend={report.engagementTrend} />
-        <MetricCard metricKey="conversions" label="Conversões" value={report.conversions} trend={report.conversionsTrend} />
-        <MetricCard metricKey="roi" label="ROI" value={report.roi} trend={report.roiTrend} />
+        <MetricCard metricKey="reach" label="Alcance" value={draft.reach} trend={draft.reachTrend} editable={canManage} onValue={(v) => updateMetric("reach", v)} onTrend={(v) => updateMetricTrend("reach", v)} />
+        <MetricCard metricKey="engagement" label="Engajamento" value={draft.engagement} trend={draft.engagementTrend} editable={canManage} onValue={(v) => updateMetric("engagement", v)} onTrend={(v) => updateMetricTrend("engagement", v)} />
+        <MetricCard metricKey="conversions" label="Conversões" value={draft.conversions} trend={draft.conversionsTrend} editable={canManage} onValue={(v) => updateMetric("conversions", v)} onTrend={(v) => updateMetricTrend("conversions", v)} />
+        <MetricCard metricKey="roi" label="ROI" value={draft.roi} trend={draft.roiTrend} editable={canManage} onValue={(v) => updateMetric("roi", v)} onTrend={(v) => updateMetricTrend("roi", v)} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-2, 0.85fr 1.15fr)", gap: 14, marginBottom: 14 }}>
@@ -4234,18 +4422,18 @@ function ReportDetail({ report, brand, onBack, session }) {
           sub="Distribuição do público"
           right={
             <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 8, padding: 3 }}>
-              {["idade", "genero", "local"].map((t) => (
+              {["idade", "genero", "local"].map((tb) => (
                 <button
-                  key={t}
-                  onClick={() => setDemoTab(t)}
+                  key={tb}
+                  onClick={() => setDemoTab(tb)}
                   style={{
                     ...sans, fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, border: "none", cursor: "pointer",
-                    color: demoTab === t ? "#fff" : c.mist,
-                    background: demoTab === t ? c.boss : "transparent",
+                    color: demoTab === tb ? "#fff" : c.mist,
+                    background: demoTab === tb ? c.boss : "transparent",
                     textTransform: "capitalize",
                   }}
                 >
-                  {t === "genero" ? "Género" : t}
+                  {tb === "genero" ? "Género" : tb}
                 </button>
               ))}
             </div>
@@ -4265,14 +4453,25 @@ function ReportDetail({ report, brand, onBack, session }) {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 10 }}>
             {demoData.map((d, i) => (
-              <div key={d.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", ...sans, fontSize: 12 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 8, color: c.ink }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 3, background: PIE_COLORS[i % PIE_COLORS.length] }} />
-                  {d.label}
-                </span>
-                <span style={{ color: c.mist }}>{d.pct}%</span>
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, ...sans, fontSize: 12 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 3, background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }} />
+                {canManage ? (
+                  <>
+                    <input value={d.label} onChange={(e) => updateDemoItem(i, "label", e.target.value)} style={{ ...rowInput, flex: 1, minWidth: 0 }} />
+                    <input value={d.pct} onChange={(e) => updateDemoItem(i, "pct", e.target.value)} type="number" style={{ ...rowInput, width: 54 }} />
+                    <button onClick={() => removeDemoItem(i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mistLight, padding: 0, flexShrink: 0 }}>
+                      <XCircle size={13} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ flex: 1, color: c.ink }}>{d.label}</span>
+                    <span style={{ color: c.mist }}>{d.pct}%</span>
+                  </>
+                )}
               </div>
             ))}
+            {canManage && <button onClick={addDemoItem} style={addLink}><Plus size={11} /> Adicionar</button>}
           </div>
         </ChartCard>
 
@@ -4280,7 +4479,7 @@ function ReportDetail({ report, brand, onBack, session }) {
         <ChartCard title="ROI por Campanha" sub="Investimento vs. Receita">
           <div style={{ height: 190, marginBottom: 14 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={report.campaigns} barGap={4}>
+              <BarChart data={draft.campaigns} barGap={4}>
                 <CartesianGrid strokeDasharray="3 3" stroke={c.line} vertical={false} />
                 <XAxis dataKey="name" tick={{ ...sans, fontSize: 10.5, fill: c.mist }} axisLine={{ stroke: c.line }} tickLine={false} />
                 <YAxis tick={{ ...sans, fontSize: 10.5, fill: c.mist }} axisLine={false} tickLine={false} />
@@ -4290,23 +4489,40 @@ function ReportDetail({ report, brand, onBack, session }) {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: `var(--bb-grid-2, repeat(${Math.min(report.campaigns.length, 4)}, 1fr))`, gap: 8 }}>
-            {report.campaigns.map((cp) => (
-              <div key={cp.name} style={{ background: c.paper, borderRadius: 10, padding: "8px 10px" }}>
-                <div style={{ ...sans, fontSize: 9.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: c.mist }}>ROI</div>
-                <div style={{ ...serif, fontSize: 16, color: c.sage }}>{cp.roi}</div>
-                <div style={{ ...sans, fontSize: 10, color: c.mist, marginTop: 1 }}>{cp.name}</div>
-              </div>
-            ))}
-          </div>
+          {canManage ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {draft.campaigns.map((cp, i) => (
+                <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input value={cp.name} onChange={(e) => updateCampaign(i, "name", e.target.value)} placeholder="Nome" style={{ ...rowInput, flex: 1, minWidth: 0 }} />
+                  <input value={cp.invest} onChange={(e) => updateCampaign(i, "invest", e.target.value)} type="number" placeholder="Invest." style={{ ...rowInput, width: 64 }} />
+                  <input value={cp.revenue} onChange={(e) => updateCampaign(i, "revenue", e.target.value)} type="number" placeholder="Receita" style={{ ...rowInput, width: 64 }} />
+                  <input value={cp.roi} onChange={(e) => updateCampaign(i, "roi", e.target.value)} placeholder="ROI" style={{ ...rowInput, width: 50 }} />
+                  <button onClick={() => removeCampaign(i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mistLight, padding: 0, flexShrink: 0 }}>
+                    <XCircle size={13} />
+                  </button>
+                </div>
+              ))}
+              <button onClick={addCampaign} style={addLink}><Plus size={11} /> Adicionar campanha</button>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: `var(--bb-grid-2, repeat(${Math.min(draft.campaigns.length, 4)}, 1fr))`, gap: 8 }}>
+              {draft.campaigns.map((cp, i) => (
+                <div key={i} style={{ background: c.paper, borderRadius: 10, padding: "8px 10px" }}>
+                  <div style={{ ...sans, fontSize: 9.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: c.mist }}>ROI</div>
+                  <div style={{ ...serif, fontSize: 16, color: c.sage }}>{cp.roi}</div>
+                  <div style={{ ...sans, fontSize: 10, color: c.mist, marginTop: 1 }}>{cp.name}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </ChartCard>
       </div>
 
       {/* Histórico vs Projeção */}
       <ChartCard title="Histórico vs Projeção" sub="Alcance mensal · dados reais e previsão">
-        <div style={{ height: 200 }}>
+        <div style={{ height: 200, marginBottom: canManage ? 14 : 0 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={report.history}>
+            <AreaChart data={draft.history}>
               <defs>
                 <linearGradient id="realFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={c.boss} stopOpacity={0.35} />
@@ -4322,25 +4538,52 @@ function ReportDetail({ report, brand, onBack, session }) {
             </AreaChart>
           </ResponsiveContainer>
         </div>
+        {canManage && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {draft.history.map((h, i) => (
+              <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input value={h.month} onChange={(e) => updateHistoryPoint(i, "month", e.target.value)} placeholder="Mês" style={{ ...rowInput, flex: 1, minWidth: 0 }} />
+                <input value={h.real} onChange={(e) => updateHistoryPoint(i, "real", e.target.value)} type="number" placeholder="Real" style={{ ...rowInput, width: 70 }} />
+                <input value={h.proj} onChange={(e) => updateHistoryPoint(i, "proj", e.target.value)} type="number" placeholder="Projeção" style={{ ...rowInput, width: 70 }} />
+                <button onClick={() => removeHistoryPoint(i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mistLight, padding: 0, flexShrink: 0 }}>
+                  <XCircle size={13} />
+                </button>
+              </div>
+            ))}
+            <button onClick={addHistoryPoint} style={addLink}><Plus size={11} /> Adicionar mês</button>
+          </div>
+        )}
       </ChartCard>
 
       <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-2, 1fr 1fr)", gap: 14, marginTop: 14 }}>
         <ChartCard title="Melhor Hora para Postar" sub="Baseado em engajamento médio">
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {report.bestTimes.map((t, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: c.paper, borderRadius: 10, padding: "10px 12px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ ...sans, fontSize: 11, fontWeight: 700, color: c.boss, background: c.bossSoft, borderRadius: 6, padding: "2px 7px" }}>
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <div>
-                    <div style={{ ...sans, fontSize: 12.5, color: c.ink, fontWeight: 500 }}>{t.day}</div>
-                    <div style={{ ...sans, fontSize: 11, color: c.mist }}>{t.hour}</div>
-                  </div>
-                </div>
-                <span style={{ ...serif, fontSize: 14, color: c.sage }}>{t.eng}</span>
+            {draft.bestTimes.map((t, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: c.paper, borderRadius: 10, padding: "8px 10px" }}>
+                <span style={{ ...sans, fontSize: 11, fontWeight: 700, color: c.boss, background: c.bossSoft, borderRadius: 6, padding: "2px 7px", flexShrink: 0 }}>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                {canManage ? (
+                  <>
+                    <input value={t.day} onChange={(e) => updateBestTime(i, "day", e.target.value)} placeholder="Dia" style={{ ...rowInput, flex: 1, minWidth: 0 }} />
+                    <input value={t.hour} onChange={(e) => updateBestTime(i, "hour", e.target.value)} placeholder="Hora" style={{ ...rowInput, width: 64 }} />
+                    <input value={t.eng} onChange={(e) => updateBestTime(i, "eng", e.target.value)} placeholder="Eng." style={{ ...rowInput, width: 50 }} />
+                    <button onClick={() => removeBestTime(i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mistLight, padding: 0, flexShrink: 0 }}>
+                      <XCircle size={13} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ ...sans, fontSize: 12.5, color: c.ink, fontWeight: 500 }}>{t.day}</div>
+                      <div style={{ ...sans, fontSize: 11, color: c.mist }}>{t.hour}</div>
+                    </div>
+                    <span style={{ ...serif, fontSize: 14, color: c.sage }}>{t.eng}</span>
+                  </>
+                )}
               </div>
             ))}
+            {canManage && <button onClick={addBestTime} style={addLink}><Plus size={11} /> Adicionar horário</button>}
           </div>
         </ChartCard>
 
