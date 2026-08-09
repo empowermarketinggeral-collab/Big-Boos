@@ -723,26 +723,69 @@ function useSaveGoals(brandId) {
 /* ---------------------------------------------------------
    DASHBOARDS — ligação ao Supabase (tabela reports)
 --------------------------------------------------------- */
+const CONTENT_TYPE_BREAKDOWN = ["Reels", "Posts", "Stories", "Carrossel"];
+const DEFAULT_TOP_METRICS = {
+  reach: 0,
+  totalViews: 0,
+  totalInteractions: 0,
+  interactionsFollowers: 0,
+  interactionsNonFollowers: 0,
+  viewsByType: CONTENT_TYPE_BREAKDOWN.map((type) => ({ type, value: 0 })),
+  interactionsByType: CONTENT_TYPE_BREAKDOWN.map((type) => ({ type, value: 0 })),
+  topContent: "",
+  profileVisits: 0,
+  bioLinkTaps: 0,
+  addressTaps: 0,
+  customMetricLabel: "Marcações",
+  customMetricValue: 0,
+  followers: 0,
+};
+
+function computeEngagementPct(totalInteractions, reach) {
+  const r = Number(reach) || 0;
+  if (!r) return "0%";
+  return `${(((Number(totalInteractions) || 0) / r) * 100).toFixed(1)}%`;
+}
+
+function computeCampaignRoi(invest, revenue) {
+  const i = Number(invest) || 0;
+  if (!i) return "—";
+  return `${((((Number(revenue) || 0) - i) / i) * 100).toFixed(0)}%`;
+}
+
+function computeOverallRoi(campaigns) {
+  const totalInvest = campaigns.reduce((s, cmp) => s + (Number(cmp.invest) || 0), 0);
+  const totalRevenue = campaigns.reduce((s, cmp) => s + (Number(cmp.revenue) || 0), 0);
+  if (!totalInvest) return "—";
+  return `${(((totalRevenue - totalInvest) / totalInvest) * 100).toFixed(0)}%`;
+}
+
 function mapReportRow(row) {
-  const tm = row.top_metrics || {};
+  const tm = row.top_metrics && Object.keys(row.top_metrics).length ? { ...DEFAULT_TOP_METRICS, ...row.top_metrics } : DEFAULT_TOP_METRICS;
   const demographics = row.demographics && Object.keys(row.demographics).length
     ? row.demographics
     : { idade: [], genero: [], local: [] };
   return {
     id: row.id,
     title: row.title,
-    reach: tm.reach?.value ?? "0",
-    reachTrend: tm.reach?.trend ?? "",
-    engagement: tm.engagement?.value ?? "0%",
-    engagementTrend: tm.engagement?.trend ?? "",
-    conversions: tm.conversions?.value ?? "0",
-    conversionsTrend: tm.conversions?.trend ?? "",
-    roi: tm.roi?.value ?? "0%",
-    roiTrend: tm.roi?.trend ?? "",
+    reach: tm.reach,
+    totalViews: tm.totalViews,
+    totalInteractions: tm.totalInteractions,
+    interactionsFollowers: tm.interactionsFollowers,
+    interactionsNonFollowers: tm.interactionsNonFollowers,
+    viewsByType: tm.viewsByType && tm.viewsByType.length ? tm.viewsByType : DEFAULT_TOP_METRICS.viewsByType,
+    interactionsByType: tm.interactionsByType && tm.interactionsByType.length ? tm.interactionsByType : DEFAULT_TOP_METRICS.interactionsByType,
+    topContent: tm.topContent,
+    profileVisits: tm.profileVisits,
+    bioLinkTaps: tm.bioLinkTaps,
+    addressTaps: tm.addressTaps,
+    customMetricLabel: tm.customMetricLabel,
+    customMetricValue: tm.customMetricValue,
+    followers: tm.followers,
     demographics,
     campaigns: row.campaigns || [],
     history: row.history_projection || [],
-    bestTimes: row.best_times || [],
+    activeHours: row.best_times || [],
     nextSteps: row.next_steps || [],
   };
 }
@@ -773,12 +816,7 @@ function useAddReport(brandId) {
           brand_id: brandId,
           title,
           period_label: title,
-          top_metrics: {
-            reach: { value: "0", trend: "+0%" },
-            engagement: { value: "0%", trend: "+0pp" },
-            conversions: { value: "0", trend: "+0%" },
-            roi: { value: "0%", trend: "+0%" },
-          },
+          top_metrics: DEFAULT_TOP_METRICS,
           demographics: {
             idade: [{ label: "18-24", pct: 0 }, { label: "25-34", pct: 0 }, { label: "35-44", pct: 0 }, { label: "45-54", pct: 0 }, { label: "55+", pct: 0 }],
             genero: [{ label: "Feminino", pct: 0 }, { label: "Masculino", pct: 0 }, { label: "Outro", pct: 0 }],
@@ -812,22 +850,25 @@ function useSaveNextSteps(brandId) {
 function useUpdateReport(brandId) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, title, reach, reachTrend, engagement, engagementTrend, conversions, conversionsTrend, roi, roiTrend, demographics, campaigns, history, bestTimes }) => {
+    mutationFn: async ({
+      id, title, reach, totalViews, totalInteractions, interactionsFollowers, interactionsNonFollowers,
+      viewsByType, interactionsByType, topContent, profileVisits, bioLinkTaps, addressTaps,
+      customMetricLabel, customMetricValue, followers, demographics, campaigns, history, activeHours,
+    }) => {
       const { error } = await supabase
         .from("reports")
         .update({
           title,
           period_label: title,
           top_metrics: {
-            reach: { value: reach, trend: reachTrend },
-            engagement: { value: engagement, trend: engagementTrend },
-            conversions: { value: conversions, trend: conversionsTrend },
-            roi: { value: roi, trend: roiTrend },
+            reach, totalViews, totalInteractions, interactionsFollowers, interactionsNonFollowers,
+            viewsByType, interactionsByType, topContent, profileVisits, bioLinkTaps, addressTaps,
+            customMetricLabel, customMetricValue, followers,
           },
           demographics,
           campaigns,
           history_projection: history,
-          best_times: bestTimes,
+          best_times: activeHours,
         })
         .eq("id", id);
       if (error) throw error;
@@ -4197,14 +4238,14 @@ function DashboardsView({ brand, onBack, session }) {
               <div style={{ display: "flex", gap: 22 }}>
                 <div>
                   <div style={{ ...serif, fontSize: 19, color: c.ink }}>{r.reach}</div>
-                  <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>Alcance</div>
+                  <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>Contas Alcançadas</div>
                 </div>
                 <div>
-                  <div style={{ ...serif, fontSize: 19, color: c.ink }}>{r.engagement}</div>
+                  <div style={{ ...serif, fontSize: 19, color: c.ink }}>{computeEngagementPct(r.totalInteractions, r.reach)}</div>
                   <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>Engajamento</div>
                 </div>
                 <div>
-                  <div style={{ ...serif, fontSize: 19, color: c.sage }}>{r.roi}</div>
+                  <div style={{ ...serif, fontSize: 19, color: c.sage }}>{computeOverallRoi(r.campaigns)}</div>
                   <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>ROI</div>
                 </div>
               </div>
@@ -4221,9 +4262,9 @@ function DashboardsView({ brand, onBack, session }) {
    DETALHE DO RELATÓRIO
 --------------------------------------------------------- */
 const PIE_COLORS = ["#4C2889", "#7C4DE0", "#9B72E8", "#B794F0", "#DCCBFA"];
-const METRIC_ICONS = { reach: Eye, engagement: Zap, conversions: Target, roi: TrendingUp };
+const METRIC_ICONS = { reach: Eye, engagement: Zap, roi: TrendingUp, custom: Target };
 
-function MetricCard({ metricKey, label, value, trend, editable, onValue, onTrend }) {
+function MetricCard({ metricKey, label, value, editable, onValue, calculated }) {
   const Icon = METRIC_ICONS[metricKey];
   return (
     <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: "18px 20px" }}>
@@ -4231,22 +4272,45 @@ function MetricCard({ metricKey, label, value, trend, editable, onValue, onTrend
         <div style={{ width: 32, height: 32, borderRadius: 10, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Icon size={15} color={c.boss} strokeWidth={2} />
         </div>
-        {editable ? (
-          <input
-            value={trend}
-            onChange={(e) => onTrend(e.target.value)}
-            placeholder="+0%"
-            style={{ ...sans, fontSize: 10.5, fontWeight: 600, color: c.sage, background: "#E7F5EC", borderRadius: 999, padding: "2px 7px", border: "none", outline: "none", width: 56, textAlign: "center" }}
-          />
-        ) : trend && (
-          <span style={{ ...sans, fontSize: 10.5, fontWeight: 600, color: c.sage, background: "#E7F5EC", borderRadius: 999, padding: "2px 7px" }}>
-            {trend}
+        {calculated && (
+          <span style={{ ...sans, fontSize: 9.5, fontWeight: 600, color: c.mist, background: c.paper, borderRadius: 999, padding: "2px 7px" }}>
+            calculado
           </span>
         )}
       </div>
       <div style={{ ...sans, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: c.mist, marginBottom: 4 }}>
         {label}
       </div>
+      {editable && !calculated ? (
+        <input
+          value={value}
+          onChange={(e) => onValue(e.target.value)}
+          type="number"
+          style={{ ...serif, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", padding: 0 }}
+        />
+      ) : (
+        <div style={{ ...serif, fontSize: 24, color: calculated ? c.sage : c.ink }}>{value}</div>
+      )}
+    </div>
+  );
+}
+
+function CustomMetricCard({ label, value, editable, onLabel, onValue }) {
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: "18px 20px" }}>
+      <div style={{ width: 32, height: 32, borderRadius: 10, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+        <Target size={15} color={c.boss} strokeWidth={2} />
+      </div>
+      {editable ? (
+        <input
+          value={label}
+          onChange={(e) => onLabel(e.target.value)}
+          placeholder="Nome da métrica"
+          style={{ ...sans, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: c.mist, border: "none", outline: "none", background: "none", width: "100%", padding: 0, marginBottom: 4 }}
+        />
+      ) : (
+        <div style={{ ...sans, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: c.mist, marginBottom: 4 }}>{label}</div>
+      )}
       {editable ? (
         <input
           value={value}
@@ -4255,6 +4319,19 @@ function MetricCard({ metricKey, label, value, trend, editable, onValue, onTrend
         />
       ) : (
         <div style={{ ...serif, fontSize: 24, color: c.ink }}>{value}</div>
+      )}
+    </div>
+  );
+}
+
+function StatField({ label, value, editable, onChange }) {
+  return (
+    <div>
+      <div style={{ ...sans, fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: c.mist, marginBottom: 4 }}>{label}</div>
+      {editable ? (
+        <input value={value} onChange={(e) => onChange(e.target.value)} type="number" style={{ ...serif, fontSize: 18, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 7, padding: "5px 8px", outline: "none", width: "100%", boxSizing: "border-box" }} />
+      ) : (
+        <div style={{ ...serif, fontSize: 18, color: c.ink }}>{value}</div>
       )}
     </div>
   );
@@ -4299,8 +4376,14 @@ function ReportDetail({ report, brand, onBack, session }) {
   const doneCount = steps.filter((s) => s.done).length;
   const demoData = draft.demographics[demoTab];
 
-  const updateMetric = (key, value) => setDraft((d) => ({ ...d, [key]: value }));
-  const updateMetricTrend = (key, value) => setDraft((d) => ({ ...d, [`${key}Trend`]: value }));
+  const updateField = (key, value) => setDraft((d) => ({ ...d, [key]: value }));
+
+  const updateBreakdown = (key, idx, field, value) => setDraft((d) => ({
+    ...d,
+    [key]: d[key].map((it, i) => (i === idx ? { ...it, [field]: field === "value" ? Number(value) || 0 : value } : it)),
+  }));
+  const addBreakdown = (key) => setDraft((d) => ({ ...d, [key]: [...d[key], { type: "Novo", value: 0 }] }));
+  const removeBreakdown = (key, idx) => setDraft((d) => ({ ...d, [key]: d[key].filter((_, i) => i !== idx) }));
 
   const updateDemoItem = (idx, field, value) => setDraft((d) => ({
     ...d,
@@ -4313,7 +4396,7 @@ function ReportDetail({ report, brand, onBack, session }) {
     ...d,
     campaigns: d.campaigns.map((cp, i) => (i === idx ? { ...cp, [field]: field === "invest" || field === "revenue" ? Number(value) || 0 : value } : cp)),
   }));
-  const addCampaign = () => setDraft((d) => ({ ...d, campaigns: [...d.campaigns, { name: "Nova campanha", invest: 0, revenue: 0, roi: "0%" }] }));
+  const addCampaign = () => setDraft((d) => ({ ...d, campaigns: [...d.campaigns, { name: "Nova campanha", invest: 0, revenue: 0 }] }));
   const removeCampaign = (idx) => setDraft((d) => ({ ...d, campaigns: d.campaigns.filter((_, i) => i !== idx) }));
 
   const updateHistoryPoint = (idx, field, value) => setDraft((d) => ({
@@ -4323,29 +4406,44 @@ function ReportDetail({ report, brand, onBack, session }) {
   const addHistoryPoint = () => setDraft((d) => ({ ...d, history: [...d.history, { month: `Mês ${d.history.length + 1}`, real: 0, proj: 0 }] }));
   const removeHistoryPoint = (idx) => setDraft((d) => ({ ...d, history: d.history.filter((_, i) => i !== idx) }));
 
-  const updateBestTime = (idx, field, value) => setDraft((d) => ({ ...d, bestTimes: d.bestTimes.map((bt, i) => (i === idx ? { ...bt, [field]: value } : bt)) }));
-  const addBestTime = () => setDraft((d) => ({ ...d, bestTimes: [...d.bestTimes, { day: "Segunda", hour: "18:00", eng: "0%" }] }));
-  const removeBestTime = (idx) => setDraft((d) => ({ ...d, bestTimes: d.bestTimes.filter((_, i) => i !== idx) }));
+  const updateActiveHour = (idx, field, value) => setDraft((d) => ({
+    ...d,
+    activeHours: d.activeHours.map((h, i) => (i === idx ? { ...h, [field]: field === "pct" ? Number(value) || 0 : value } : h)),
+  }));
+  const addActiveHour = () => setDraft((d) => ({ ...d, activeHours: [...d.activeHours, { hour: "18h-20h", pct: 0 }] }));
+  const removeActiveHour = (idx) => setDraft((d) => ({ ...d, activeHours: d.activeHours.filter((_, i) => i !== idx) }));
 
   const save = async () => {
     setSaved(false);
     await updateReport.mutateAsync({
       id: report.id,
       title: draft.title,
-      reach: draft.reach, reachTrend: draft.reachTrend,
-      engagement: draft.engagement, engagementTrend: draft.engagementTrend,
-      conversions: draft.conversions, conversionsTrend: draft.conversionsTrend,
-      roi: draft.roi, roiTrend: draft.roiTrend,
+      reach: draft.reach,
+      totalViews: draft.totalViews,
+      totalInteractions: draft.totalInteractions,
+      interactionsFollowers: draft.interactionsFollowers,
+      interactionsNonFollowers: draft.interactionsNonFollowers,
+      viewsByType: draft.viewsByType,
+      interactionsByType: draft.interactionsByType,
+      topContent: draft.topContent,
+      profileVisits: draft.profileVisits,
+      bioLinkTaps: draft.bioLinkTaps,
+      addressTaps: draft.addressTaps,
+      customMetricLabel: draft.customMetricLabel,
+      customMetricValue: draft.customMetricValue,
+      followers: draft.followers,
       demographics: draft.demographics,
       campaigns: draft.campaigns,
       history: draft.history,
-      bestTimes: draft.bestTimes,
+      activeHours: draft.activeHours,
     });
     setSaved(true);
   };
 
   const rowInput = { ...sans, fontSize: 11.5, border: `1px solid ${c.line}`, borderRadius: 6, padding: "5px 7px", outline: "none", color: c.ink };
   const addLink = { ...sans, fontSize: 11.5, color: c.boss, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, padding: 0 };
+  const statGrid4 = { display: "grid", gridTemplateColumns: "var(--bb-grid-4, repeat(4, 1fr))", gap: 12, marginBottom: 16 };
+  const statGrid3 = { display: "grid", gridTemplateColumns: "var(--bb-grid-3, repeat(3, 1fr))", gap: 12, marginBottom: 16 };
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1080 }}>
@@ -4408,18 +4506,112 @@ function ReportDetail({ report, brand, onBack, session }) {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-4, repeat(4, 1fr))", gap: 12, marginBottom: 14 }}>
-        <MetricCard metricKey="reach" label="Alcance" value={draft.reach} trend={draft.reachTrend} editable={canManage} onValue={(v) => updateMetric("reach", v)} onTrend={(v) => updateMetricTrend("reach", v)} />
-        <MetricCard metricKey="engagement" label="Engajamento" value={draft.engagement} trend={draft.engagementTrend} editable={canManage} onValue={(v) => updateMetric("engagement", v)} onTrend={(v) => updateMetricTrend("engagement", v)} />
-        <MetricCard metricKey="conversions" label="Conversões" value={draft.conversions} trend={draft.conversionsTrend} editable={canManage} onValue={(v) => updateMetric("conversions", v)} onTrend={(v) => updateMetricTrend("conversions", v)} />
-        <MetricCard metricKey="roi" label="ROI" value={draft.roi} trend={draft.roiTrend} editable={canManage} onValue={(v) => updateMetric("roi", v)} onTrend={(v) => updateMetricTrend("roi", v)} />
+      {/* 4 métricas principais */}
+      <div style={statGrid4}>
+        <MetricCard metricKey="reach" label="Contas Alcançadas" value={draft.reach} editable={canManage} onValue={(v) => updateField("reach", v)} />
+        <MetricCard metricKey="engagement" label="Taxa de Engajamento" value={computeEngagementPct(draft.totalInteractions, draft.reach)} calculated />
+        <CustomMetricCard
+          label={draft.customMetricLabel}
+          value={draft.customMetricValue}
+          editable={canManage}
+          onLabel={(v) => updateField("customMetricLabel", v)}
+          onValue={(v) => updateField("customMetricValue", v)}
+        />
+        <MetricCard metricKey="roi" label="ROI" value={computeOverallRoi(draft.campaigns)} calculated />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-2, 0.85fr 1.15fr)", gap: 14, marginBottom: 14 }}>
-        {/* Demografia — donut com abas */}
+      {/* Visualizações e Interações */}
+      <div style={{ marginBottom: 14 }}>
+        <ChartCard title="Visualizações e Interações" sub="Atividade de conteúdo no período">
+          <div style={statGrid4}>
+            <StatField label="Visualizações" value={draft.totalViews} editable={canManage} onChange={(v) => updateField("totalViews", v)} />
+            <StatField label="Interações totais" value={draft.totalInteractions} editable={canManage} onChange={(v) => updateField("totalInteractions", v)} />
+            <StatField label="De seguidores" value={draft.interactionsFollowers} editable={canManage} onChange={(v) => updateField("interactionsFollowers", v)} />
+            <StatField label="De não-seguidores" value={draft.interactionsNonFollowers} editable={canManage} onChange={(v) => updateField("interactionsNonFollowers", v)} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-2, 1fr 1fr)", gap: 20 }}>
+            <div>
+              <div style={{ ...sans, fontSize: 11, fontWeight: 600, color: c.mist, marginBottom: 8 }}>Visualizações por Tipo de Conteúdo</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {draft.viewsByType.map((it, i) => (
+                  <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    {canManage ? (
+                      <>
+                        <input value={it.type} onChange={(e) => updateBreakdown("viewsByType", i, "type", e.target.value)} style={{ ...rowInput, flex: 1, minWidth: 0 }} />
+                        <input value={it.value} onChange={(e) => updateBreakdown("viewsByType", i, "value", e.target.value)} type="number" style={{ ...rowInput, width: 70 }} />
+                        <button onClick={() => removeBreakdown("viewsByType", i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mistLight, padding: 0, flexShrink: 0 }}>
+                          <XCircle size={12} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ flex: 1, ...sans, fontSize: 12, color: c.ink }}>{it.type}</span>
+                        <span style={{ ...sans, fontSize: 12, color: c.mist }}>{it.value}</span>
+                      </>
+                    )}
+                  </div>
+                ))}
+                {canManage && <button onClick={() => addBreakdown("viewsByType")} style={addLink}><Plus size={11} /> Adicionar</button>}
+              </div>
+            </div>
+            <div>
+              <div style={{ ...sans, fontSize: 11, fontWeight: 600, color: c.mist, marginBottom: 8 }}>Interações por Tipo de Conteúdo</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {draft.interactionsByType.map((it, i) => (
+                  <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    {canManage ? (
+                      <>
+                        <input value={it.type} onChange={(e) => updateBreakdown("interactionsByType", i, "type", e.target.value)} style={{ ...rowInput, flex: 1, minWidth: 0 }} />
+                        <input value={it.value} onChange={(e) => updateBreakdown("interactionsByType", i, "value", e.target.value)} type="number" style={{ ...rowInput, width: 70 }} />
+                        <button onClick={() => removeBreakdown("interactionsByType", i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mistLight, padding: 0, flexShrink: 0 }}>
+                          <XCircle size={12} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ flex: 1, ...sans, fontSize: 12, color: c.ink }}>{it.type}</span>
+                        <span style={{ ...sans, fontSize: 12, color: c.mist }}>{it.value}</span>
+                      </>
+                    )}
+                  </div>
+                ))}
+                {canManage && <button onClick={() => addBreakdown("interactionsByType")} style={addLink}><Plus size={11} /> Adicionar</button>}
+              </div>
+            </div>
+          </div>
+        </ChartCard>
+      </div>
+
+      {/* Perfil e Contacto */}
+      <div style={{ marginBottom: 14 }}>
+        <ChartCard title="Perfil e Contacto" sub="Ações a partir do perfil de Instagram">
+          <div style={statGrid3}>
+            <StatField label="Visitas ao perfil" value={draft.profileVisits} editable={canManage} onChange={(v) => updateField("profileVisits", v)} />
+            <StatField label="Toques no link da bio" value={draft.bioLinkTaps} editable={canManage} onChange={(v) => updateField("bioLinkTaps", v)} />
+            <StatField label="Toques na morada" value={draft.addressTaps} editable={canManage} onChange={(v) => updateField("addressTaps", v)} />
+          </div>
+          <div style={{ ...sans, fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: c.mist, marginBottom: 6 }}>
+            Conteúdo que mais funcionou
+          </div>
+          {canManage ? (
+            <textarea
+              value={draft.topContent}
+              onChange={(e) => updateField("topContent", e.target.value)}
+              rows={2}
+              placeholder="Ex: Reel sobre X — 5.2K visualizações"
+              style={{ ...sans, width: "100%", fontSize: 13, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", resize: "vertical", boxSizing: "border-box" }}
+            />
+          ) : (
+            <div style={{ ...sans, fontSize: 13, color: c.ink, lineHeight: 1.6 }}>{draft.topContent || "—"}</div>
+          )}
+        </ChartCard>
+      </div>
+
+      {/* Público — donut com abas */}
+      <div style={{ marginBottom: 14 }}>
         <ChartCard
-          title="Demografia"
-          sub="Distribuição do público"
+          title="Público"
+          sub="Seguidores e distribuição do público"
           right={
             <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 8, padding: 3 }}>
               {["idade", "genero", "local"].map((tb) => (
@@ -4430,53 +4622,59 @@ function ReportDetail({ report, brand, onBack, session }) {
                     ...sans, fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, border: "none", cursor: "pointer",
                     color: demoTab === tb ? "#fff" : c.mist,
                     background: demoTab === tb ? c.boss : "transparent",
-                    textTransform: "capitalize",
                   }}
                 >
-                  {tb === "genero" ? "Género" : tb}
+                  {tb === "genero" ? "Género" : tb === "idade" ? "Idade" : "Localizações"}
                 </button>
               ))}
             </div>
           }
         >
-          <div style={{ height: 190 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={demoData} dataKey="pct" nameKey="label" innerRadius={55} outerRadius={80} paddingAngle={2}>
-                  {demoData.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v) => `${v}%`} contentStyle={{ ...sans, fontSize: 12, borderRadius: 8, border: `1px solid ${c.line}` }} />
-              </PieChart>
-            </ResponsiveContainer>
+          <div style={{ maxWidth: 220, marginBottom: 16 }}>
+            <StatField label="Seguidores" value={draft.followers} editable={canManage} onChange={(v) => updateField("followers", v)} />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 10 }}>
-            {demoData.map((d, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, ...sans, fontSize: 12 }}>
-                <span style={{ width: 8, height: 8, borderRadius: 3, background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }} />
-                {canManage ? (
-                  <>
-                    <input value={d.label} onChange={(e) => updateDemoItem(i, "label", e.target.value)} style={{ ...rowInput, flex: 1, minWidth: 0 }} />
-                    <input value={d.pct} onChange={(e) => updateDemoItem(i, "pct", e.target.value)} type="number" style={{ ...rowInput, width: 54 }} />
-                    <button onClick={() => removeDemoItem(i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mistLight, padding: 0, flexShrink: 0 }}>
-                      <XCircle size={13} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <span style={{ flex: 1, color: c.ink }}>{d.label}</span>
-                    <span style={{ color: c.mist }}>{d.pct}%</span>
-                  </>
-                )}
-              </div>
-            ))}
-            {canManage && <button onClick={addDemoItem} style={addLink}><Plus size={11} /> Adicionar</button>}
+          <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-2, 0.85fr 1.15fr)", gap: 20 }}>
+            <div style={{ height: 190 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={demoData} dataKey="pct" nameKey="label" innerRadius={55} outerRadius={80} paddingAngle={2}>
+                    {demoData.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v) => `${v}%`} contentStyle={{ ...sans, fontSize: 12, borderRadius: 8, border: `1px solid ${c.line}` }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 7, justifyContent: "center" }}>
+              {demoData.map((d, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, ...sans, fontSize: 12 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 3, background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }} />
+                  {canManage ? (
+                    <>
+                      <input value={d.label} onChange={(e) => updateDemoItem(i, "label", e.target.value)} style={{ ...rowInput, flex: 1, minWidth: 0 }} />
+                      <input value={d.pct} onChange={(e) => updateDemoItem(i, "pct", e.target.value)} type="number" style={{ ...rowInput, width: 54 }} />
+                      <button onClick={() => removeDemoItem(i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mistLight, padding: 0, flexShrink: 0 }}>
+                        <XCircle size={13} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ flex: 1, color: c.ink }}>{d.label}</span>
+                      <span style={{ color: c.mist }}>{d.pct}%</span>
+                    </>
+                  )}
+                </div>
+              ))}
+              {canManage && <button onClick={addDemoItem} style={addLink}><Plus size={11} /> Adicionar</button>}
+            </div>
           </div>
         </ChartCard>
+      </div>
 
-        {/* ROI por Campanha */}
-        <ChartCard title="ROI por Campanha" sub="Investimento vs. Receita">
+      {/* ROI por Campanha */}
+      <div style={{ marginBottom: 14 }}>
+        <ChartCard title="ROI por Campanha" sub="Investimento vs. Receita — ROI calculado automaticamente">
           <div style={{ height: 190, marginBottom: 14 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={draft.campaigns} barGap={4}>
@@ -4494,9 +4692,9 @@ function ReportDetail({ report, brand, onBack, session }) {
               {draft.campaigns.map((cp, i) => (
                 <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <input value={cp.name} onChange={(e) => updateCampaign(i, "name", e.target.value)} placeholder="Nome" style={{ ...rowInput, flex: 1, minWidth: 0 }} />
-                  <input value={cp.invest} onChange={(e) => updateCampaign(i, "invest", e.target.value)} type="number" placeholder="Invest." style={{ ...rowInput, width: 64 }} />
-                  <input value={cp.revenue} onChange={(e) => updateCampaign(i, "revenue", e.target.value)} type="number" placeholder="Receita" style={{ ...rowInput, width: 64 }} />
-                  <input value={cp.roi} onChange={(e) => updateCampaign(i, "roi", e.target.value)} placeholder="ROI" style={{ ...rowInput, width: 50 }} />
+                  <input value={cp.invest} onChange={(e) => updateCampaign(i, "invest", e.target.value)} type="number" placeholder="Invest." style={{ ...rowInput, width: 70 }} />
+                  <input value={cp.revenue} onChange={(e) => updateCampaign(i, "revenue", e.target.value)} type="number" placeholder="Receita" style={{ ...rowInput, width: 70 }} />
+                  <span style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: c.sage, width: 44, textAlign: "right", flexShrink: 0 }}>{computeCampaignRoi(cp.invest, cp.revenue)}</span>
                   <button onClick={() => removeCampaign(i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mistLight, padding: 0, flexShrink: 0 }}>
                     <XCircle size={13} />
                   </button>
@@ -4509,7 +4707,7 @@ function ReportDetail({ report, brand, onBack, session }) {
               {draft.campaigns.map((cp, i) => (
                 <div key={i} style={{ background: c.paper, borderRadius: 10, padding: "8px 10px" }}>
                   <div style={{ ...sans, fontSize: 9.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: c.mist }}>ROI</div>
-                  <div style={{ ...serif, fontSize: 16, color: c.sage }}>{cp.roi}</div>
+                  <div style={{ ...serif, fontSize: 16, color: c.sage }}>{computeCampaignRoi(cp.invest, cp.revenue)}</div>
                   <div style={{ ...sans, fontSize: 10, color: c.mist, marginTop: 1 }}>{cp.name}</div>
                 </div>
               ))}
@@ -4556,34 +4754,30 @@ function ReportDetail({ report, brand, onBack, session }) {
       </ChartCard>
 
       <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-2, 1fr 1fr)", gap: 14, marginTop: 14 }}>
-        <ChartCard title="Melhor Hora para Postar" sub="Baseado em engajamento médio">
+        <ChartCard title="Horas de Atividade dos Seguidores" sub="Quando o público está mais online">
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {draft.bestTimes.map((t, i) => (
+            {draft.activeHours.map((h, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: c.paper, borderRadius: 10, padding: "8px 10px" }}>
                 <span style={{ ...sans, fontSize: 11, fontWeight: 700, color: c.boss, background: c.bossSoft, borderRadius: 6, padding: "2px 7px", flexShrink: 0 }}>
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 {canManage ? (
                   <>
-                    <input value={t.day} onChange={(e) => updateBestTime(i, "day", e.target.value)} placeholder="Dia" style={{ ...rowInput, flex: 1, minWidth: 0 }} />
-                    <input value={t.hour} onChange={(e) => updateBestTime(i, "hour", e.target.value)} placeholder="Hora" style={{ ...rowInput, width: 64 }} />
-                    <input value={t.eng} onChange={(e) => updateBestTime(i, "eng", e.target.value)} placeholder="Eng." style={{ ...rowInput, width: 50 }} />
-                    <button onClick={() => removeBestTime(i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mistLight, padding: 0, flexShrink: 0 }}>
+                    <input value={h.hour} onChange={(e) => updateActiveHour(i, "hour", e.target.value)} placeholder="Hora" style={{ ...rowInput, flex: 1, minWidth: 0 }} />
+                    <input value={h.pct} onChange={(e) => updateActiveHour(i, "pct", e.target.value)} type="number" placeholder="% ativos" style={{ ...rowInput, width: 70 }} />
+                    <button onClick={() => removeActiveHour(i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mistLight, padding: 0, flexShrink: 0 }}>
                       <XCircle size={13} />
                     </button>
                   </>
                 ) : (
                   <>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ ...sans, fontSize: 12.5, color: c.ink, fontWeight: 500 }}>{t.day}</div>
-                      <div style={{ ...sans, fontSize: 11, color: c.mist }}>{t.hour}</div>
-                    </div>
-                    <span style={{ ...serif, fontSize: 14, color: c.sage }}>{t.eng}</span>
+                    <div style={{ flex: 1, ...sans, fontSize: 12.5, color: c.ink, fontWeight: 500 }}>{h.hour}</div>
+                    <span style={{ ...serif, fontSize: 14, color: c.sage }}>{h.pct}%</span>
                   </>
                 )}
               </div>
             ))}
-            {canManage && <button onClick={addBestTime} style={addLink}><Plus size={11} /> Adicionar horário</button>}
+            {canManage && <button onClick={addActiveHour} style={addLink}><Plus size={11} /> Adicionar horário</button>}
           </div>
         </ChartCard>
 
