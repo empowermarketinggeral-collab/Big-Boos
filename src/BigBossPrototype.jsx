@@ -1932,6 +1932,7 @@ function mapLinkPageRow(row) {
     ownerType: row.owner_type,
     ownerId: row.owner_id,
     slug: row.slug,
+    displayName: row.display_name || "",
     about: row.about_text || "",
     avatarUrl: row.profile_photo_url,
     avatarBgRemoved: !!row.background_removed,
@@ -1952,7 +1953,7 @@ function useLinkPages(enabled) {
       // e às marcas que a agência gere (owner_type=brand) — sem filtro extra aqui.
       const { data, error } = await supabase
         .from("link_pages")
-        .select("id, owner_type, owner_id, slug, about_text, profile_photo_url, background_removed, background_style, blocks, products, quiz, pill_style, created_at")
+        .select("id, owner_type, owner_id, slug, display_name, about_text, profile_photo_url, background_removed, background_style, blocks, products, quiz, pill_style, created_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data.map(mapLinkPageRow);
@@ -1984,6 +1985,7 @@ function useSaveLinkPage() {
         .from("link_pages")
         .update({
           slug: page.slug,
+          display_name: page.displayName,
           about_text: page.about,
           profile_photo_url: page.avatarUrl,
           background_removed: page.avatarBgRemoved,
@@ -7232,7 +7234,7 @@ function LinkPagePreview({ page, fullPage }) {
         >
           {!page.avatarUrl && <ImageIcon size={18} color="rgba(255,255,255,0.75)" />}
         </div>
-        <div style={{ ...serif, fontSize: 15, color: "#fff", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>{page.ownerName}</div>
+        <div style={{ ...serif, fontSize: 15, color: "#fff", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>{page.displayName || page.ownerName}</div>
         <div style={{ ...sans, fontSize: 10.5, color: "rgba(255,255,255,0.85)", textAlign: "center", marginBottom: 20, lineHeight: 1.5, textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>
           {page.about}
         </div>
@@ -7630,6 +7632,16 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                 )}
               </div>
             </div>
+          </ChartCard>
+
+          <ChartCard title="Nome a mostrar" sub="Aparece logo a seguir ao avatar, na página pública">
+            <input
+              type="text"
+              value={page.displayName}
+              onChange={(e) => setPage((p) => ({ ...p, displayName: e.target.value }))}
+              placeholder={page.ownerName}
+              style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink }}
+            />
           </ChartCard>
 
           <ChartCard title="Foto e fundo" sub="Otimiza o visual da página">
@@ -9695,7 +9707,7 @@ export function PublicLinkPage() {
     let active = true;
     supabase
       .from("link_pages")
-      .select("profile_photo_url, background_removed, background_style, about_text, blocks, products, quiz, pill_style")
+      .select("display_name, profile_photo_url, background_removed, background_style, about_text, blocks, products, quiz, pill_style")
       .eq("slug", slug)
       .maybeSingle()
       .then(({ data, error }) => {
@@ -9709,6 +9721,7 @@ export function PublicLinkPage() {
           error: null,
           page: {
             ownerName: "",
+            displayName: data.display_name || "",
             about: data.about_text || "",
             avatarUrl: data.profile_photo_url,
             avatarBgRemoved: !!data.background_removed,
