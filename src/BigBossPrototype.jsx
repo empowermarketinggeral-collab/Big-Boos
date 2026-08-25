@@ -7206,7 +7206,7 @@ function LinkBlockPill({ block, pillCss, layout }) {
   );
 }
 
-function LinkPagePreview({ page }) {
+function LinkPagePreview({ page, fullPage }) {
   const [quizOpen, setQuizOpen] = useState(false);
   const quiz = page.quiz || DEFAULT_QUIZ;
   const canShowQuiz = quiz.enabled && quiz.questions.length > 0;
@@ -7215,53 +7215,56 @@ function LinkPagePreview({ page }) {
 
   return (
     <div
-      style={{
-        ...bgStyle(page.bg), borderRadius: 28, padding: "30px 20px",
-        display: "flex", flexDirection: "column", alignItems: "center", boxShadow: "0 12px 30px rgba(30,20,50,0.25)",
-      }}
+      style={
+        fullPage
+          ? { ...bgStyle(page.bg), minHeight: "100vh", width: "100%", padding: "60px 20px", display: "flex", flexDirection: "column", alignItems: "center", boxSizing: "border-box" }
+          : { ...bgStyle(page.bg), borderRadius: 28, padding: "30px 20px", display: "flex", flexDirection: "column", alignItems: "center", boxShadow: "0 12px 30px rgba(30,20,50,0.25)" }
+      }
     >
-      <div
-        style={{
-          width: 60, height: 60, borderRadius: 999, marginBottom: 10, flexShrink: 0,
-          background: page.avatarUrl ? `url(${page.avatarUrl}) center/cover` : "rgba(255,255,255,0.2)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: page.avatarBgRemoved ? "0 0 0 3px rgba(255,255,255,0.7)" : "none",
-        }}
-      >
-        {!page.avatarUrl && <ImageIcon size={18} color="rgba(255,255,255,0.75)" />}
-      </div>
-      <div style={{ ...serif, fontSize: 15, color: "#fff", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>{page.ownerName}</div>
-      <div style={{ ...sans, fontSize: 10.5, color: "rgba(255,255,255,0.85)", textAlign: "center", marginBottom: 20, lineHeight: 1.5, textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>
-        {page.about}
-      </div>
-
-      {quizOpen && canShowQuiz ? (
-        <LinkPageQuiz quiz={quiz} products={page.products || []} onExit={() => setQuizOpen(false)} />
-      ) : (
-        <div style={{ display: layout === "grelha" ? "grid" : "flex", gridTemplateColumns: layout === "grelha" ? "1fr 1fr" : undefined, flexDirection: layout === "grelha" ? undefined : "column", gap: 8, width: "100%" }}>
-          {page.blocks.map((b) =>
-            b.type === "social" ? (
-              <div key={b.id} style={{ padding: "6px 0 2px", gridColumn: layout === "grelha" ? "1 / -1" : undefined }}>
-                <SocialRow platforms={b.platforms} socialLinks={b.socialLinks} />
-              </div>
-            ) : (
-              <LinkBlockPill key={b.id} block={b} pillCss={pillCss} layout={layout} />
-            )
-          )}
-          {canShowQuiz && (
-            <button
-              onClick={() => setQuizOpen(true)}
-              style={{
-                background: "#fff", borderRadius: 10, padding: "10px 12px", ...sans, fontSize: 11, color: c.boss, textAlign: "center",
-                fontWeight: 700, marginTop: 4, border: "none", cursor: "pointer", width: "100%",
-                gridColumn: layout === "grelha" ? "1 / -1" : undefined,
-              }}
-            >
-              ✦ {quiz.title}
-            </button>
-          )}
+      <div style={{ width: "100%", maxWidth: fullPage ? 420 : "none", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <div
+          style={{
+            width: 60, height: 60, borderRadius: 999, marginBottom: 10, flexShrink: 0,
+            background: page.avatarUrl ? `url(${page.avatarUrl}) center/cover` : "rgba(255,255,255,0.2)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: page.avatarBgRemoved ? "0 0 0 3px rgba(255,255,255,0.7)" : "none",
+          }}
+        >
+          {!page.avatarUrl && <ImageIcon size={18} color="rgba(255,255,255,0.75)" />}
         </div>
-      )}
+        <div style={{ ...serif, fontSize: 15, color: "#fff", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>{page.ownerName}</div>
+        <div style={{ ...sans, fontSize: 10.5, color: "rgba(255,255,255,0.85)", textAlign: "center", marginBottom: 20, lineHeight: 1.5, textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>
+          {page.about}
+        </div>
+
+        {quizOpen && canShowQuiz ? (
+          <LinkPageQuiz quiz={quiz} products={page.products || []} onExit={() => setQuizOpen(false)} />
+        ) : (
+          <div style={{ display: layout === "grelha" ? "grid" : "flex", gridTemplateColumns: layout === "grelha" ? "1fr 1fr" : undefined, flexDirection: layout === "grelha" ? undefined : "column", gap: 8, width: "100%" }}>
+            {page.blocks.map((b) =>
+              b.type === "social" ? (
+                <div key={b.id} style={{ padding: "6px 0 2px", gridColumn: layout === "grelha" ? "1 / -1" : undefined }}>
+                  <SocialRow platforms={b.platforms} socialLinks={b.socialLinks} />
+                </div>
+              ) : (
+                <LinkBlockPill key={b.id} block={b} pillCss={pillCss} layout={layout} />
+              )
+            )}
+            {canShowQuiz && (
+              <button
+                onClick={() => setQuizOpen(true)}
+                style={{
+                  background: "#fff", borderRadius: 10, padding: "10px 12px", ...sans, fontSize: 11, color: c.boss, textAlign: "center",
+                  fontWeight: 700, marginTop: 4, border: "none", cursor: "pointer", width: "100%",
+                  gridColumn: layout === "grelha" ? "1 / -1" : undefined,
+                }}
+              >
+                ✦ {quiz.title}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -9727,11 +9730,7 @@ export function PublicLinkPage() {
 
   return (
     <PublicPageShell>
-      <div style={{ display: "flex", justifyContent: "center", padding: "60px 20px" }}>
-        <div style={{ width: "100%", maxWidth: 360 }}>
-          <LinkPagePreview page={state.page} />
-        </div>
-      </div>
+      <LinkPagePreview page={state.page} fullPage />
     </PublicPageShell>
   );
 }
