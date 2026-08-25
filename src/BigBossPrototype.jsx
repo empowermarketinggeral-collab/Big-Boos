@@ -7052,20 +7052,28 @@ function bgStyle(bg) {
   return { background: `linear-gradient(${bg.gradientAngle}deg, ${bg.gradientFrom}, ${bg.gradientTo})` };
 }
 
-function SocialRow({ platforms, size = 15 }) {
+function publicLinkPageUrl(slug) {
+  return `${window.location.origin}/link/${slug}`;
+}
+
+function SocialRow({ platforms, socialLinks, size = 15 }) {
   return (
     <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
       {platforms.map((key) => {
         const p = SOCIAL_PLATFORMS.find((s) => s.key === key);
         if (!p) return null;
         const Icon = p.icon;
+        const url = (socialLinks || {})[key];
+        const Tag = url ? "a" : "div";
+        const linkProps = url ? { href: url, target: "_blank", rel: "noopener noreferrer" } : {};
         return (
-          <div
+          <Tag
             key={key}
-            style={{ width: 30, height: 30, borderRadius: 999, background: "rgba(255,255,255,0.16)", display: "flex", alignItems: "center", justifyContent: "center" }}
+            {...linkProps}
+            style={{ width: 30, height: 30, borderRadius: 999, background: "rgba(255,255,255,0.16)", display: "flex", alignItems: "center", justifyContent: "center", opacity: url ? 1 : 0.5, textDecoration: "none" }}
           >
             <Icon size={size} color="#fff" strokeWidth={1.8} />
-          </div>
+          </Tag>
         );
       })}
     </div>
@@ -7234,7 +7242,7 @@ function LinkPagePreview({ page }) {
           {page.blocks.map((b) =>
             b.type === "social" ? (
               <div key={b.id} style={{ padding: "6px 0 2px", gridColumn: layout === "grelha" ? "1 / -1" : undefined }}>
-                <SocialRow platforms={b.platforms} />
+                <SocialRow platforms={b.platforms} socialLinks={b.socialLinks} />
               </div>
             ) : (
               <LinkBlockPill key={b.id} block={b} pillCss={pillCss} layout={layout} />
@@ -7379,7 +7387,7 @@ function LinkNaBioModule({ session }) {
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ ...serif, fontSize: 15, color: c.ink, fontWeight: 500 }}>{ownerLabel(p)}</div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>big-boss.link/{p.slug}</div>
+              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>{publicLinkPageUrl(p.slug)}</div>
             </div>
             <ChevronRight size={16} color={c.mist} />
           </div>
@@ -7401,12 +7409,23 @@ function LinkNaBioEditor({ initialPage, onBack }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
   const saveLinkPage = useSaveLinkPage();
   const deleteLinkPage = useDeleteLinkPage();
 
   const updateBg = (patch) => setPage((p) => ({ ...p, bg: { ...p.bg, ...patch } }));
   const updateOverlay = (patch) => setPage((p) => ({ ...p, bg: { ...p.bg, overlay: { ...p.bg.overlay, ...patch } } }));
   const updatePillStyle = (patch) => setPage((p) => ({ ...p, pillStyle: { ...(p.pillStyle || DEFAULT_PILL_STYLE), ...patch } }));
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(publicLinkPageUrl(page.slug));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError("Não foi possível copiar o link.");
+    }
+  };
 
   const save = async () => {
     setError("");
@@ -7451,7 +7470,7 @@ function LinkNaBioEditor({ initialPage, onBack }) {
 
   const addBlock = (type) => {
     const defaults = { link: "Novo link", video: "Novo vídeo", product: "Novo produto — 0€", podcast: "Novo episódio", social: "Redes sociais" };
-    const extra = type === "social" ? { platforms: ["instagram", "whatsapp"] } : { url: "", imageUrl: "" };
+    const extra = type === "social" ? { platforms: ["instagram", "whatsapp"], socialLinks: {} } : { url: "", imageUrl: "" };
     setPage((p) => ({ ...p, blocks: [...p.blocks, { id: Date.now(), type, label: defaults[type], ...extra }] }));
     setAddingBlock(false);
   };
@@ -7482,6 +7501,12 @@ function LinkNaBioEditor({ initialPage, onBack }) {
         const has = b.platforms.includes(key);
         return { ...b, platforms: has ? b.platforms.filter((k) => k !== key) : [...b.platforms, key] };
       }),
+    }));
+  };
+  const updateSocialLink = (id, key, url) => {
+    setPage((p) => ({
+      ...p,
+      blocks: p.blocks.map((b) => (b.id === id ? { ...b, socialLinks: { ...(b.socialLinks || {}), [key]: url } } : b)),
     }));
   };
   const moveBlock = (id, dir) => {
@@ -7546,8 +7571,16 @@ function LinkNaBioEditor({ initialPage, onBack }) {
           </button>
         </div>
       </div>
-      <div style={{ ...sans, fontSize: 12, color: c.mist, marginBottom: 16 }}>
-        big-boss.link/{page.slug}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+        <span style={{ ...sans, fontSize: 12, color: c.mist }}>{publicLinkPageUrl(page.slug)}</span>
+        <button
+          type="button"
+          onClick={copyLink}
+          style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, color: copied ? c.sage : c.boss, background: copied ? "#E7F5EC" : c.bossSoft, border: "none", borderRadius: 6, padding: "4px 9px", cursor: "pointer" }}
+        >
+          {copied ? <CheckCircle2 size={12} /> : <Link2 size={12} />}
+          {copied ? "Copiado!" : "Copiar link"}
+        </button>
       </div>
       {error && <div style={{ ...sans, fontSize: 12, color: c.rose, marginBottom: 16 }}>{error}</div>}
       {saved && <div style={{ ...sans, fontSize: 12, color: c.sage, marginBottom: 16 }}>Alterações guardadas.</div>}
@@ -7833,24 +7866,44 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                     </div>
                   )}
                   {b.type === "social" && (
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8, paddingLeft: 2 }}>
-                      {SOCIAL_PLATFORMS.map((sp) => {
-                        const Icon = sp.icon;
-                        const active = b.platforms.includes(sp.key);
-                        return (
-                          <button
-                            key={sp.key}
-                            onClick={() => toggleSocialPlatform(b.id, sp.key)}
-                            style={{
-                              display: "flex", alignItems: "center", gap: 5, ...sans, fontSize: 11, fontWeight: 600,
-                              color: active ? "#fff" : c.mist, background: active ? c.boss : "#fff",
-                              border: `1px solid ${active ? c.boss : c.line}`, borderRadius: 999, padding: "4px 10px", cursor: "pointer",
-                            }}
-                          >
-                            <Icon size={11} /> {sp.label}
-                          </button>
-                        );
-                      })}
+                    <div style={{ marginTop: 8, paddingLeft: 2 }}>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                        {SOCIAL_PLATFORMS.map((sp) => {
+                          const Icon = sp.icon;
+                          const active = b.platforms.includes(sp.key);
+                          return (
+                            <button
+                              key={sp.key}
+                              onClick={() => toggleSocialPlatform(b.id, sp.key)}
+                              style={{
+                                display: "flex", alignItems: "center", gap: 5, ...sans, fontSize: 11, fontWeight: 600,
+                                color: active ? "#fff" : c.mist, background: active ? c.boss : "#fff",
+                                border: `1px solid ${active ? c.boss : c.line}`, borderRadius: 999, padding: "4px 10px", cursor: "pointer",
+                              }}
+                            >
+                              <Icon size={11} /> {sp.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {b.platforms.map((key) => {
+                          const sp = SOCIAL_PLATFORMS.find((s) => s.key === key);
+                          if (!sp) return null;
+                          const url = (b.socialLinks || {})[key] || "";
+                          return (
+                            <div key={key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <sp.icon size={13} color={c.mist} style={{ flexShrink: 0 }} />
+                              <input
+                                value={url}
+                                onChange={(e) => updateSocialLink(b.id, key, e.target.value)}
+                                placeholder={`Link do ${sp.label}`}
+                                style={{ ...sans, flex: 1, fontSize: 11.5, color: c.ink, background: "#fff", border: `1px solid ${url ? c.line : c.rose}`, borderRadius: 6, padding: "6px 9px", outline: "none", boxSizing: "border-box" }}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
