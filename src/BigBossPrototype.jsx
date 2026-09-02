@@ -8,12 +8,14 @@ import {
   Clock, ChevronRight, ChevronLeft, BookMarked, ClipboardList, Layers, Video,
   Link2, Calculator, Sparkles, Eye, Zap, Target, TrendingUp,
   Trash2, Pencil, ChevronUp, ChevronDown, Image as ImageIcon,
-  Instagram, Facebook, Youtube, MessageCircle, Music2, Palette, Handshake,
+  Instagram, Facebook, Youtube, MessageCircle, Music2, Palette, Handshake, Kanban,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, AreaChart, Area, Line, Legend,
 } from "recharts";
+import CrmModule from "./modules/crm/CrmModule.jsx";
+import { c, sans, serif, StatusDot, Eyebrow, ChartCard, CAN_MANAGE_ROLES } from "./shared/theme.jsx";
 
 /* ---------------------------------------------------------
    TOKENS — versão leve
@@ -27,21 +29,6 @@ import {
    line       #EAE7F1  bordas
    sage/amber/rose — estados (saudável / atenção / crítico)
 --------------------------------------------------------- */
-const c = {
-  ink: "#17151F",
-  sidebarBg: "#FFFFFF",
-  boss: "#7C4DE0",
-  bossDeep: "#5E35C4",
-  bossSoft: "#F1ECFC",
-  paper: "#F6F5FA",
-  mist: "#6E6980",
-  mistLight: "#9691A6",
-  line: "#EAE7F1",
-  sage: "#2F9E63",
-  amber: "#C9821F",
-  rose: "#D3455B",
-};
-
 /* ---------------------------------------------------------
    IDIOMA — PT/EN da interface (nunca traduz dados criados
    pelo utilizador: nomes de marcas, copy, títulos, notas, etc.)
@@ -324,8 +311,6 @@ const FONTS = `
 }
 `;
 
-const serif = { fontFamily: "'Fraunces', serif" };
-const sans = { fontFamily: "'Inter', sans-serif" };
 
 /* ---------------------------------------------------------
    MARCAS — ligação ao Supabase (tabela `brands`)
@@ -2247,6 +2232,7 @@ function useRemoveMember() {
 }
 
 const MODULES = [
+  { key: "crm", label: "CRM", sub: "Contactos, pipeline e negócios", icon: Kanban },
   { key: "brand-book", label: "Brand Book", sub: "Identidade visual e diretrizes", icon: BookOpen },
   { key: "conteudos", label: "Conteúdos", sub: "Posts e reels — aprovação", icon: FileText },
   { key: "cronograma-conteudos", label: "Cronograma de Conteúdos", sub: "Planeamento do que vai sair", icon: Calendar },
@@ -2291,39 +2277,6 @@ function visibleNav(role) {
 /* ---------------------------------------------------------
    COMPONENTES BASE
 --------------------------------------------------------- */
-function StatusDot({ status }) {
-  const map = { green: c.sage, yellow: c.amber, red: c.rose };
-  return (
-    <span
-      style={{
-        width: 7,
-        height: 7,
-        borderRadius: 999,
-        background: map[status] || c.mist,
-        display: "inline-block",
-      }}
-    />
-  );
-}
-
-function Eyebrow({ children }) {
-  return (
-    <div
-      style={{
-        ...sans,
-        fontSize: 11,
-        fontWeight: 600,
-        letterSpacing: "0.14em",
-        textTransform: "uppercase",
-        color: c.boss,
-        marginBottom: 8,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
 function Sidebar({ active, onNavigate, session, roleInfo, onLogout }) {
   const { t } = useT();
   return (
@@ -2759,6 +2712,9 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
     setEditing(false);
   };
 
+  if (sub === "crm") {
+    return <CrmModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
+  }
   if (sub === "conteudos") {
     return <ConteudosView brand={brand} onBack={() => onOpenSub(null)} session={session} />;
   }
@@ -3118,7 +3074,6 @@ function MediaLightbox({ item, index, onClose }) {
   );
 }
 
-const CAN_MANAGE_ROLES = ["admin_geral", "membro", "agencia_admin", "agencia_membro"];
 
 function AttachMoreMedia({ item, brandId, updateContentMedia }) {
   const { t } = useT();
@@ -4337,21 +4292,6 @@ function StatField({ label, value, editable, onChange }) {
       ) : (
         <div style={{ ...serif, fontSize: 18, color: c.ink }}>{value}</div>
       )}
-    </div>
-  );
-}
-
-function ChartCard({ title, sub, right, children }) {
-  return (
-    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 22 }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18 }}>
-        <div>
-          <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 4 }}>{title}</div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist }}>{sub}</div>
-        </div>
-        {right}
-      </div>
-      {children}
     </div>
   );
 }
