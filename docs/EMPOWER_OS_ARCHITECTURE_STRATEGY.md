@@ -153,6 +153,8 @@ Camada de abstração por **capacidade**, não por promessa genérica — cada p
 
 Regra explícita (a tua, e correta): **nunca simular uma funcionalidade que a API não permite.** Quando a API não suporta publicação direta, a UI deve dizer isso claramente e oferecer "preparar conteúdo para publicação manual", não fingir que publicou.
 
+**Agendamento e publicação automática:** posts com data/hora agendada não ficam só "guardados para depois" — a mesma arquitetura do motor de automações (secção 17) aplica-se aqui. Um Edge Function `social-publish`, agendado por `pg_cron` (ex. a cada minuto), procura posts com `status = 'scheduled'` e `scheduled_at` já passado, chama a API oficial da plataforma (Meta Graph API para Instagram/Facebook, YouTube Data API v3), e atualiza o registo para `published` (com o `platform_post_id` devolvido) ou `failed` (com o motivo). Um post só entra em `scheduled` depois de aprovado, quando a marca exigir aprovação do cliente antes de publicar. Nas plataformas sem API de publicação direta (TikTok/LinkedIn hoje), o post nunca passa por `scheduled` — fica `manual_only`, com lembrete para publicação manual, consistente com a regra de nunca simular o que não é real.
+
 ## 17. Arquitetura de automações
 
 Não um motor BPMN pesado, nem um emaranhado de if/else — uma máquina de estados simples e orientada a dados:
