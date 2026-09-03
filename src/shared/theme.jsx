@@ -6,6 +6,7 @@
    uma dependência circular com o ficheiro principal (que, por sua
    vez, importa esses módulos para os renderizar).
 --------------------------------------------------------- */
+import { X } from "lucide-react";
 
 export const c = {
   ink: "#17151F",
@@ -56,6 +57,26 @@ export function Eyebrow({ children }) {
       }}
     >
       {children}
+    </div>
+  );
+}
+
+export const inputStyle = { ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink };
+export const btnPrimary = { ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer" };
+export const btnGhost = { ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 14px", cursor: "pointer" };
+
+export function Modal({ title, onClose, children, width = 420 }) {
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(23,21,31,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: 24, width: "100%", maxWidth: width, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+          <div style={{ ...serif, fontSize: 17, color: c.ink }}>{title}</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 4 }}>
+            <X size={18} />
+          </button>
+        </div>
+        {children}
+      </div>
     </div>
   );
 }

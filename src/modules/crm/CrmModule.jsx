@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
-import { c, sans, serif, Eyebrow } from "../../shared/theme.jsx";
+import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
 import {
   ArrowLeft, Plus, X, Trash2, Pencil, Phone, Mail, Search, GripVertical,
 } from "lucide-react";
@@ -352,26 +352,6 @@ function useAddDealNote(brandId, dealId) {
 /* ---------------------------------------------------------
    UI — primitivos partilhados
 --------------------------------------------------------- */
-const inputStyle = { ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink };
-const btnPrimary = { ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer" };
-const btnGhost = { ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 14px", cursor: "pointer" };
-
-function Modal({ title, onClose, children, width = 420 }) {
-  return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(23,21,31,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 20 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: 24, width: "100%", maxWidth: width, maxHeight: "85vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-          <div style={{ ...serif, fontSize: 17, color: c.ink }}>{title}</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 4 }}>
-            <X size={18} />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
 /* ---------------------------------------------------------
    CONTACTOS
 --------------------------------------------------------- */
