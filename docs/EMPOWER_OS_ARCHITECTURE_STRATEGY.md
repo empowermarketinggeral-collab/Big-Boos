@@ -258,3 +258,19 @@ Endosso a tua estrutura de 15 fases, com um único ajuste: trocar a ordem das Fa
 - **Uma nova camada de Supabase Edge Functions** — o único componente genuinamente novo em termos de infraestrutura — para tudo o que exige segredos ou I/O externo (WhatsApp, Email, Automações, Social, Billing).
 
 Não escolho Opção A (aplicação separada) porque duplicaria auth e tenancy que já funcionam e já estão auditados. Não escolho Opção C (duas apps ligadas por API) porque a Big Boss e o EMPOWER OS partilham o mesmo conceito de cliente (`brands`) — ligá-los por API introduziria complexidade e latência sem nenhum benefício real, já que podem simplesmente partilhar a mesma tabela. A Opção D, tal como especificada aqui, dá-te uma experiência de plataforma única para o cliente, zero duplicação de sistemas críticos, e isola o risco novo (integrações externas) na única camada que genuinamente falta hoje.
+
+---
+
+## Adenda — Inbox Unificado (2026-09-03)
+
+Ideia proposta depois do módulo de WhatsApp estar construído: um só ecrã onde a marca vê as mensagens de **todos** os canais que ligou — WhatsApp, Instagram, Messenger, Email — sem ter de abrir cada plataforma separadamente. É o padrão "unified inbox" do Front/HubSpot/HighLevel.
+
+**O que é tecnicamente alcançável:**
+- **WhatsApp** — já construído (`whatsapp_conversations`/`whatsapp_messages`, secção 14).
+- **Instagram Direct e Messenger** — mesma Meta Graph API e o mesmo padrão de webhook que o WhatsApp, só com outro produto/permissão ativado na app Meta. Custo incremental baixo dado o que já existe.
+- **Email** — hoje só está desenhado o envio (secção 15). Para entrar no inbox unificado é preciso também **receber** email (webhook de resposta do fornecedor), uma peça nova.
+- **TikTok — excluído.** Não tem API oficial de mensagens diretas para apps de terceiros. Segue a mesma regra da secção 16: nunca simular um canal que a API não suporta; no máximo, um link "abrir no TikTok".
+
+**Arquitetura recomendada:** não reescrever o que já existe. Cada canal mantém a sua própria tabela (`whatsapp_messages` fica exatamente como está); por cima constrói-se uma vista "Inbox Unificado" que agrega os contactos de todos os canais ligados num só ecrã — uma camada de leitura, não uma tabela nova a substituir as existentes.
+
+**Onde entra no roadmap:** depois do WhatsApp Cloud API estar a funcionar de ponta a ponta em produção (não em paralelo) — Instagram/Messenger são uma aprovação separada na Meta e mais uma Edge Function cada, e só compensa investir nisso com o primeiro canal já validado.
