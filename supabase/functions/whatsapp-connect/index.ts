@@ -6,9 +6,27 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Sem isto, o browser bloqueia o pedido no preflight (OPTIONS) antes
+// sequer de chegar ao código abaixo — é a causa mais comum de
+// "Failed to send a request to the Edge Function".
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return json({ error: "Method not allowed" }, 405);
   }
 
   const authHeader = req.headers.get("Authorization") || "";
@@ -20,11 +38,11 @@ Deno.serve(async (req) => {
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: "Corpo do pedido inválido." }), { status: 400 });
+    return json({ error: "Corpo do pedido inválido." }, 400);
   }
   const { brandId, wabaId, phoneNumberId, displayPhone, accessToken } = body;
   if (!brandId || !wabaId || !phoneNumberId || !accessToken) {
-    return new Response(JSON.stringify({ error: "Faltam campos obrigatórios." }), { status: 400 });
+    return json({ error: "Faltam campos obrigatórios." }, 400);
   }
 
   // Cliente "como o utilizador" — confirma, via RLS, que ele pode
@@ -39,7 +57,7 @@ Deno.serve(async (req) => {
     .eq("id", brandId)
     .maybeSingle();
   if (brandError || !brand) {
-    return new Response(JSON.stringify({ error: "Sem acesso a esta marca." }), { status: 403 });
+    return json({ error: "Sem acesso a esta marca." }, 403);
   }
 
   // Só depois de confirmado o acesso é que usamos a service role,
@@ -52,7 +70,7 @@ Deno.serve(async (req) => {
     p_secret: accessToken,
   });
   if (vaultError) {
-    return new Response(JSON.stringify({ error: `Não foi possível guardar o token: ${vaultError.message}` }), { status: 500 });
+    return json({ error: `Não foi possível guardar o token: ${vaultError.message}` }, 500);
   }
 
   const { error: upsertError } = await adminClient.from("whatsapp_accounts").upsert(
@@ -67,8 +85,8 @@ Deno.serve(async (req) => {
     { onConflict: "brand_id" }
   );
   if (upsertError) {
-    return new Response(JSON.stringify({ error: upsertError.message }), { status: 500 });
+    return json({ error: upsertError.message }, 500);
   }
 
-  return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+  return json({ ok: true });
 });

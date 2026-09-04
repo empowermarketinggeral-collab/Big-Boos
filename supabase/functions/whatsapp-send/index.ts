@@ -4,9 +4,24 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return json({ error: "Method not allowed" }, 405);
   }
 
   const authHeader = req.headers.get("Authorization") || "";
@@ -18,11 +33,11 @@ Deno.serve(async (req) => {
   try {
     payload = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: "Corpo do pedido inválido." }), { status: 400 });
+    return json({ error: "Corpo do pedido inválido." }, 400);
   }
   const { conversationId, body } = payload;
   if (!conversationId || !body) {
-    return new Response(JSON.stringify({ error: "Faltam campos obrigatórios." }), { status: 400 });
+    return json({ error: "Faltam campos obrigatórios." }, 400);
   }
 
   // Confirma, via RLS, que o utilizador pode ver esta conversa (e
@@ -36,7 +51,7 @@ Deno.serve(async (req) => {
     .eq("id", conversationId)
     .maybeSingle();
   if (convError || !conversation) {
-    return new Response(JSON.stringify({ error: "Sem acesso a esta conversa." }), { status: 403 });
+    return json({ error: "Sem acesso a esta conversa." }, 403);
   }
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
@@ -47,14 +62,14 @@ Deno.serve(async (req) => {
     .eq("brand_id", conversation.brand_id)
     .maybeSingle();
   if (accountError || !account) {
-    return new Response(JSON.stringify({ error: "Esta marca não tem WhatsApp ligado." }), { status: 400 });
+    return json({ error: "Esta marca não tem WhatsApp ligado." }, 400);
   }
 
   const { data: token, error: tokenError } = await adminClient.rpc("vault_read_secret", {
     p_id: account.access_token_ref,
   });
   if (tokenError || !token) {
-    return new Response(JSON.stringify({ error: "Não foi possível obter o token de acesso." }), { status: 500 });
+    return json({ error: "Não foi possível obter o token de acesso." }, 500);
   }
 
   const metaRes = await fetch(`https://graph.facebook.com/v20.0/${account.phone_number_id}/messages`, {
@@ -78,10 +93,7 @@ Deno.serve(async (req) => {
       body,
       status: "failed",
     });
-    return new Response(
-      JSON.stringify({ error: metaData?.error?.message || "Falha ao enviar a mensagem." }),
-      { status: 502 }
-    );
+    return json({ error: metaData?.error?.message || "Falha ao enviar a mensagem." }, 502);
   }
 
   const waMessageId = metaData?.messages?.[0]?.id || null;
@@ -99,5 +111,5 @@ Deno.serve(async (req) => {
     .update({ last_message_at: new Date().toISOString() })
     .eq("id", conversationId);
 
-  return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+  return json({ ok: true });
 });
