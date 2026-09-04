@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
 import {
-  ArrowLeft, Plus, X, Trash2, Pencil, Phone, Mail, Search, GripVertical,
+  ArrowLeft, Plus, X, Trash2, Pencil, Phone, Mail, Search, GripVertical, Download, Upload,
 } from "lucide-react";
 
 /* ---------------------------------------------------------
@@ -85,6 +85,107 @@ function useDeleteContact(brandId) {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["crm_contacts", brandId] }),
   });
+}
+
+// Um a um, não em lote — assim um duplicado (telefone/email já existem,
+// ver 21_crm_core.sql) só salta essa linha em vez de rejeitar o ficheiro inteiro.
+function useImportContacts(brandId) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (rows) => {
+      let created = 0, skipped = 0, failed = 0;
+      for (const row of rows) {
+        if (!row.name) { skipped++; continue; }
+        const { error } = await supabase.from("contacts").insert({
+          brand_id: brandId,
+          name: row.name,
+          email: row.email || null,
+          phone: row.phone || null,
+          source: "importacao",
+        });
+        if (error) {
+          if (error.code === "23505") skipped++;
+          else failed++;
+        } else {
+          created++;
+        }
+      }
+      return { created, skipped, failed };
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["crm_contacts", brandId] }),
+  });
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else {
+        field += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ",") {
+      row.push(field); field = "";
+    } else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      row.push(field); field = "";
+      if (row.length > 1 || row[0] !== "") rows.push(row);
+      row = [];
+    } else {
+      field += ch;
+    }
+  }
+  if (field !== "" || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+function csvToContactRows(text) {
+  const rows = parseCsv(text);
+  if (rows.length === 0) return [];
+  const header = rows[0].map((h) => h.trim().toLowerCase());
+  const idx = {
+    name: header.findIndex((h) => ["nome", "name"].includes(h)),
+    email: header.findIndex((h) => h === "email"),
+    phone: header.findIndex((h) => ["telefone", "telemóvel", "telemovel", "phone"].includes(h)),
+  };
+  return rows
+    .slice(1)
+    .filter((r) => r.length > 1 || r[0])
+    .map((r) => ({
+      name: idx.name >= 0 ? (r[idx.name] || "").trim() : "",
+      email: idx.email >= 0 ? (r[idx.email] || "").trim() : "",
+      phone: idx.phone >= 0 ? (r[idx.phone] || "").trim() : "",
+    }));
+}
+
+function contactsToCsv(contacts) {
+  const escape = (v) => {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [["Nome", "Email", "Telefone", "Origem", "Tags"].join(",")];
+  for (const ct of contacts) {
+    lines.push([ct.name, ct.email, ct.phone, ct.source, ct.tags.map((t) => t.name).join(";")].map(escape).join(","));
+  }
+  return lines.join("\n");
+}
+
+function downloadCsv(filename, csvText) {
+  const blob = new Blob(["﻿" + csvText], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function useTags(brandId) {
@@ -458,16 +559,35 @@ function ContactFormModal({ brandId, contact, onClose, session }) {
 function ContactsView({ brand, session }) {
   const contactsQuery = useContacts(brand.id);
   const deleteContact = useDeleteContact(brand.id);
+  const importContacts = useImportContacts(brand.id);
+  const fileInputRef = useRef(null);
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(null);
+  const [importResult, setImportResult] = useState(null);
+  const [importError, setImportError] = useState("");
 
   const contacts = (contactsQuery.data || []).filter((ct) => {
     const q = query.trim().toLowerCase();
     if (!q) return true;
     return ct.name.toLowerCase().includes(q) || ct.email.toLowerCase().includes(q) || ct.phone.includes(q);
   });
+
+  const onFileSelected = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setImportError("");
+    try {
+      const text = await file.text();
+      const rows = csvToContactRows(text);
+      const result = await importContacts.mutateAsync(rows);
+      setImportResult(result);
+    } catch (err) {
+      setImportError(err.message || "Não foi possível ler o ficheiro.");
+    }
+  };
 
   return (
     <div>
@@ -481,10 +601,36 @@ function ContactsView({ brand, session }) {
             placeholder="Pesquisar contactos…"
           />
         </div>
-        <button onClick={() => { setEditing(null); setShowForm(true); }} style={btnPrimary}>
-          <Plus size={14} /> Novo contacto
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            onClick={() => downloadCsv(`${brand.name}-contactos.csv`, contactsToCsv(contactsQuery.data || []))}
+            style={btnGhost}
+            disabled={!contactsQuery.data?.length}
+          >
+            <Download size={13} /> Exportar
+          </button>
+          <input ref={fileInputRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={onFileSelected} />
+          <button onClick={() => fileInputRef.current?.click()} style={btnGhost} disabled={importContacts.isPending}>
+            <Upload size={13} /> {importContacts.isPending ? "A importar…" : "Importar"}
+          </button>
+          <button onClick={() => { setEditing(null); setShowForm(true); }} style={btnPrimary}>
+            <Plus size={14} /> Novo contacto
+          </button>
+        </div>
       </div>
+
+      {importError && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 12 }}>{importError}</div>}
+
+      {importResult && (
+        <Modal title="Importação concluída" onClose={() => setImportResult(null)} width={360}>
+          <div style={{ ...sans, fontSize: 13, color: c.ink, lineHeight: 1.8 }}>
+            <div>{importResult.created} contacto(s) criado(s)</div>
+            <div>{importResult.skipped} ignorado(s) (duplicados ou sem nome)</div>
+            {importResult.failed > 0 && <div style={{ color: c.rose }}>{importResult.failed} falharam</div>}
+          </div>
+          <button onClick={() => setImportResult(null)} style={{ ...btnGhost, marginTop: 16 }}>Fechar</button>
+        </Modal>
+      )}
 
       {showForm && (
         <ContactFormModal
