@@ -7210,13 +7210,13 @@ function LinkPagePreview({ page, fullPage }) {
       <div style={{ width: "100%", maxWidth: fullPage ? 420 : "none", display: "flex", flexDirection: "column", alignItems: "center" }}>
         <div
           style={{
-            width: 60, height: 60, borderRadius: 999, marginBottom: 10, flexShrink: 0,
+            width: fullPage ? 128 : 84, height: fullPage ? 128 : 84, borderRadius: 999, marginBottom: 16, flexShrink: 0,
             background: page.avatarUrl ? `url(${page.avatarUrl}) center/cover` : "rgba(255,255,255,0.2)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: page.avatarBgRemoved ? "0 0 0 3px rgba(255,255,255,0.7)" : "none",
+            boxShadow: page.avatarBgRemoved ? "0 0 0 4px rgba(255,255,255,0.7)" : "0 6px 18px rgba(0,0,0,0.2)",
           }}
         >
-          {!page.avatarUrl && <ImageIcon size={18} color="rgba(255,255,255,0.75)" />}
+          {!page.avatarUrl && <ImageIcon size={fullPage ? 32 : 22} color="rgba(255,255,255,0.75)" />}
         </div>
         <div style={{ ...serif, fontSize: 15, color: "#fff", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>{page.displayName || page.ownerName}</div>
         <div style={{ ...sans, fontSize: 10.5, color: "rgba(255,255,255,0.85)", textAlign: "center", marginBottom: 20, lineHeight: 1.5, textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>
