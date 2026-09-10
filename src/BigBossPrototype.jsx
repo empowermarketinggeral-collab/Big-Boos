@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import CrmModule from "./modules/crm/CrmModule.jsx";
 import WhatsappModule from "./modules/whatsapp/WhatsappModule.jsx";
+import AutomationsModule from "./modules/automations/AutomationsModule.jsx";
 import { c, sans, serif, StatusDot, Eyebrow, ChartCard, CAN_MANAGE_ROLES } from "./shared/theme.jsx";
 
 /* ---------------------------------------------------------
@@ -2235,6 +2236,7 @@ function useRemoveMember() {
 const MODULES = [
   { key: "crm", label: "CRM", sub: "Contactos, pipeline e negócios", icon: Kanban },
   { key: "whatsapp", label: "WhatsApp", sub: "Inbox e conversas", icon: MessageCircle },
+  { key: "automacoes", label: "Automações", sub: "Fluxos automáticos", icon: Zap },
   { key: "brand-book", label: "Brand Book", sub: "Identidade visual e diretrizes", icon: BookOpen },
   { key: "conteudos", label: "Conteúdos", sub: "Posts e reels — aprovação", icon: FileText },
   { key: "cronograma-conteudos", label: "Cronograma de Conteúdos", sub: "Planeamento do que vai sair", icon: Calendar },
@@ -2719,6 +2721,9 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
   }
   if (sub === "whatsapp") {
     return <WhatsappModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
+  }
+  if (sub === "automacoes") {
+    return <AutomationsModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
   }
   if (sub === "conteudos") {
     return <ConteudosView brand={brand} onBack={() => onOpenSub(null)} session={session} />;
