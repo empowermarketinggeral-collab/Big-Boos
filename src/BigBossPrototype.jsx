@@ -1887,7 +1887,20 @@ const DEFAULT_LINK_BG = {
 const DEFAULT_QUIZ = { enabled: false, title: "Não sabes por onde começar?", questions: [] };
 const PRODUCT_TYPES = { product: "Produto", collection: "Coleção", service: "Serviço" };
 const LINK_TYPES = { product: "Link do produto/coleção", calendar: "Link de marcação/calendário", whatsapp: "Link do WhatsApp" };
-const DEFAULT_PILL_STYLE = { color: "", textColor: "#ffffff", radius: 10, shadow: "none", layout: "lista" };
+const DEFAULT_PILL_STYLE = {
+  color: "", textColor: "#ffffff", radius: 10, shadow: "none", layout: "lista",
+  nameFont: "Fraunces", nameBold: true,
+  aboutFont: "Inter", aboutBold: false,
+  pillTitleFont: "Inter", pillTitleBold: true,
+  pillCaptionFont: "Inter", pillCaptionBold: false,
+};
+const FONT_OPTIONS = [
+  { key: "Inter", label: "Inter — moderna" },
+  { key: "Fraunces", label: "Fraunces — serifada" },
+  { key: "Poppins", label: "Poppins — arredondada" },
+  { key: "Playfair Display", label: "Playfair Display — elegante" },
+  { key: "Montserrat", label: "Montserrat — geométrica" },
+];
 const PILL_COLOR_SWATCHES = ["", "#ffffff", "#1C1526", c.boss, "#2F9E63", "#C9821F", "#D3455B", "#3B5FC2"];
 const PILL_RADIUS_OPTIONS = [{ key: 6, label: "Quadrada" }, { key: 14, label: "Arredondada" }, { key: 999, label: "Pílula" }];
 const PILL_SHADOW_OPTIONS = [
@@ -1907,6 +1920,10 @@ function pillCssFromStyle(pillStyle) {
     color: ps.textColor || "#ffffff",
     borderRadius: ps.radius ?? 10,
     boxShadow: shadowOpt.value,
+    titleFont: ps.pillTitleFont || "Inter",
+    titleWeight: ps.pillTitleBold === false ? 400 : 700,
+    captionFont: ps.pillCaptionFont || "Inter",
+    captionWeight: ps.pillCaptionBold ? 700 : 400,
   };
 }
 
@@ -7136,13 +7153,13 @@ function LinkBlockPill({ block, pillCss, layout }) {
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.65) 100%)" }} />
         )}
         <span style={{ position: "relative", ...sans, padding: "12px", textAlign: "center", width: "100%" }}>
-          <span style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: block.imageUrl ? "#fff" : pillCss.color, lineHeight: 1.25 }}>
+          <span style={{ display: "block", fontFamily: `'${pillCss.titleFont}', sans-serif`, fontSize: 12.5, fontWeight: pillCss.titleWeight, color: block.imageUrl ? "#fff" : pillCss.color, lineHeight: 1.25 }}>
             {block.label}
           </span>
           {block.caption && (
             <span
               style={{
-                display: "block", fontSize: 10, fontWeight: 400, marginTop: 3, lineHeight: 1.3,
+                display: "block", fontFamily: `'${pillCss.captionFont}', sans-serif`, fontSize: 10, fontWeight: pillCss.captionWeight, marginTop: 3, lineHeight: 1.3,
                 color: block.imageUrl ? "rgba(255,255,255,0.85)" : pillCss.color, opacity: 0.8,
               }}
             >
@@ -7177,12 +7194,12 @@ function LinkBlockPill({ block, pillCss, layout }) {
         </span>
       )}
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: "block", fontSize: 14, fontWeight: 700, lineHeight: 1.25 }}>
+        <span style={{ display: "block", fontFamily: `'${pillCss.titleFont}', sans-serif`, fontSize: 14, fontWeight: pillCss.titleWeight, lineHeight: 1.25 }}>
           {block.label}
           {!hasUrl && <span style={{ fontSize: 10, fontWeight: 500 }}> (sem link)</span>}
         </span>
         {block.caption && (
-          <span style={{ display: "block", fontSize: 11.5, fontWeight: 400, opacity: 0.75, marginTop: 2, lineHeight: 1.3 }}>
+          <span style={{ display: "block", fontFamily: `'${pillCss.captionFont}', sans-serif`, fontSize: 11.5, fontWeight: pillCss.captionWeight, opacity: 0.75, marginTop: 2, lineHeight: 1.3 }}>
             {block.caption}
           </span>
         )}
@@ -7218,8 +7235,23 @@ function LinkPagePreview({ page, fullPage }) {
         >
           {!page.avatarUrl && <ImageIcon size={fullPage ? 32 : 22} color="rgba(255,255,255,0.75)" />}
         </div>
-        <div style={{ ...serif, fontSize: 15, color: "#fff", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>{page.displayName || page.ownerName}</div>
-        <div style={{ ...sans, fontSize: 10.5, color: "rgba(255,255,255,0.85)", textAlign: "center", marginBottom: 20, lineHeight: 1.5, textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>
+        <div
+          style={{
+            fontFamily: `'${(page.pillStyle || DEFAULT_PILL_STYLE).nameFont}', serif`,
+            fontWeight: (page.pillStyle || DEFAULT_PILL_STYLE).nameBold === false ? 400 : 600,
+            fontSize: fullPage ? 26 : 17, color: "#fff", marginBottom: 5, textShadow: "0 1px 4px rgba(0,0,0,0.3)",
+          }}
+        >
+          {page.displayName || page.ownerName}
+        </div>
+        <div
+          style={{
+            fontFamily: `'${(page.pillStyle || DEFAULT_PILL_STYLE).aboutFont}', sans-serif`,
+            fontWeight: (page.pillStyle || DEFAULT_PILL_STYLE).aboutBold ? 700 : 400,
+            fontSize: fullPage ? 14.5 : 11, color: "rgba(255,255,255,0.85)", textAlign: "center",
+            marginBottom: 22, lineHeight: 1.55, textShadow: "0 1px 4px rgba(0,0,0,0.3)", maxWidth: fullPage ? 320 : "none",
+          }}
+        >
           {page.about}
         </div>
 
@@ -7992,6 +8024,46 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                       ))}
                     </div>
                   </div>
+                </div>
+              );
+            })()}
+          </ChartCard>
+
+          <ChartCard title="Tipografia" sub="Tipo de letra e negrito de cada elemento da página">
+            {(() => {
+              const ps = page.pillStyle || DEFAULT_PILL_STYLE;
+              const selectStyle = { ...sans, fontSize: 12, border: `1px solid ${c.line}`, borderRadius: 7, padding: "7px 9px", cursor: "pointer", background: "#fff" };
+              const rows = [
+                { fontKey: "nameFont", boldKey: "nameBold", label: "Nome" },
+                { fontKey: "aboutFont", boldKey: "aboutBold", label: "Subtítulo" },
+                { fontKey: "pillTitleFont", boldKey: "pillTitleBold", label: "Título das pílulas" },
+                { fontKey: "pillCaptionFont", boldKey: "pillCaptionBold", label: "Legenda das pílulas" },
+              ];
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {rows.map((r) => {
+                    const bold = !!ps[r.boldKey];
+                    return (
+                      <div key={r.fontKey} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <div style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: c.mist, width: 140, flexShrink: 0 }}>{r.label}</div>
+                        <select value={ps[r.fontKey] || "Inter"} onChange={(e) => updatePillStyle({ [r.fontKey]: e.target.value })} style={selectStyle}>
+                          {FONT_OPTIONS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => updatePillStyle({ [r.boldKey]: !bold })}
+                          title="Negrito"
+                          style={{
+                            ...sans, fontSize: 12, fontWeight: 700, width: 32, color: bold ? "#fff" : c.ink,
+                            background: bold ? c.boss : "#fff", border: `1px solid ${bold ? c.boss : c.line}`,
+                            borderRadius: 7, padding: "7px 0", cursor: "pointer",
+                          }}
+                        >
+                          N
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })()}
