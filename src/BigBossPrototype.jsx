@@ -2033,6 +2033,7 @@ const BLOCK_TYPES = [
   { type: "product", label: "Produto", icon: FileText },
   { type: "podcast", label: "Podcast", icon: Sparkles },
 ];
+const BLOCK_TYPE_ICON = Object.fromEntries(BLOCK_TYPES.map((bt) => [bt.type, bt.icon]));
 
 const PRICING_TYPES = [
   {
@@ -7118,6 +7119,7 @@ function LinkBlockPill({ block, pillCss, layout }) {
   const hasUrl = !!block.url;
   const Tag = hasUrl ? "a" : "div";
   const linkProps = hasUrl ? { href: block.url, target: "_blank", rel: "noopener noreferrer" } : {};
+  const Icon = BLOCK_TYPE_ICON[block.type] || Link2;
 
   if (layout === "grelha") {
     return (
@@ -7133,8 +7135,21 @@ function LinkBlockPill({ block, pillCss, layout }) {
         {block.imageUrl && (
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.65) 100%)" }} />
         )}
-        <span style={{ position: "relative", ...sans, fontSize: 10.5, fontWeight: 700, color: block.imageUrl ? "#fff" : pillCss.color, padding: "8px", textAlign: "center", width: "100%" }}>
-          {block.label}{!hasUrl && <><br /><span style={{ fontSize: 8.5, fontWeight: 500 }}>(sem link)</span></>}
+        <span style={{ position: "relative", ...sans, padding: "12px", textAlign: "center", width: "100%" }}>
+          <span style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: block.imageUrl ? "#fff" : pillCss.color, lineHeight: 1.25 }}>
+            {block.label}
+          </span>
+          {block.caption && (
+            <span
+              style={{
+                display: "block", fontSize: 10, fontWeight: 400, marginTop: 3, lineHeight: 1.3,
+                color: block.imageUrl ? "rgba(255,255,255,0.85)" : pillCss.color, opacity: 0.8,
+              }}
+            >
+              {block.caption}
+            </span>
+          )}
+          {!hasUrl && <span style={{ display: "block", fontSize: 8.5, fontWeight: 500, marginTop: 3, opacity: 0.75 }}>(sem link)</span>}
         </span>
       </Tag>
     );
@@ -7144,16 +7159,35 @@ function LinkBlockPill({ block, pillCss, layout }) {
     <Tag
       {...linkProps}
       style={{
-        ...pillCss, backdropFilter: "blur(2px)", padding: "8px 12px", ...sans, fontSize: 11, textAlign: "center",
-        textDecoration: "none", display: "flex", alignItems: "center", gap: 9, opacity: hasUrl ? 1 : 0.6,
+        ...pillCss, backdropFilter: "blur(2px)", padding: "13px 16px", minHeight: 58, boxSizing: "border-box",
+        ...sans, textAlign: "left", textDecoration: "none", display: "flex", alignItems: "center", gap: 13,
+        opacity: hasUrl ? 1 : 0.6,
       }}
     >
-      {block.imageUrl && (
-        <span style={{ width: 30, height: 30, borderRadius: 7, flexShrink: 0, background: `url(${block.imageUrl}) center/cover` }} />
+      {block.imageUrl ? (
+        <span style={{ width: 38, height: 38, borderRadius: 999, flexShrink: 0, background: `url(${block.imageUrl}) center/cover` }} />
+      ) : (
+        <span
+          style={{
+            width: 38, height: 38, borderRadius: 999, flexShrink: 0, background: "rgba(255,255,255,0.18)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <Icon size={16} color={pillCss.color} strokeWidth={1.8} />
+        </span>
       )}
-      <span style={{ flex: 1, textAlign: block.imageUrl ? "left" : "center" }}>
-        {block.label}{!hasUrl && <span style={{ fontSize: 9 }}> (sem link)</span>}
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: "block", fontSize: 14, fontWeight: 700, lineHeight: 1.25 }}>
+          {block.label}
+          {!hasUrl && <span style={{ fontSize: 10, fontWeight: 500 }}> (sem link)</span>}
+        </span>
+        {block.caption && (
+          <span style={{ display: "block", fontSize: 11.5, fontWeight: 400, opacity: 0.75, marginTop: 2, lineHeight: 1.3 }}>
+            {block.caption}
+          </span>
+        )}
       </span>
+      <ChevronRight size={17} style={{ flexShrink: 0, opacity: 0.55 }} />
     </Tag>
   );
 }
@@ -7192,7 +7226,7 @@ function LinkPagePreview({ page, fullPage }) {
         {quizOpen && canShowQuiz ? (
           <LinkPageQuiz quiz={quiz} products={page.products || []} onExit={() => setQuizOpen(false)} />
         ) : (
-          <div style={{ display: layout === "grelha" ? "grid" : "flex", gridTemplateColumns: layout === "grelha" ? "1fr 1fr" : undefined, flexDirection: layout === "grelha" ? undefined : "column", gap: 8, width: "100%" }}>
+          <div style={{ display: layout === "grelha" ? "grid" : "flex", gridTemplateColumns: layout === "grelha" ? "1fr 1fr" : undefined, flexDirection: layout === "grelha" ? undefined : "column", gap: 10, width: "100%" }}>
             {page.blocks.map((b) =>
               b.type === "social" ? (
                 <div key={b.id} style={{ padding: "6px 0 2px", gridColumn: layout === "grelha" ? "1 / -1" : undefined }}>
@@ -7431,6 +7465,7 @@ function LinkNaBioEditor({ initialPage, onBack }) {
   };
   const removeBlock = (id) => setPage((p) => ({ ...p, blocks: p.blocks.filter((b) => b.id !== id) }));
   const renameBlock = (id, label) => setPage((p) => ({ ...p, blocks: p.blocks.map((b) => (b.id === id ? { ...b, label } : b)) }));
+  const updateBlockCaption = (id, caption) => setPage((p) => ({ ...p, blocks: p.blocks.map((b) => (b.id === id ? { ...b, caption } : b)) }));
   const updateBlockUrl = (id, url) => setPage((p) => ({ ...p, blocks: p.blocks.map((b) => (b.id === id ? { ...b, url } : b)) }));
   const updateBlockImage = (id, imageUrl) => setPage((p) => ({ ...p, blocks: p.blocks.map((b) => (b.id === id ? { ...b, imageUrl } : b)) }));
   const onBlockImageSelected = async (id, e) => {
@@ -7799,7 +7834,17 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                     </button>
                   </div>
                   {b.type !== "social" && (
-                    <div style={{ marginTop: 6, paddingLeft: 2, display: "flex", gap: 8, alignItems: "center" }}>
+                    <div style={{ marginTop: 4, paddingLeft: 2 }}>
+                      <input
+                        value={b.caption || ""}
+                        onChange={(e) => updateBlockCaption(b.id, e.target.value)}
+                        placeholder="Legenda (opcional) — aparece mais pequena, por baixo do título"
+                        style={{ ...sans, width: "100%", fontSize: 11.5, color: c.ink, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 6, padding: "6px 9px", outline: "none", boxSizing: "border-box", marginBottom: 6 }}
+                      />
+                    </div>
+                  )}
+                  {b.type !== "social" && (
+                    <div style={{ paddingLeft: 2, display: "flex", gap: 8, alignItems: "center" }}>
                       <input
                         value={b.url || ""}
                         onChange={(e) => updateBlockUrl(b.id, e.target.value)}
