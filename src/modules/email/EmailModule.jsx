@@ -100,7 +100,7 @@ function useSends(campaignId) {
     queryKey: ["email_sends", campaignId],
     enabled: !!campaignId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("email_sends").select("status").eq("campaign_id", campaignId);
+      const { data, error } = await supabase.from("email_sends").select("status, error, contacts(name, email)").eq("campaign_id", campaignId);
       if (error) throw error;
       return data;
     },
@@ -297,13 +297,27 @@ function CampaignEditor({ brand, campaign, domain, onBack }) {
       {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 16 }}>{error}</div>}
 
       {isSent && (
-        <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-          {["sent", "opened", "clicked", "bounced", "failed"].map((k) => (
-            <span key={k} style={{ ...sans, fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: "5px 12px", background: c.paper, color: c.ink }}>
-              {statusCounts[k] || 0} {k}
-            </span>
-          ))}
-        </div>
+        <>
+          <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+            {["sent", "opened", "clicked", "bounced", "failed"].map((k) => (
+              <span key={k} style={{ ...sans, fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: "5px 12px", background: c.paper, color: c.ink }}>
+                {statusCounts[k] || 0} {k}
+              </span>
+            ))}
+          </div>
+          {sends.some((s) => s.status === "failed") && (
+            <div style={{ background: "#FBE9EC", border: `1px solid ${c.rose}`, borderRadius: 12, padding: "12px 16px", marginBottom: 20, maxWidth: 640 }}>
+              <div style={{ ...sans, fontSize: 12, fontWeight: 700, color: c.rose, marginBottom: 8 }}>Envios falhados</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {sends.filter((s) => s.status === "failed").map((s, i) => (
+                  <div key={i} style={{ ...sans, fontSize: 12, color: c.ink }}>
+                    <strong>{s.contacts?.name || s.contacts?.email || "Contacto"}</strong> — {s.error || "Motivo desconhecido"}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 640 }}>

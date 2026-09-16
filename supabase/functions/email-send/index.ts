@@ -90,6 +90,9 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ from, to: contact.email, subject: campaign.subject, html: campaign.body_html || "" }),
     });
     const data = await res.json();
+    if (!res.ok) {
+      console.error("Resend send failed", { contact: contact.email, status: res.status, data });
+    }
 
     await adminClient.from("email_sends").insert({
       brand_id: campaign.brand_id,
@@ -97,6 +100,7 @@ Deno.serve(async (req) => {
       contact_id: contact.id,
       provider_ref: data?.id || null,
       status: res.ok ? "sent" : "failed",
+      error: res.ok ? null : data?.message || data?.error || JSON.stringify(data),
       sent_at: res.ok ? new Date().toISOString() : null,
     });
 
