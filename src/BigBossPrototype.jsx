@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "./lib/supabaseClient.js";
@@ -9845,12 +9845,19 @@ function BigBossPrototypeInner() {
   const addBrandMutation = useAddBrand();
   const brands = brandsQuery.data || [];
 
+  // Guarda o id do utilizador atual para distinguir um refresh de
+  // token do mesmo utilizador (dispara sempre que a aba volta a
+  // ficar visível — não deve mexer na navegação) de um login/logout
+  // a sério (esse sim deve voltar ao painel).
+  const sessionUserIdRef = useRef(null);
+
   useEffect(() => {
     let active = true;
 
     supabase.auth.getSession().then(async ({ data }) => {
       if (!active) return;
       if (data.session?.user) {
+        sessionUserIdRef.current = data.session.user.id;
         setSession(await loadSessionFromAuthUser(data.session.user));
       }
       setAuthChecked(true);
@@ -9859,15 +9866,26 @@ function BigBossPrototypeInner() {
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, authSession) => {
         if (!active) return;
-        if (authSession?.user) {
-          setSession(await loadSessionFromAuthUser(authSession.user));
-        } else {
+        if (!authSession?.user) {
+          sessionUserIdRef.current = null;
           setSession(null);
+          setAuthChecked(true);
+          setNav("painel");
+          setBrandId(null);
+          setSub(null);
+          return;
         }
+        const isSameUser = sessionUserIdRef.current === authSession.user.id;
+        const loaded = await loadSessionFromAuthUser(authSession.user);
+        if (!active) return;
+        sessionUserIdRef.current = authSession.user.id;
+        setSession(loaded);
         setAuthChecked(true);
-        setNav("painel");
-        setBrandId(null);
-        setSub(null);
+        if (!isSameUser) {
+          setNav("painel");
+          setBrandId(null);
+          setSub(null);
+        }
       }
     );
 

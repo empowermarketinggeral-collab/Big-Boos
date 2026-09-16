@@ -31,6 +31,16 @@ const FIELD_TYPES = [
   { value: "select", label: "Escolha (lista)" },
 ];
 
+const FORM_FONT_OPTIONS = [
+  { key: "Inter", label: "Inter — moderna" },
+  { key: "Fraunces", label: "Fraunces — serifada" },
+  { key: "Poppins", label: "Poppins — arredondada" },
+  { key: "Playfair Display", label: "Playfair Display — elegante" },
+  { key: "Montserrat", label: "Montserrat — geométrica" },
+];
+const FORM_COLOR_SWATCHES = ["#7C4DE0", "#1C1526", "#2F9E63", "#C9821F", "#D3455B", "#3B5FC2"];
+const DEFAULT_FORM_STYLE = { accentColor: "#7C4DE0", font: "Inter", logoUrl: "" };
+
 const MAPS_TO_OPTIONS = [
   { value: "", label: "Não guardar como…" },
   { value: "name", label: "Nome do contacto" },
@@ -170,6 +180,12 @@ function NewFormModal({ brandId, onClose, onCreated }) {
    EDITOR
 --------------------------------------------------------- */
 function FieldRow({ field, onChange, onRemove, onMove, isFirst, isLast }) {
+  // Estado próprio para o texto das opções — se o valor do input vier
+  // sempre de field.options.join(", "), cada vírgula/espaço a mais
+  // desaparece assim que se escreve (porque split+join "limpa" logo
+  // a seguir), dando a sensação de que a vírgula não funciona.
+  const [optionsText, setOptionsText] = useState((field.options || []).join(", "));
+
   return (
     <div style={{ background: c.paper, borderRadius: 8, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -213,8 +229,11 @@ function FieldRow({ field, onChange, onRemove, onMove, isFirst, isLast }) {
       </div>
       {field.type === "select" && (
         <input
-          value={(field.options || []).join(", ")}
-          onChange={(e) => onChange({ ...field, options: e.target.value.split(",").map((o) => o.trim()).filter(Boolean) })}
+          value={optionsText}
+          onChange={(e) => {
+            setOptionsText(e.target.value);
+            onChange({ ...field, options: e.target.value.split(",").map((o) => o.trim()).filter(Boolean) });
+          }}
           placeholder="Opções separadas por vírgula"
           style={{ ...sans, fontSize: 11.5, color: c.ink, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 6, padding: "6px 9px", outline: "none" }}
         />
@@ -231,6 +250,7 @@ function FormEditor({ brand, form, onBack }) {
   const [fileUrl, setFileUrl] = useState(form.file_delivery_url || "");
   const [tagIds, setTagIds] = useState(form.on_submit_tags || []);
   const [fields, setFields] = useState(form.fields || []);
+  const [style, setStyle] = useState({ ...DEFAULT_FORM_STYLE, ...(form.style || {}) });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -265,6 +285,7 @@ function FormEditor({ brand, form, onBack }) {
           file_delivery_url: type === "lead_magnet" ? fileUrl : null,
           on_submit_tags: tagIds,
           fields,
+          style,
         },
       });
       setSaved(true);
@@ -350,6 +371,44 @@ function FormEditor({ brand, form, onBack }) {
                 ))}
                 {!tagsQuery.data?.length && <div style={{ ...sans, fontSize: 11.5, color: c.mistLight }}>Sem tags ainda — cria no CRM.</div>}
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+          <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Aparência</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Cor de destaque (botão e realces)</div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                {FORM_COLOR_SWATCHES.map((hex) => (
+                  <button
+                    key={hex}
+                    type="button"
+                    onClick={() => setStyle((s) => ({ ...s, accentColor: hex }))}
+                    style={{
+                      width: 26, height: 26, borderRadius: 999, cursor: "pointer", background: hex, flexShrink: 0,
+                      border: style.accentColor === hex ? `2px solid ${c.ink}` : "1px solid rgba(0,0,0,0.1)",
+                    }}
+                  />
+                ))}
+                <input
+                  type="color"
+                  value={style.accentColor}
+                  onChange={(e) => setStyle((s) => ({ ...s, accentColor: e.target.value }))}
+                  style={{ width: 30, height: 26, border: `1px solid ${c.line}`, borderRadius: 6, cursor: "pointer", padding: 0, flexShrink: 0 }}
+                />
+              </div>
+            </div>
+            <div>
+              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Tipo de letra</div>
+              <select style={inputStyle} value={style.font} onChange={(e) => setStyle((s) => ({ ...s, font: e.target.value }))}>
+                {FORM_FONT_OPTIONS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Logótipo (link da imagem, opcional)</div>
+              <input style={inputStyle} value={style.logoUrl} onChange={(e) => setStyle((s) => ({ ...s, logoUrl: e.target.value }))} placeholder="https://…" />
             </div>
           </div>
         </div>
@@ -481,13 +540,14 @@ export default function FormsModule({ brand, onBack }) {
 /* ---------------------------------------------------------
    PÁGINA PÚBLICA — /formulario/:slug
 --------------------------------------------------------- */
-function PublicField({ field, value, onChange }) {
+function PublicField({ field, value, onChange, font }) {
+  const fontFamily = `'${font || "Inter"}', sans-serif`;
   const label = (
-    <div style={{ ...sans, fontSize: 13, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>
+    <div style={{ ...sans, fontFamily, fontSize: 13, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>
       {field.label}{field.required && <span style={{ color: "#D3455B" }}> *</span>}
     </div>
   );
-  const inputStyleLocal = { ...sans, width: "100%", fontSize: 14, border: "1px solid #E0DAEC", borderRadius: 9, padding: "10px 12px", outline: "none", boxSizing: "border-box" };
+  const inputStyleLocal = { ...sans, fontFamily, width: "100%", fontSize: 14, border: "1px solid #E0DAEC", borderRadius: 9, padding: "10px 12px", outline: "none", boxSizing: "border-box" };
 
   if (field.type === "textarea") {
     return <div>{label}<textarea rows={3} required={field.required} value={value || ""} onChange={(e) => onChange(e.target.value)} style={{ ...inputStyleLocal, resize: "vertical" }} /></div>;
@@ -519,7 +579,7 @@ export function PublicFormPage() {
     let active = true;
     supabase
       .from("forms")
-      .select("id, brand_id, name, type, fields, thank_you_message, file_delivery_url, status")
+      .select("id, brand_id, name, type, fields, thank_you_message, file_delivery_url, status, style")
       .eq("slug", slug)
       .maybeSingle()
       .then(({ data, error: err }) => {
@@ -555,35 +615,41 @@ export function PublicFormPage() {
   if (state.error) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", ...sans, color: c.mist }}>{state.error}</div>;
 
   const { form } = state;
+  const formStyle = { ...DEFAULT_FORM_STYLE, ...(form.style || {}) };
+  const titleFont = { fontFamily: `'${formStyle.font}', serif` };
+  const bodyFont = { fontFamily: `'${formStyle.font}', sans-serif` };
 
   return (
     <div style={{ minHeight: "100vh", background: c.paper, display: "flex", justifyContent: "center", padding: "60px 20px", boxSizing: "border-box" }}>
       <div style={{ width: "100%", maxWidth: 480 }}>
         <div style={{ background: "#fff", borderRadius: 20, padding: "32px 28px", boxShadow: "0 12px 30px rgba(30,20,50,0.1)" }}>
+          {formStyle.logoUrl && (
+            <img src={formStyle.logoUrl} alt="" style={{ maxHeight: 48, maxWidth: "60%", display: "block", marginBottom: 18 }} />
+          )}
           {submitted ? (
             <div style={{ textAlign: "center", padding: "20px 0" }}>
-              <CheckCircle2 size={32} color={c.sage} style={{ marginBottom: 12 }} />
-              <div style={{ ...serif, fontSize: 19, color: c.ink, marginBottom: 8 }}>Obrigado!</div>
-              <div style={{ ...sans, fontSize: 13.5, color: c.mist, lineHeight: 1.6 }}>{form.thank_you_message || "A tua resposta foi recebida."}</div>
+              <CheckCircle2 size={32} color={formStyle.accentColor} style={{ marginBottom: 12 }} />
+              <div style={{ ...serif, ...titleFont, fontSize: 19, color: c.ink, marginBottom: 8 }}>Obrigado!</div>
+              <div style={{ ...sans, ...bodyFont, fontSize: 13.5, color: c.mist, lineHeight: 1.6 }}>{form.thank_you_message || "A tua resposta foi recebida."}</div>
               {form.type === "lead_magnet" && form.file_delivery_url && (
-                <a href={form.file_delivery_url} target="_blank" rel="noopener noreferrer" style={{ ...sans, display: "inline-block", marginTop: 16, fontSize: 13, fontWeight: 600, color: "#fff", background: c.boss, borderRadius: 9, padding: "10px 20px", textDecoration: "none" }}>
+                <a href={form.file_delivery_url} target="_blank" rel="noopener noreferrer" style={{ ...sans, ...bodyFont, display: "inline-block", marginTop: 16, fontSize: 13, fontWeight: 600, color: "#fff", background: formStyle.accentColor, borderRadius: 9, padding: "10px 20px", textDecoration: "none" }}>
                   Descarregar
                 </a>
               )}
             </div>
           ) : (
             <form onSubmit={submit}>
-              <h1 style={{ ...serif, fontSize: 21, color: c.ink, marginBottom: 20 }}>{form.name}</h1>
+              <h1 style={{ ...serif, ...titleFont, fontSize: 21, color: c.ink, marginBottom: 20 }}>{form.name}</h1>
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 {(form.fields || []).map((f) => (
-                  <PublicField key={f.id} field={f} value={answers[f.id]} onChange={(v) => setAnswers((a) => ({ ...a, [f.id]: v }))} />
+                  <PublicField key={f.id} field={f} value={answers[f.id]} onChange={(v) => setAnswers((a) => ({ ...a, [f.id]: v }))} font={formStyle.font} />
                 ))}
               </div>
-              {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginTop: 14 }}>{error}</div>}
+              {error && <div style={{ ...sans, ...bodyFont, fontSize: 12.5, color: c.rose, marginTop: 14 }}>{error}</div>}
               <button
                 type="submit"
                 disabled={submitting}
-                style={{ ...sans, width: "100%", marginTop: 22, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 9, padding: "12px", cursor: "pointer" }}
+                style={{ ...sans, ...bodyFont, width: "100%", marginTop: 22, fontSize: 14, fontWeight: 600, color: "#fff", background: formStyle.accentColor, border: "none", borderRadius: 9, padding: "12px", cursor: "pointer" }}
               >
                 {submitting ? "A enviar…" : "Enviar"}
               </button>
