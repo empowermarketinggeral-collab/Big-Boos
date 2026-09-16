@@ -283,7 +283,7 @@ Depois de CRM, WhatsApp, Automações, Formulários, Email e Funis construídos,
 
 **1. Inbox Unificado — sobe de prioridade.** A Adenda 1 já descrevia isto; a referência trazida (a caixa de entrada partilhada de equipa de uma ferramenta como a HighLevel) confirma que deve ser o próximo passo a sério depois de Social Media, não uma ideia adiada indefinidamente. Arquitetura recomendada mantém-se: uma vista que agrega `whatsapp_messages` + `email_sends`/respostas por contacto, sem reescrever nenhum dos dois módulos.
 
-**2. Novo módulo — Agendamento/Marcações.** Não estava no desenho original. Algumas marcas (ex: um cabeleireiro) precisam de:
+**2. Novo módulo — Agendamento/Marcações — construído em 2026-09-18/19.** Não estava no desenho original. Algumas marcas (ex: um cabeleireiro) precisam de:
 - Catálogo de serviços por marca: nome, preço, duração.
 - Disponibilidade configurável (dias/horas em que cada serviço pode ser marcado).
 - Ligação a calendários externos (Google Calendar, e possivelmente outros) para evitar sobreposição com compromissos já existentes fora do EMPOWER OS.
