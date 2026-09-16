@@ -1,4 +1,5 @@
-// EMPOWER OS — calcula os horários livres de um serviço, num dia.
+// EMPOWER OS — calcula os horários livres de um serviço com um
+// profissional específico, num dia.
 // Chamado publicamente (sem login) pela página de marcação.
 // Nunca devolve dados de outras marcações (nome/telefone/email) —
 // só os intervalos de tempo já ocupados, para não expor clientes.
@@ -28,8 +29,8 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: "Corpo do pedido inválido." }, 400);
   }
-  const { brandId, serviceId, date } = body; // date: "YYYY-MM-DD" no fuso do browser
-  if (!brandId || !serviceId || !date) {
+  const { brandId, serviceId, staffId, date, upsellIds } = body; // date: "YYYY-MM-DD" no fuso do browser
+  if (!brandId || !serviceId || !staffId || !date) {
     return json({ error: "Faltam campos obrigatórios." }, 400);
   }
 
@@ -37,26 +38,44 @@ Deno.serve(async (req) => {
   if (!service || service.status !== "active") {
     return json({ error: "Serviço não encontrado." }, 404);
   }
-  const durationMs = service.duration_minutes * 60000;
+
+  let extraMinutes = 0;
+  if (Array.isArray(upsellIds) && upsellIds.length > 0) {
+    const { data: upsells } = await admin.from("booking_service_upsells").select("extra_duration_minutes").in("id", upsellIds).eq("service_id", serviceId);
+    extraMinutes = (upsells || []).reduce((sum, u) => sum + (u.extra_duration_minutes || 0), 0);
+  }
+  const durationMs = (service.duration_minutes + extraMinutes) * 60000;
 
   const dayStart = new Date(`${date}T00:00:00`);
   const weekday = dayStart.getDay();
 
-  const { data: rules } = await admin.from("booking_availability").select("start_time, end_time").eq("brand_id", brandId).eq("weekday", weekday);
+  const { data: rules } = await admin.from("booking_availability").select("start_time, end_time").eq("brand_id", brandId).eq("staff_id", staffId).eq("weekday", weekday);
   if (!rules || rules.length === 0) {
     return json({ slots: [] });
   }
 
   const dayEnd = new Date(`${date}T23:59:59`);
+
   const { data: existing } = await admin
     .from("booking_appointments")
     .select("starts_at, ends_at")
     .eq("brand_id", brandId)
+    .eq("staff_id", staffId)
     .eq("status", "confirmed")
     .gte("starts_at", dayStart.toISOString())
     .lte("starts_at", dayEnd.toISOString());
 
-  const busy = (existing || []).map((a) => ({ start: new Date(a.starts_at).getTime(), end: new Date(a.ends_at).getTime() }));
+  const { data: timeOff } = await admin
+    .from("booking_time_off")
+    .select("starts_at, ends_at")
+    .eq("staff_id", staffId)
+    .lt("starts_at", dayEnd.toISOString())
+    .gt("ends_at", dayStart.toISOString());
+
+  const busy = [
+    ...(existing || []).map((a) => ({ start: new Date(a.starts_at).getTime(), end: new Date(a.ends_at).getTime() })),
+    ...(timeOff || []).map((t) => ({ start: new Date(t.starts_at).getTime(), end: new Date(t.ends_at).getTime() })),
+  ];
 
   const slots = [];
   for (const rule of rules) {
