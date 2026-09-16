@@ -58,15 +58,18 @@ function useContacts(brandId) {
 function useSaveContact(brandId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name, email, phone, source, createdBy }) => {
+    mutationFn: async ({ id, name, email, phone, source, optedInEmail, optedInWhatsapp, createdBy }) => {
       if (id) {
-        const { error } = await supabase.from("contacts").update({ name, email, phone, source }).eq("id", id);
+        const { error } = await supabase
+          .from("contacts")
+          .update({ name, email, phone, source, opted_in_email: optedInEmail, opted_in_whatsapp: optedInWhatsapp })
+          .eq("id", id);
         if (error) throw error;
         return id;
       }
       const { data, error } = await supabase
         .from("contacts")
-        .insert({ brand_id: brandId, name, email, phone, source, created_by: createdBy })
+        .insert({ brand_id: brandId, name, email, phone, source, opted_in_email: optedInEmail, opted_in_whatsapp: optedInWhatsapp, created_by: createdBy })
         .select()
         .single();
       if (error) throw error;
@@ -461,6 +464,8 @@ function ContactFormModal({ brandId, contact, onClose, session }) {
   const [email, setEmail] = useState(contact?.email || "");
   const [phone, setPhone] = useState(contact?.phone || "");
   const [source, setSource] = useState(contact?.source || "manual");
+  const [optedInEmail, setOptedInEmail] = useState(contact?.optedInEmail ?? false);
+  const [optedInWhatsapp, setOptedInWhatsapp] = useState(contact?.optedInWhatsapp ?? true);
   const [newTag, setNewTag] = useState("");
   const saveContact = useSaveContact(brandId);
   const createTag = useCreateTag(brandId);
@@ -473,7 +478,7 @@ function ContactFormModal({ brandId, contact, onClose, session }) {
   const save = async () => {
     if (!name.trim()) { setError("O nome é obrigatório."); return; }
     try {
-      await saveContact.mutateAsync({ id: contact?.id, name, email, phone, source, createdBy: session.id });
+      await saveContact.mutateAsync({ id: contact?.id, name, email, phone, source, optedInEmail, optedInWhatsapp, createdBy: session.id });
       onClose();
     } catch (err) {
       setError(err.message || "Não foi possível guardar.");
@@ -512,6 +517,17 @@ function ContactFormModal({ brandId, contact, onClose, session }) {
             <option value="lead_magnet">Lead magnet</option>
             <option value="funil">Funil</option>
           </select>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={{ ...sans, fontSize: 12.5, color: c.ink, display: "flex", alignItems: "center", gap: 7 }}>
+            <input type="checkbox" checked={optedInEmail} onChange={(e) => setOptedInEmail(e.target.checked)} />
+            Consentimento para receber email
+          </label>
+          <label style={{ ...sans, fontSize: 12.5, color: c.ink, display: "flex", alignItems: "center", gap: 7 }}>
+            <input type="checkbox" checked={optedInWhatsapp} onChange={(e) => setOptedInWhatsapp(e.target.checked)} />
+            Consentimento para receber WhatsApp
+          </label>
         </div>
 
         {contact?.id && (
