@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
-import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
+import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, PAGE_FONT_OPTIONS, PAGE_COLOR_SWATCHES, DEFAULT_PAGE_STYLE } from "../../shared/theme.jsx";
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, FileText, Link2, CheckCircle2 } from "lucide-react";
 
 /* ---------------------------------------------------------
@@ -31,15 +31,6 @@ const FIELD_TYPES = [
   { value: "select", label: "Escolha (lista)" },
 ];
 
-const FORM_FONT_OPTIONS = [
-  { key: "Inter", label: "Inter — moderna" },
-  { key: "Fraunces", label: "Fraunces — serifada" },
-  { key: "Poppins", label: "Poppins — arredondada" },
-  { key: "Playfair Display", label: "Playfair Display — elegante" },
-  { key: "Montserrat", label: "Montserrat — geométrica" },
-];
-const FORM_COLOR_SWATCHES = ["#7C4DE0", "#1C1526", "#2F9E63", "#C9821F", "#D3455B", "#3B5FC2"];
-const DEFAULT_FORM_STYLE = { accentColor: "#7C4DE0", font: "Inter", logoUrl: "" };
 
 const MAPS_TO_OPTIONS = [
   { value: "", label: "Não guardar como…" },
@@ -250,7 +241,7 @@ function FormEditor({ brand, form, onBack }) {
   const [fileUrl, setFileUrl] = useState(form.file_delivery_url || "");
   const [tagIds, setTagIds] = useState(form.on_submit_tags || []);
   const [fields, setFields] = useState(form.fields || []);
-  const [style, setStyle] = useState({ ...DEFAULT_FORM_STYLE, ...(form.style || {}) });
+  const [style, setStyle] = useState({ ...DEFAULT_PAGE_STYLE, ...(form.style || {}) });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -381,7 +372,7 @@ function FormEditor({ brand, form, onBack }) {
             <div>
               <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Cor de destaque (botão e realces)</div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                {FORM_COLOR_SWATCHES.map((hex) => (
+                {PAGE_COLOR_SWATCHES.map((hex) => (
                   <button
                     key={hex}
                     type="button"
@@ -403,7 +394,7 @@ function FormEditor({ brand, form, onBack }) {
             <div>
               <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Tipo de letra</div>
               <select style={inputStyle} value={style.font} onChange={(e) => setStyle((s) => ({ ...s, font: e.target.value }))}>
-                {FORM_FONT_OPTIONS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                {PAGE_FONT_OPTIONS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
               </select>
             </div>
             <div>
@@ -615,7 +606,7 @@ export function PublicFormPage() {
   if (state.error) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", ...sans, color: c.mist }}>{state.error}</div>;
 
   const { form } = state;
-  const formStyle = { ...DEFAULT_FORM_STYLE, ...(form.style || {}) };
+  const formStyle = { ...DEFAULT_PAGE_STYLE, ...(form.style || {}) };
   const titleFont = { fontFamily: `'${formStyle.font}', serif` };
   const bodyFont = { fontFamily: `'${formStyle.font}', sans-serif` };
 

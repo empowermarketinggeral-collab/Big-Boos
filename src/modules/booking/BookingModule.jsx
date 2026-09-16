@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
-import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
+import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, PAGE_FONT_OPTIONS, PAGE_COLOR_SWATCHES, DEFAULT_PAGE_STYLE } from "../../shared/theme.jsx";
 import { ArrowLeft, Plus, Trash2, Pencil, Link2, CheckCircle2, Calendar as CalendarIcon, User, History } from "lucide-react";
 
 /* ---------------------------------------------------------
@@ -299,6 +299,28 @@ function useBookingSlug(brandId) {
       if (error) throw error;
       return data?.booking_slug || "";
     },
+  });
+}
+
+function useBookingStyle(brandId) {
+  return useQuery({
+    queryKey: ["brand_booking_style", brandId],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("brands").select("booking_style").eq("id", brandId).maybeSingle();
+      if (error) throw error;
+      return { ...DEFAULT_PAGE_STYLE, ...(data?.booking_style || {}) };
+    },
+  });
+}
+function useUpdateBookingStyle(brandId) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (style) => {
+      const { error } = await supabase.from("brands").update({ booking_style: style }).eq("id", brandId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["brand_booking_style", brandId] }),
   });
 }
 
@@ -661,6 +683,49 @@ function ReminderRow({ brand, type, label, setting }) {
   );
 }
 
+function AppearanceSection({ brand }) {
+  const styleQuery = useBookingStyle(brand.id);
+  const updateStyle = useUpdateBookingStyle(brand.id);
+  const style = styleQuery.data || DEFAULT_PAGE_STYLE;
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+      <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Aparência da página de marcação</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div>
+          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Cor de destaque</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            {PAGE_COLOR_SWATCHES.map((hex) => (
+              <button
+                key={hex}
+                type="button"
+                onClick={() => updateStyle.mutate({ ...style, accentColor: hex })}
+                style={{ width: 26, height: 26, borderRadius: 999, cursor: "pointer", background: hex, flexShrink: 0, border: style.accentColor === hex ? `2px solid ${c.ink}` : "1px solid rgba(0,0,0,0.1)" }}
+              />
+            ))}
+            <input
+              type="color"
+              value={style.accentColor}
+              onChange={(e) => updateStyle.mutate({ ...style, accentColor: e.target.value })}
+              style={{ width: 30, height: 26, border: `1px solid ${c.line}`, borderRadius: 6, cursor: "pointer", padding: 0, flexShrink: 0 }}
+            />
+          </div>
+        </div>
+        <div>
+          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Tipo de letra</div>
+          <select style={inputStyle} value={style.font} onChange={(e) => updateStyle.mutate({ ...style, font: e.target.value })}>
+            {PAGE_FONT_OPTIONS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Logótipo (link da imagem, opcional)</div>
+          <input style={inputStyle} defaultValue={style.logoUrl} onBlur={(e) => updateStyle.mutate({ ...style, logoUrl: e.target.value })} placeholder="https://…" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RemindersSection({ brand }) {
   const settingsQuery = useReminderSettings(brand.id);
   const settings = settingsQuery.data || [];
@@ -729,6 +794,7 @@ export default function BookingModule({ brand, onBack }) {
         <AvailabilitySection brand={brand} staffId={selectedStaffId} />
         <AppointmentsSection brand={brand} />
         <RemindersSection brand={brand} />
+        <AppearanceSection brand={brand} />
       </div>
     </div>
   );
@@ -759,7 +825,7 @@ export function PublicBookingPage() {
     let active = true;
     supabase
       .from("brands")
-      .select("id, name")
+      .select("id, name, booking_style")
       .eq("booking_slug", slug)
       .maybeSingle()
       .then(async ({ data, error: err }) => {
@@ -827,21 +893,25 @@ export function PublicBookingPage() {
   const minDate = new Date().toISOString().slice(0, 10);
   const extraMinutes = upsells.filter((u) => selectedUpsellIds.includes(u.id)).reduce((sum, u) => sum + (u.extra_duration_minutes || 0), 0);
   const totalPrice = (service?.price || 0) + upsells.filter((u) => selectedUpsellIds.includes(u.id)).reduce((sum, u) => sum + (u.price || 0), 0);
+  const bookingStyle = { ...DEFAULT_PAGE_STYLE, ...(state.brand.booking_style || {}) };
+  const titleFont = { fontFamily: `'${bookingStyle.font}', serif` };
+  const bodyFont = { fontFamily: `'${bookingStyle.font}', sans-serif` };
 
   return (
     <div style={{ minHeight: "100vh", background: c.paper, display: "flex", justifyContent: "center", padding: "60px 20px", boxSizing: "border-box" }}>
       <div style={{ width: "100%", maxWidth: 460 }}>
         <div style={{ background: "#fff", borderRadius: 20, padding: "32px 28px", boxShadow: "0 12px 30px rgba(30,20,50,0.1)" }}>
+          {bookingStyle.logoUrl && <img src={bookingStyle.logoUrl} alt="" style={{ maxHeight: 44, maxWidth: "60%", display: "block", marginBottom: 16 }} />}
           {confirmed ? (
             <div style={{ textAlign: "center", padding: "20px 0" }}>
-              <CheckCircle2 size={32} color={c.sage} style={{ marginBottom: 12 }} />
-              <div style={{ ...serif, fontSize: 19, color: c.ink, marginBottom: 8 }}>Marcação confirmada!</div>
-              <div style={{ ...sans, fontSize: 13.5, color: c.mist, lineHeight: 1.6 }}>{service?.name} — {new Date(chosenSlot).toLocaleString("pt-PT")}</div>
+              <CheckCircle2 size={32} color={bookingStyle.accentColor} style={{ marginBottom: 12 }} />
+              <div style={{ ...serif, ...titleFont, fontSize: 19, color: c.ink, marginBottom: 8 }}>Marcação confirmada!</div>
+              <div style={{ ...sans, ...bodyFont, fontSize: 13.5, color: c.mist, lineHeight: 1.6 }}>{service?.name} — {new Date(chosenSlot).toLocaleString("pt-PT")}</div>
             </div>
           ) : (
             <>
-              <h1 style={{ ...serif, fontSize: 21, color: c.ink, marginBottom: 4 }}>{state.brand.name}</h1>
-              <div style={{ ...sans, fontSize: 13, color: c.mist, marginBottom: 20 }}>Marca o teu horário</div>
+              <h1 style={{ ...serif, ...titleFont, fontSize: 21, color: c.ink, marginBottom: 4 }}>{state.brand.name}</h1>
+              <div style={{ ...sans, ...bodyFont, fontSize: 13, color: c.mist, marginBottom: 20 }}>Marca o teu horário</div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div>
@@ -891,8 +961,8 @@ export function PublicBookingPage() {
                             key={s}
                             onClick={() => setChosenSlot(s)}
                             style={{
-                              ...sans, fontSize: 12, fontWeight: 600, borderRadius: 8, padding: "8px 12px", cursor: "pointer",
-                              border: `1px solid ${chosenSlot === s ? c.boss : "#E0DAEC"}`, background: chosenSlot === s ? c.boss : "#fff",
+                              ...sans, ...bodyFont, fontSize: 12, fontWeight: 600, borderRadius: 8, padding: "8px 12px", cursor: "pointer",
+                              border: `1px solid ${chosenSlot === s ? bookingStyle.accentColor : "#E0DAEC"}`, background: chosenSlot === s ? bookingStyle.accentColor : "#fff",
                               color: chosenSlot === s ? "#fff" : c.ink,
                             }}
                           >
@@ -923,7 +993,7 @@ export function PublicBookingPage() {
                     <button
                       onClick={confirm}
                       disabled={submitting}
-                      style={{ ...sans, width: "100%", fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 9, padding: "12px", cursor: "pointer" }}
+                      style={{ ...sans, ...bodyFont, width: "100%", fontSize: 14, fontWeight: 600, color: "#fff", background: bookingStyle.accentColor, border: "none", borderRadius: 9, padding: "12px", cursor: "pointer" }}
                     >
                       {submitting ? "A confirmar…" : "Confirmar marcação"}
                     </button>

@@ -81,6 +81,20 @@ export function Modal({ title, onClose, children, width = 420 }) {
   );
 }
 
+// Personalização partilhada das páginas públicas (Formulários,
+// Agendamento — Link na Bio tem a sua própria, mais antiga, dentro
+// de BigBossPrototype.jsx). As mesmas 5 fontes já carregadas no
+// index.html via Google Fonts.
+export const PAGE_FONT_OPTIONS = [
+  { key: "Inter", label: "Inter — moderna" },
+  { key: "Fraunces", label: "Fraunces — serifada" },
+  { key: "Poppins", label: "Poppins — arredondada" },
+  { key: "Playfair Display", label: "Playfair Display — elegante" },
+  { key: "Montserrat", label: "Montserrat — geométrica" },
+];
+export const PAGE_COLOR_SWATCHES = ["#7C4DE0", "#1C1526", "#2F9E63", "#C9821F", "#D3455B", "#3B5FC2"];
+export const DEFAULT_PAGE_STYLE = { accentColor: "#7C4DE0", font: "Inter", logoUrl: "" };
+
 export function ChartCard({ title, sub, right, children }) {
   return (
     <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 22 }}>
