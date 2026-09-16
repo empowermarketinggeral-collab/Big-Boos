@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "../../lib/supabaseClient.js";
+import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, inputStyle, btnPrimary } from "../../shared/theme.jsx";
 import { ArrowLeft, Send, MessageCircle, CheckCircle2, AlertCircle } from "lucide-react";
 
@@ -40,12 +40,7 @@ function useConnectWhatsapp(brandId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ wabaId, phoneNumberId, displayPhone, accessToken }) => {
-      const { data, error } = await supabase.functions.invoke("whatsapp-connect", {
-        body: { brandId, wabaId, phoneNumberId, displayPhone, accessToken },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data;
+      return invokeFunction("whatsapp-connect", { brandId, wabaId, phoneNumberId, displayPhone, accessToken });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["whatsapp_account", brandId] }),
   });
@@ -88,14 +83,7 @@ function useMessages(conversationId) {
 function useSendMessage(brandId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ conversationId, body }) => {
-      const { data, error } = await supabase.functions.invoke("whatsapp-send", {
-        body: { conversationId, body },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data;
-    },
+    mutationFn: async ({ conversationId, body }) => invokeFunction("whatsapp-send", { conversationId, body }),
     onSuccess: (_data, { conversationId }) => {
       qc.invalidateQueries({ queryKey: ["whatsapp_messages", conversationId] });
       qc.invalidateQueries({ queryKey: ["whatsapp_conversations", brandId] });

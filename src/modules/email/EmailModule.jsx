@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "../../lib/supabaseClient.js";
+import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
 import { ArrowLeft, Plus, Trash2, Mail, Send } from "lucide-react";
 
@@ -30,10 +30,7 @@ function useConnectEmail(brandId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ domain, fromName, fromEmail, apiKey }) => {
-      const { data, error } = await supabase.functions.invoke("email-connect", { body: { brandId, domain, fromName, fromEmail, apiKey } });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data;
+      return invokeFunction("email-connect", { brandId, domain, fromName, fromEmail, apiKey });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["email_domain", brandId] }),
   });
@@ -89,10 +86,7 @@ function useSendCampaign(brandId, campaignId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (contactIds) => {
-      const { data, error } = await supabase.functions.invoke("email-send", { body: { campaignId, contactIds } });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data;
+      return invokeFunction("email-send", { campaignId, contactIds });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["email_campaigns", brandId] });
