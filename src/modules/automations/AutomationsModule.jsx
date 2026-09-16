@@ -21,6 +21,7 @@ const TRIGGER_TYPES = [
   { value: "contact_created", label: "Novo contacto" },
   { value: "contact_tagged", label: "Tag adicionada a um contacto" },
   { value: "whatsapp_message_received", label: "Mensagem de WhatsApp recebida" },
+  { value: "form_submitted", label: "Formulário submetido" },
 ];
 
 const ACTION_TYPES = [
@@ -157,13 +158,27 @@ function useTags(brandId) {
   });
 }
 
+// Idem para os formulários — mesma queryKey do módulo de Formulários.
+function useForms(brandId) {
+  return useQuery({
+    queryKey: ["forms", brandId],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("forms").select("id, name").eq("brand_id", brandId).order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 /* ---------------------------------------------------------
    CRIAR AUTOMAÇÃO
 --------------------------------------------------------- */
-function NewAutomationModal({ brandId, tags, onClose }) {
+function NewAutomationModal({ brandId, tags, forms, onClose }) {
   const [name, setName] = useState("");
   const [triggerType, setTriggerType] = useState(TRIGGER_TYPES[0].value);
   const [tagId, setTagId] = useState("");
+  const [formId, setFormId] = useState("");
   const [error, setError] = useState("");
   const createAutomation = useCreateAutomation(brandId);
 
@@ -171,11 +186,10 @@ function NewAutomationModal({ brandId, tags, onClose }) {
     if (!name.trim()) { setError("O nome é obrigatório."); return; }
     if (triggerType === "contact_tagged" && !tagId) { setError("Escolhe a tag."); return; }
     try {
-      await createAutomation.mutateAsync({
-        name: name.trim(),
-        triggerType,
-        triggerConfig: triggerType === "contact_tagged" ? { tagId } : {},
-      });
+      const triggerConfig =
+        triggerType === "contact_tagged" ? { tagId } :
+        triggerType === "form_submitted" && formId ? { formId } : {};
+      await createAutomation.mutateAsync({ name: name.trim(), triggerType, triggerConfig });
       onClose();
     } catch (err) {
       setError(err.message || "Não foi possível criar a automação.");
@@ -203,6 +217,15 @@ function NewAutomationModal({ brandId, tags, onClose }) {
               {(tags || []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
             {!tags?.length && <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 5 }}>Ainda não há tags — cria uma primeiro no CRM.</div>}
+          </div>
+        )}
+        {triggerType === "form_submitted" && (
+          <div>
+            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Formulário (opcional)</div>
+            <select style={inputStyle} value={formId} onChange={(e) => setFormId(e.target.value)}>
+              <option value="">Qualquer formulário</option>
+              {(forms || []).map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
           </div>
         )}
         {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}
@@ -461,6 +484,7 @@ function AutomationEditor({ brand, automation, onBack }) {
 export default function AutomationsModule({ brand, onBack }) {
   const automationsQuery = useAutomations(brand.id);
   const tagsQuery = useTags(brand.id);
+  const formsQuery = useForms(brand.id);
   const deleteAutomation = useDeleteAutomation(brand.id);
   const [showNew, setShowNew] = useState(false);
   const [openAutomation, setOpenAutomation] = useState(null);
@@ -520,7 +544,7 @@ export default function AutomationsModule({ brand, onBack }) {
         )}
       </div>
 
-      {showNew && <NewAutomationModal brandId={brand.id} tags={tagsQuery.data} onClose={() => setShowNew(false)} />}
+      {showNew && <NewAutomationModal brandId={brand.id} tags={tagsQuery.data} forms={formsQuery.data} onClose={() => setShowNew(false)} />}
 
       {confirmDelete && (
         <Modal title="Eliminar automação" onClose={() => setConfirmDelete(null)} width={380}>
