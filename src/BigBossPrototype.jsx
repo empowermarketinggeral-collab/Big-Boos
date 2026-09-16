@@ -20,6 +20,7 @@ import AutomationsModule from "./modules/automations/AutomationsModule.jsx";
 import FormsModule from "./modules/forms/FormsModule.jsx";
 import EmailModule from "./modules/email/EmailModule.jsx";
 import FunnelsModule from "./modules/funnels/FunnelsModule.jsx";
+import SocialModule from "./modules/social/SocialModule.jsx";
 import { c, sans, serif, StatusDot, Eyebrow, ChartCard, CAN_MANAGE_ROLES } from "./shared/theme.jsx";
 
 /* ---------------------------------------------------------
@@ -2261,6 +2262,7 @@ const MODULES = [
   { key: "formularios", label: "Formulários", sub: "Captação de leads", icon: FileText },
   { key: "email", label: "Email", sub: "Campanhas por email", icon: Mail },
   { key: "funis", label: "Funis", sub: "Landing pages e funis", icon: Layers },
+  { key: "social", label: "Social Media", sub: "Planeador e publicação", icon: Instagram },
   { key: "brand-book", label: "Brand Book", sub: "Identidade visual e diretrizes", icon: BookOpen },
   { key: "conteudos", label: "Conteúdos", sub: "Posts e reels — aprovação", icon: FileText },
   { key: "cronograma-conteudos", label: "Cronograma de Conteúdos", sub: "Planeamento do que vai sair", icon: Calendar },
@@ -2757,6 +2759,9 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
   }
   if (sub === "funis") {
     return <FunnelsModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
+  }
+  if (sub === "social") {
+    return <SocialModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
   }
   if (sub === "conteudos") {
     return <ConteudosView brand={brand} onBack={() => onOpenSub(null)} session={session} />;
