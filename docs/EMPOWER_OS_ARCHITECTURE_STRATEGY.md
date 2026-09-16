@@ -274,3 +274,21 @@ Ideia proposta depois do módulo de WhatsApp estar construído: um só ecrã ond
 **Arquitetura recomendada:** não reescrever o que já existe. Cada canal mantém a sua própria tabela (`whatsapp_messages` fica exatamente como está); por cima constrói-se uma vista "Inbox Unificado" que agrega os contactos de todos os canais ligados num só ecrã — uma camada de leitura, não uma tabela nova a substituir as existentes.
 
 **Onde entra no roadmap:** depois do WhatsApp Cloud API estar a funcionar de ponta a ponta em produção (não em paralelo) — Instagram/Messenger são uma aprovação separada na Meta e mais uma Edge Function cada, e só compensa investir nisso com o primeiro canal já validado.
+
+---
+
+## Adenda 2 — Agendamento/Marcações, prioridade do Inbox Unificado, e construtor de páginas (2026-09-18)
+
+Depois de CRM, WhatsApp, Automações, Formulários, Email e Funis construídos, três pontos novos:
+
+**1. Inbox Unificado — sobe de prioridade.** A Adenda 1 já descrevia isto; a referência trazida (a caixa de entrada partilhada de equipa de uma ferramenta como a HighLevel) confirma que deve ser o próximo passo a sério depois de Social Media, não uma ideia adiada indefinidamente. Arquitetura recomendada mantém-se: uma vista que agrega `whatsapp_messages` + `email_sends`/respostas por contacto, sem reescrever nenhum dos dois módulos.
+
+**2. Novo módulo — Agendamento/Marcações.** Não estava no desenho original. Algumas marcas (ex: um cabeleireiro) precisam de:
+- Catálogo de serviços por marca: nome, preço, duração.
+- Disponibilidade configurável (dias/horas em que cada serviço pode ser marcado).
+- Ligação a calendários externos (Google Calendar, e possivelmente outros) para evitar sobreposição com compromissos já existentes fora do EMPOWER OS.
+- Uma página pública de marcação por marca (mesmo padrão de página pública por slug já usado em todo o resto), onde o cliente final escolhe o serviço e o horário.
+
+Arquitetura recomendada: novas tabelas `booking_services` (nome, preço, duração, brand_id), `booking_availability` (regras de disponibilidade), `booking_appointments` (marcações confirmadas, com `contact_id`), e uma integração OAuth com o Google Calendar (mais complexa que o padrão "cola o token" do WhatsApp/Email — Google Calendar exige OAuth de verdade, com refresh token, não um token estático colado uma vez). Prioridade e faseamento a decidir com o utilizador antes de começar — é um módulo do tamanho do WhatsApp ou do Email, não um extra pequeno.
+
+**3. Construtor de Funis — feedback de que está "fraquinho".** A primeira versão (secção 18) é deliberadamente uma lista de blocos com pré-visualização ao lado, não um editor visual "clica e arrasta". Funciona, mas fica aquém de ferramentas como o Elementor/ClickFunnels. Não é para reconstruir agora — fica registado como melhoria futura (edição direta na pré-visualização, mais controlo de layout/cores por bloco) quando o resto do roadmap estiver mais avançado.
