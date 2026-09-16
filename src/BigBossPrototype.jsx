@@ -8,7 +8,7 @@ import {
   Clock, ChevronRight, ChevronLeft, BookMarked, ClipboardList, Layers, Video,
   Link2, Calculator, Sparkles, Eye, Zap, Target, TrendingUp,
   Trash2, Pencil, ChevronUp, ChevronDown, Image as ImageIcon,
-  Instagram, Facebook, Youtube, MessageCircle, Music2, Palette, Handshake, Kanban,
+  Instagram, Facebook, Youtube, MessageCircle, Music2, Palette, Handshake, Kanban, Mail,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -18,6 +18,7 @@ import CrmModule from "./modules/crm/CrmModule.jsx";
 import WhatsappModule from "./modules/whatsapp/WhatsappModule.jsx";
 import AutomationsModule from "./modules/automations/AutomationsModule.jsx";
 import FormsModule from "./modules/forms/FormsModule.jsx";
+import EmailModule from "./modules/email/EmailModule.jsx";
 import { c, sans, serif, StatusDot, Eyebrow, ChartCard, CAN_MANAGE_ROLES } from "./shared/theme.jsx";
 
 /* ---------------------------------------------------------
@@ -2257,6 +2258,7 @@ const MODULES = [
   { key: "whatsapp", label: "WhatsApp", sub: "Inbox e conversas", icon: MessageCircle },
   { key: "automacoes", label: "Automações", sub: "Fluxos automáticos", icon: Zap },
   { key: "formularios", label: "Formulários", sub: "Captação de leads", icon: FileText },
+  { key: "email", label: "Email", sub: "Campanhas por email", icon: Mail },
   { key: "brand-book", label: "Brand Book", sub: "Identidade visual e diretrizes", icon: BookOpen },
   { key: "conteudos", label: "Conteúdos", sub: "Posts e reels — aprovação", icon: FileText },
   { key: "cronograma-conteudos", label: "Cronograma de Conteúdos", sub: "Planeamento do que vai sair", icon: Calendar },
@@ -2747,6 +2749,9 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
   }
   if (sub === "formularios") {
     return <FormsModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
+  }
+  if (sub === "email") {
+    return <EmailModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
   }
   if (sub === "conteudos") {
     return <ConteudosView brand={brand} onBack={() => onOpenSub(null)} session={session} />;
