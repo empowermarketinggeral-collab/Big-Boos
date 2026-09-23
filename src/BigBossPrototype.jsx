@@ -19,12 +19,11 @@ import WhatsappModule from "./modules/whatsapp/WhatsappModule.jsx";
 import AutomationsModule from "./modules/automations/AutomationsModule.jsx";
 import FormsModule from "./modules/forms/FormsModule.jsx";
 import EmailModule from "./modules/email/EmailModule.jsx";
-import FunnelsModule from "./modules/funnels/FunnelsModule.jsx";
 import SocialModule from "./modules/social/SocialModule.jsx";
 import BookingModule from "./modules/booking/BookingModule.jsx";
 import SmsModule from "./modules/sms/SmsModule.jsx";
 import InboxModule from "./modules/inbox/InboxModule.jsx";
-import { c, sans, serif, StatusDot, Eyebrow, ChartCard, CAN_MANAGE_ROLES } from "./shared/theme.jsx";
+import { c, sans, serif, StatusDot, Eyebrow, ChartCard, CAN_MANAGE_ROLES, Modal, btnPrimary, btnGhost } from "./shared/theme.jsx";
 
 /* ---------------------------------------------------------
    TOKENS — versão leve
@@ -350,6 +349,7 @@ function mapBrandRow(row) {
     logoUrl: row.logo_url,
     initial: (row.name || "?").charAt(0).toUpperCase(),
     contractScope: row.contract_scope || "",
+    enabledModules: row.enabled_modules || [],
     brandBook: {
       colors: brandBook.colors || [],
       typography: { heading: brandBook.typography?.heading || "", body: brandBook.typography?.body || "" },
@@ -366,7 +366,7 @@ function useBrands(enabled) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("brands")
-        .select("id, agency_id, name, logo_url, goal, category, status, contract_scope, brand_book")
+        .select("id, agency_id, name, logo_url, goal, category, status, contract_scope, brand_book, enabled_modules")
         .order("name");
       if (error) throw error;
       return data.map(mapBrandRow);
@@ -442,6 +442,17 @@ function useUpdateBrand() {
         .from("brands")
         .update({ name, category: categoryKey, status, goal })
         .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["brands"] }),
+  });
+}
+
+function useUpdateEnabledModules() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, enabledModules }) => {
+      const { error } = await supabase.from("brands").update({ enabled_modules: enabledModules }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["brands"] }),
@@ -2258,25 +2269,52 @@ function useRemoveMember() {
   });
 }
 
-const MODULES = [
-  { key: "inbox", label: "Inbox Unificado", sub: "Todas as conversas, num só sítio", icon: Inbox },
-  { key: "crm", label: "CRM", sub: "Contactos, pipeline e negócios", icon: Kanban },
-  { key: "whatsapp", label: "WhatsApp", sub: "Inbox e conversas", icon: MessageCircle },
-  { key: "automacoes", label: "Automações", sub: "Fluxos automáticos", icon: Zap },
-  { key: "formularios", label: "Formulários", sub: "Captação de leads", icon: FileText },
-  { key: "email", label: "Email", sub: "Campanhas por email", icon: Mail },
-  { key: "funis", label: "Funis", sub: "Landing pages e funis", icon: Layers },
-  { key: "social", label: "Social Media", sub: "Planeador e publicação", icon: Instagram },
-  { key: "agendamento", label: "Agendamento", sub: "Serviços e marcações", icon: Calendar },
-  { key: "sms", label: "SMS", sub: "Envios via Twilio", icon: MessageSquare },
-  { key: "brand-book", label: "Brand Book", sub: "Identidade visual e diretrizes", icon: BookOpen },
-  { key: "conteudos", label: "Conteúdos", sub: "Posts e reels — aprovação", icon: FileText },
-  { key: "cronograma-conteudos", label: "Cronograma de Conteúdos", sub: "Planeamento do que vai sair", icon: Calendar },
-  { key: "roteiros", label: "Roteiros", sub: "Roteiros de vídeo", icon: ClipboardList },
-  { key: "stories", label: "Cronograma de Stories", sub: "Planeamento semanal", icon: Video },
-  { key: "plano", label: "Plano Estratégico", sub: "Fases e tarefas", icon: Layers },
-  { key: "dashboards", label: "Dashboards", sub: "Performance da marca", icon: BarChart3 },
+// Agrupados por categoria em vez de uma grelha única — ficava demasiado
+// grande com tantos módulos juntos. A visibilidade por cliente
+// (brand.enabled_modules) filtra dentro de cada grupo, nunca a equipa.
+const MODULE_GROUPS = [
+  {
+    key: "conteudo",
+    label: "Conteúdo",
+    modules: [
+      { key: "conteudos", label: "Conteúdos", sub: "Posts e reels — aprovação", icon: FileText },
+      { key: "cronograma-conteudos", label: "Cronograma de Conteúdos", sub: "Planeamento do que vai sair", icon: Calendar },
+      { key: "stories", label: "Cronograma de Stories", sub: "Planeamento semanal", icon: Video },
+      { key: "roteiros", label: "Roteiros", sub: "Roteiros de vídeo", icon: ClipboardList },
+      { key: "social", label: "Social Media", sub: "Planeador e publicação", icon: Instagram },
+    ],
+  },
+  {
+    key: "comunicacao",
+    label: "Comunicação",
+    modules: [
+      { key: "inbox", label: "Inbox Unificado", sub: "Todas as conversas, num só sítio", icon: Inbox },
+      { key: "whatsapp", label: "WhatsApp", sub: "Inbox e conversas", icon: MessageCircle },
+      { key: "email", label: "Email", sub: "Campanhas por email", icon: Mail },
+      { key: "sms", label: "SMS", sub: "Envios via Twilio", icon: MessageSquare },
+    ],
+  },
+  {
+    key: "vendas",
+    label: "Vendas & Automação",
+    modules: [
+      { key: "crm", label: "CRM", sub: "Contactos, pipeline e negócios", icon: Kanban },
+      { key: "automacoes", label: "Automações", sub: "Fluxos automáticos", icon: Zap },
+      { key: "formularios", label: "Formulários", sub: "Captação de leads", icon: FileText },
+      { key: "agendamento", label: "Agendamento", sub: "Serviços e marcações", icon: Calendar },
+    ],
+  },
+  {
+    key: "marca",
+    label: "Marca & Estratégia",
+    modules: [
+      { key: "brand-book", label: "Brand Book", sub: "Identidade visual e diretrizes", icon: BookOpen },
+      { key: "plano", label: "Plano Estratégico", sub: "Fases e tarefas", icon: Layers },
+      { key: "dashboards", label: "Dashboards", sub: "Performance da marca", icon: BarChart3 },
+    ],
+  },
 ];
+const ALL_MODULE_KEYS = MODULE_GROUPS.flatMap((g) => g.modules.map((m) => m.key));
 
 const NAV = [
   { key: "painel", label: "Painel Global", icon: LayoutGrid },
@@ -2730,6 +2768,65 @@ function MarcasList({ brands, onOpenBrand, onAddBrand, addBrandError, addingBran
 /* ---------------------------------------------------------
    DETALHE DA MARCA
 --------------------------------------------------------- */
+function ModuleVisibilityModal({ brand, onClose }) {
+  const [selected, setSelected] = useState(
+    brand.enabledModules && brand.enabledModules.length > 0 ? new Set(brand.enabledModules) : new Set(ALL_MODULE_KEYS)
+  );
+  const updateEnabledModules = useUpdateEnabledModules();
+  const [error, setError] = useState("");
+
+  const toggle = (key) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const save = async () => {
+    setError("");
+    try {
+      await updateEnabledModules.mutateAsync({ id: brand.id, enabledModules: [...selected] });
+      onClose();
+    } catch (err) {
+      setError(err.message || "Não foi possível guardar.");
+    }
+  };
+
+  return (
+    <Modal title="O que este cliente vê" onClose={onClose} width={480}>
+      <div style={{ ...sans, fontSize: 12, color: c.mist, marginBottom: 16, lineHeight: 1.5 }}>
+        Só afeta o que o cliente (perfil aprovador) vê ao entrar nesta marca — a equipa continua sempre a ver tudo.
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, maxHeight: "55vh", overflowY: "auto" }}>
+        {MODULE_GROUPS.map((group) => (
+          <div key={group.key}>
+            <div style={{ ...sans, fontSize: 11, fontWeight: 700, color: c.mist, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+              {group.label}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {group.modules.map((m) => (
+                <label key={m.key} style={{ ...sans, fontSize: 13, color: c.ink, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                  <input type="checkbox" checked={selected.has(m.key)} onChange={() => toggle(m.key)} />
+                  {m.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginTop: 12 }}>{error}</div>}
+      <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+        <button onClick={save} disabled={updateEnabledModules.isPending} style={btnPrimary}>
+          {updateEnabledModules.isPending ? "A guardar…" : "Guardar"}
+        </button>
+        <button onClick={onClose} style={btnGhost}>Cancelar</button>
+      </div>
+    </Modal>
+  );
+}
+
 function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
   const { t } = useT();
   const [editing, setEditing] = useState(false);
@@ -2742,6 +2839,13 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
   const deleteBrand = useDeleteBrand();
   const canManage = CAN_MANAGE_ROLES.includes(session.role);
   const canDelete = session.role === "admin_geral" || session.role === "agencia_admin";
+  const isApproverRole = session.role === "aprovador_marca" || session.role === "agencia_aprovador";
+  const [showVisibility, setShowVisibility] = useState(false);
+  const enabledSet = new Set(brand.enabledModules || []);
+  const visibleGroups = MODULE_GROUPS.map((group) => ({
+    ...group,
+    modules: isApproverRole && enabledSet.size > 0 ? group.modules.filter((m) => enabledSet.has(m.key)) : group.modules,
+  })).filter((group) => group.modules.length > 0);
 
   const saveBrandEdit = async () => {
     await updateBrand.mutateAsync({ id: brand.id, name: editName, categoryKey: editCategory, status: editStatus, goal: editGoal });
@@ -2762,9 +2866,6 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
   }
   if (sub === "email") {
     return <EmailModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
-  }
-  if (sub === "funis") {
-    return <FunnelsModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
   }
   if (sub === "social") {
     return <SocialModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
@@ -2973,34 +3074,60 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
         )}
       </div>
 
-      <h2 style={{ ...serif, fontSize: 17, color: c.ink, fontWeight: 500, margin: "0 0 14px" }}>
-        {t("brand.explore")}
-      </h2>
-      <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-3, repeat(3, 1fr))", gap: 14 }}>
-        {MODULES.map((m) => {
-          const Icon = m.icon;
-          return (
-            <button
-              key={m.key}
-              onClick={() => onOpenSub(m.key)}
-              style={{
-                textAlign: "left",
-                background: "#fff",
-                border: `1px solid ${c.line}`,
-                borderRadius: 14,
-                padding: 20,
-                cursor: "pointer",
-              }}
-            >
-              <Icon size={19} color={c.boss} strokeWidth={1.7} />
-              <div style={{ ...serif, fontSize: 15.5, color: c.ink, fontWeight: 500, marginTop: 14 }}>
-                {t(`module.${m.key}`, m.label)}
-              </div>
-              <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 3 }}>{t(`module.${m.key}.sub`, m.sub)}</div>
-            </button>
-          );
-        })}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <h2 style={{ ...serif, fontSize: 17, color: c.ink, fontWeight: 500, margin: 0 }}>
+          {t("brand.explore")}
+        </h2>
+        {canManage && (
+          <button
+            onClick={() => setShowVisibility(true)}
+            style={{ ...sans, fontSize: 12, color: c.mist, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}
+          >
+            O que este cliente vê
+          </button>
+        )}
       </div>
+
+      {isApproverRole && brand.enabledModules.length === 0 && (
+        <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 16 }}>
+          Ainda não foi escolhido o que mostrar a este cliente — por agora vê tudo.
+        </div>
+      )}
+
+      {visibleGroups.map((group) => (
+        <div key={group.key} style={{ marginBottom: 28 }}>
+          <div style={{ ...sans, fontSize: 11, fontWeight: 700, color: c.mist, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+            {group.label}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-3, repeat(3, 1fr))", gap: 14 }}>
+            {group.modules.map((m) => {
+              const Icon = m.icon;
+              return (
+                <button
+                  key={m.key}
+                  onClick={() => onOpenSub(m.key)}
+                  style={{
+                    textAlign: "left",
+                    background: "#fff",
+                    border: `1px solid ${c.line}`,
+                    borderRadius: 14,
+                    padding: 20,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Icon size={19} color={c.boss} strokeWidth={1.7} />
+                  <div style={{ ...serif, fontSize: 15.5, color: c.ink, fontWeight: 500, marginTop: 14 }}>
+                    {t(`module.${m.key}`, m.label)}
+                  </div>
+                  <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 3 }}>{t(`module.${m.key}.sub`, m.sub)}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      {showVisibility && <ModuleVisibilityModal brand={brand} onClose={() => setShowVisibility(false)} />}
     </div>
   );
 }
