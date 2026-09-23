@@ -277,7 +277,7 @@ Ideia proposta depois do módulo de WhatsApp estar construído: um só ecrã ond
 
 ---
 
-## Adenda 2 — Agendamento/Marcações, prioridade do Inbox Unificado, e construtor de páginas (2026-09-18)
+## Adenda 2 — Agendamento/Marcações, Inbox Unificado (construído em 2026-09-23), e construtor de páginas (2026-09-18)
 
 Depois de CRM, WhatsApp, Automações, Formulários, Email e Funis construídos, três pontos novos:
 
