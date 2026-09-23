@@ -2,17 +2,21 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
-import { ArrowLeft, Plus, Trash2, Instagram, Facebook, Music2, Linkedin, Send, AlertCircle, BarChart3 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Instagram, Facebook, Music2, Linkedin, Youtube, AtSign, Send, AlertCircle, BarChart3 } from "lucide-react";
 
 /* ---------------------------------------------------------
    SOCIAL MEDIA — calendário/publicação + estatísticas manuais.
    Módulo do EMPOWER OS. Ver docs/EMPOWER_OS_ARCHITECTURE_STRATEGY.md
-   (secção 16). Instagram e Facebook publicam de verdade via Meta
-   Graph API (Edge Function social-publish, agendada por pg_cron).
-   TikTok/LinkedIn/Threads não têm API oficial de publicação para
-   apps de terceiros — os posts dessas ficam sempre "manual_only":
-   preparados aqui, publicados à mão fora do sistema. Nunca simulamos
-   uma publicação que não aconteceu.
+   (secção 16). Todas as plataformas listadas publicam de verdade via
+   API oficial própria (Edge Function social-publish, agendada por
+   pg_cron) — nunca simulamos uma publicação que não aconteceu.
+
+   YouTube só aceita vídeo (não imagem) — a API de upload é diferente
+   das restantes. TikTok publica via API mesmo sem aprovação total do
+   scope "Direct Post", mas pode cair na caixa de entrada da app do
+   TikTok do dono da conta para um toque de confirmação, em vez de
+   sair logo — limitação da própria TikTok. LinkedIn só publica texto
+   por agora (upload de imagem fica para depois).
 
    "Comentários" e "Escuta Social" (visíveis em ferramentas como a
    HighLevel) ficam de fora desta primeira versão — exigem
@@ -21,19 +25,30 @@ import { ArrowLeft, Plus, Trash2, Instagram, Facebook, Music2, Linkedin, Send, A
    pedido de acesso, se vier a fazer sentido mais tarde.
 
    As estatísticas por post (alcance, impressões, etc.) ainda não são
-   recolhidas automaticamente da Instagram Insights API — por agora
-   só é possível registá-las manualmente aqui, para não fingir uma
+   recolhidas automaticamente das APIs de Insights — por agora só é
+   possível registá-las manualmente aqui, para não fingir uma
    automação que ainda não existe.
 --------------------------------------------------------- */
 
 const PLATFORMS = [
   { value: "instagram", label: "Instagram", icon: Instagram, publishable: true },
   { value: "facebook", label: "Facebook", icon: Facebook, publishable: true },
-  { value: "tiktok", label: "TikTok", icon: Music2, publishable: false },
-  { value: "linkedin", label: "LinkedIn", icon: Linkedin, publishable: false },
+  { value: "threads", label: "Threads", icon: AtSign, publishable: true },
+  { value: "linkedin", label: "LinkedIn", icon: Linkedin, publishable: true },
+  { value: "youtube", label: "YouTube", icon: Youtube, publishable: true, videoOnly: true },
+  { value: "tiktok", label: "TikTok", icon: Music2, publishable: true, videoOnly: true },
 ];
 const PLATFORM_ICON = Object.fromEntries(PLATFORMS.map((p) => [p.value, p.icon]));
 const PLATFORM_LABEL = Object.fromEntries(PLATFORMS.map((p) => [p.value, p.label]));
+
+const CONNECT_ID_LABEL = {
+  instagram: "Instagram Business Account ID",
+  facebook: "Facebook Page ID",
+  threads: "Threads User ID",
+  linkedin: "Organization URN (urn:li:organization:…)",
+  youtube: "YouTube Channel ID",
+  tiktok: "TikTok Open ID",
+};
 
 const STATUS_LABEL = {
   draft: "Rascunho", pending_approval: "A aguardar aprovação", scheduled: "Agendado",
@@ -184,11 +199,11 @@ function ConnectAccountModal({ brandId, onClose }) {
         {platformInfo.publishable && (
           <>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>{platform === "instagram" ? "Instagram Business Account ID" : "Facebook Page ID"}</div>
+              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>{CONNECT_ID_LABEL[platform]}</div>
               <input style={inputStyle} value={externalAccountId} onChange={(e) => setExternalAccountId(e.target.value)} />
             </div>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Token de acesso (Page Access Token, longa duração)</div>
+              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Token de acesso (longa duração)</div>
               <input style={inputStyle} type="password" value={accessToken} onChange={(e) => setAccessToken(e.target.value)} />
             </div>
           </>
@@ -219,12 +234,15 @@ function NewPostModal({ brandId, accounts, onClose }) {
   const createPost = useCreatePost(brandId);
 
   const account = accounts.find((a) => a.id === accountId);
-  const publishable = PLATFORMS.find((p) => p.value === account?.platform)?.publishable;
+  const platformInfo = PLATFORMS.find((p) => p.value === account?.platform);
+  const publishable = platformInfo?.publishable;
+  const videoOnly = platformInfo?.videoOnly;
 
   const save = async (mode) => {
     setError("");
     if (!accountId) { setError("Escolhe uma conta."); return; }
-    if (!caption.trim() && !mediaUrl.trim()) { setError("Escreve uma legenda ou adiciona uma imagem."); return; }
+    if (videoOnly && !mediaUrl.trim()) { setError(`${platformInfo.label} só publica vídeo — adiciona o link do vídeo.`); return; }
+    if (!caption.trim() && !mediaUrl.trim()) { setError("Escreve uma legenda ou adiciona um vídeo/imagem."); return; }
     let status = "draft";
     let scheduled_at = null;
     if (mode === "schedule") {
@@ -259,7 +277,7 @@ function NewPostModal({ brandId, accounts, onClose }) {
           <textarea rows={4} style={{ ...inputStyle, resize: "vertical" }} value={caption} onChange={(e) => setCaption(e.target.value)} />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Imagem (link, opcional)</div>
+          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>{videoOnly ? "Vídeo (link, obrigatório)" : "Imagem (link, opcional)"}</div>
           <input style={inputStyle} value={mediaUrl} onChange={(e) => setMediaUrl(e.target.value)} placeholder="https://…" />
         </div>
         {publishable && (

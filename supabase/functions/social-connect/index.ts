@@ -1,9 +1,9 @@
 // EMPOWER OS — liga uma conta de rede social a uma marca.
 // Chamado pelo frontend via supabase.functions.invoke("social-connect", { body }).
 // O token de acesso NUNCA é guardado em claro — fica no Supabase Vault.
-// Para instagram/facebook (únicas com publicação direta oficial) o
-// token é obrigatório; para as restantes (tiktok/linkedin/threads),
-// que ficam sempre "manual_only", não é preciso.
+// Todas as plataformas suportadas (instagram, facebook, threads,
+// linkedin, youtube, tiktok) têm publicação direta oficial e por isso
+// precisam de ID da conta + token de acesso.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -16,7 +16,7 @@ function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
-const PUBLISHABLE_PLATFORMS = ["instagram", "facebook"];
+const PUBLISHABLE_PLATFORMS = ["instagram", "facebook", "threads", "linkedin", "youtube", "tiktok"];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     return json({ error: "Faltam campos obrigatórios." }, 400);
   }
   if (PUBLISHABLE_PLATFORMS.includes(platform) && (!externalAccountId || !accessToken)) {
-    return json({ error: "Instagram/Facebook precisam do ID da conta e do token de acesso." }, 400);
+    return json({ error: "Esta plataforma precisa do ID da conta e do token de acesso." }, 400);
   }
 
   const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
