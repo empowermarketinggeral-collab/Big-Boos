@@ -1,7 +1,8 @@
 // EMPOWER OS — recebe eventos do Stripe (subscrição criada/atualizada/
-// cancelada) e mantém a tabela "subscriptions" em sincronia. Regista
-// este URL, depois do deploy, em Stripe → Developers → Webhooks →
-// "Add endpoint": https://<project>.supabase.co/functions/v1/stripe-webhook
+// cancelada, de marcas OU agências) e mantém a tabela "subscriptions"
+// em sincronia. Regista este URL, depois do deploy, em Stripe →
+// Developers → Webhooks → "Add endpoint":
+// https://<project>.supabase.co/functions/v1/stripe-webhook
 // Eventos a subscrever: customer.subscription.created,
 // customer.subscription.updated, customer.subscription.deleted.
 //
@@ -52,8 +53,10 @@ Deno.serve(async (req) => {
 
   if (event.type === "customer.subscription.created" || event.type === "customer.subscription.updated") {
     const sub = event.data.object;
-    const brandId = sub.metadata?.brand_id;
-    if (brandId) {
+    const brandId = sub.metadata?.brand_id || null;
+    const agencyId = sub.metadata?.agency_id || null;
+
+    if (brandId || agencyId) {
       const priceId = sub.items?.data?.[0]?.price?.id;
       let planId = sub.metadata?.plan_id || null;
       if (!planId && priceId) {
@@ -64,13 +67,14 @@ Deno.serve(async (req) => {
       await admin.from("subscriptions").upsert(
         {
           brand_id: brandId,
+          agency_id: agencyId,
           plan_id: planId,
           stripe_customer_ref: sub.customer,
           stripe_subscription_ref: sub.id,
           status: STRIPE_STATUS_MAP[sub.status] || "active",
           current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
         },
-        { onConflict: "brand_id" }
+        { onConflict: brandId ? "brand_id" : "agency_id" }
       );
     }
   }

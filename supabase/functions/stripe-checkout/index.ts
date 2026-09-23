@@ -1,6 +1,7 @@
 // EMPOWER OS — cria uma sessão de Checkout do Stripe para uma marca
-// subscrever um plano. Chamado pelo frontend via
-// supabase.functions.invoke("stripe-checkout", { body }).
+// ou uma agência subscrever um plano (mutuamente exclusivo — vem
+// sempre um brandId OU um agencyId, nunca os dois). Chamado pelo
+// frontend via supabase.functions.invoke("stripe-checkout", { body }).
 //
 // A chave secreta do Stripe é um segredo único da plataforma (não por
 // marca, ao contrário do Twilio/Meta) — vive como "Secret" das Edge
@@ -45,12 +46,22 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: "Corpo do pedido inválido." }, 400);
   }
-  const { brandId, planId, successUrl, cancelUrl } = payload;
-  if (!brandId || !planId || !successUrl || !cancelUrl) return json({ error: "Faltam campos obrigatórios." }, 400);
+  const { brandId, agencyId, planId, successUrl, cancelUrl } = payload;
+  if ((!brandId && !agencyId) || (brandId && agencyId) || !planId || !successUrl || !cancelUrl) {
+    return json({ error: "Faltam campos obrigatórios (ou vieram brandId e agencyId ao mesmo tempo)." }, 400);
+  }
 
   const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
-  const { data: brand, error: brandError } = await userClient.from("brands").select("id, name").eq("id", brandId).maybeSingle();
-  if (brandError || !brand) return json({ error: "Sem acesso a esta marca." }, 403);
+  let ownerName;
+  if (brandId) {
+    const { data: brand, error: brandError } = await userClient.from("brands").select("id, name").eq("id", brandId).maybeSingle();
+    if (brandError || !brand) return json({ error: "Sem acesso a esta marca." }, 403);
+    ownerName = brand.name;
+  } else {
+    const { data: agency, error: agencyError } = await userClient.from("agencies").select("id, name").eq("id", agencyId).maybeSingle();
+    if (agencyError || !agency) return json({ error: "Sem acesso a esta agência." }, 403);
+    ownerName = agency.name;
+  }
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
@@ -60,13 +71,15 @@ Deno.serve(async (req) => {
   const { data: plan } = await adminClient.from("plans").select("id, stripe_price_id, name").eq("id", planId).maybeSingle();
   if (!plan || !plan.stripe_price_id) return json({ error: "Plano não encontrado ou sem Price ID do Stripe." }, 400);
 
-  // Reaproveita o customer do Stripe se a marca já tiver um (de uma
-  // subscrição anterior, ainda que cancelada) — evita clientes duplicados.
-  const { data: existingSub } = await adminClient.from("subscriptions").select("stripe_customer_ref").eq("brand_id", brandId).maybeSingle();
+  // Reaproveita o customer do Stripe se já existir uma subscrição
+  // anterior (ainda que cancelada) — evita clientes duplicados.
+  const ownerColumn = brandId ? "brand_id" : "agency_id";
+  const ownerId = brandId || agencyId;
+  const { data: existingSub } = await adminClient.from("subscriptions").select("stripe_customer_ref").eq(ownerColumn, ownerId).maybeSingle();
   let customerId = existingSub?.stripe_customer_ref;
 
   if (!customerId) {
-    const customer = await stripeRequest(secretKey, "customers", { name: brand.name, "metadata[brand_id]": brandId });
+    const customer = await stripeRequest(secretKey, "customers", { name: ownerName, [`metadata[${ownerColumn}]`]: ownerId });
     customerId = customer.id;
   }
 
@@ -75,7 +88,7 @@ Deno.serve(async (req) => {
     customer: customerId,
     "line_items[0][price]": plan.stripe_price_id,
     "line_items[0][quantity]": "1",
-    "subscription_data[metadata][brand_id]": brandId,
+    [`subscription_data[metadata][${ownerColumn}]`]: ownerId,
     "subscription_data[metadata][plan_id]": planId,
     success_url: successUrl,
     cancel_url: cancelUrl,

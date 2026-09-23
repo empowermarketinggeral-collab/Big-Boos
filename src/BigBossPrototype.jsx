@@ -24,6 +24,7 @@ import BookingModule from "./modules/booking/BookingModule.jsx";
 import SmsModule from "./modules/sms/SmsModule.jsx";
 import InboxModule from "./modules/inbox/InboxModule.jsx";
 import BillingModule from "./modules/billing/BillingModule.jsx";
+import AgencyBillingModule from "./modules/billing/AgencyBillingModule.jsx";
 import { c, sans, serif, StatusDot, Eyebrow, ChartCard, CAN_MANAGE_ROLES, Modal, btnPrimary, btnGhost } from "./shared/theme.jsx";
 
 /* ---------------------------------------------------------
@@ -2330,6 +2331,7 @@ const NAV = [
   { key: "centro", label: "Centro de Comando", icon: Calendar },
   { key: "conhecimento", label: "Base de Conhecimento", icon: BookMarked },
   { key: "equipa", label: "Equipa", icon: Users },
+  { key: "agencia-billing", label: "Faturação", icon: CreditCard },
   { key: "definicoes", label: "Definições", icon: Settings },
 ];
 
@@ -2339,7 +2341,7 @@ const NAV = [
 const NAV_ACCESS = {
   admin_geral: "all",
   membro: ["painel", "marcas", "reunioes", "propostas", "portfolio", "link", "precificacao", "centro", "conhecimento", "equipa"],
-  agencia_admin: ["painel", "marcas", "reunioes", "propostas", "portfolio", "link", "precificacao", "centro", "conhecimento", "equipa", "definicoes"],
+  agencia_admin: ["painel", "marcas", "reunioes", "propostas", "portfolio", "link", "precificacao", "centro", "conhecimento", "equipa", "agencia-billing", "definicoes"],
   agencia_membro: ["painel", "marcas", "reunioes", "propostas", "portfolio", "link", "precificacao", "centro", "conhecimento"],
   aprovador_marca: ["painel", "marcas", "conhecimento"],
   agencia_aprovador: ["painel", "marcas", "conhecimento"],
@@ -10170,6 +10172,8 @@ function BigBossPrototypeInner() {
     content = <CalculadoraModule session={session} />;
   } else if (nav === "equipa") {
     content = <EquipaModule session={session} />;
+  } else if (nav === "agencia-billing") {
+    content = <AgencyBillingModule session={session} />;
   } else if (nav === "definicoes") {
     content = <DefinicoesModule session={session} />;
   } else {
