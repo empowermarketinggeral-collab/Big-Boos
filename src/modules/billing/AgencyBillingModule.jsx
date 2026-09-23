@@ -20,6 +20,24 @@ function money(cents, currency = "EUR") {
   return new Intl.NumberFormat("pt-PT", { style: "currency", currency }).format((cents || 0) / 100);
 }
 
+// Contas admin_geral (raiz da plataforma) muitas vezes não têm
+// agency_id no perfil — nunca precisaram até agora. Mesmo fallback já
+// usado nalgumas dezenas de sítios no BigBossPrototype.jsx
+// (resolveDefaultAgencyId): sem agency_id próprio, usa a agência raiz
+// (is_root = true).
+function useAgencyId(session) {
+  return useQuery({
+    queryKey: ["default_agency_id", session.agency_id],
+    queryFn: async () => {
+      if (session.agency_id) return session.agency_id;
+      const { data, error } = await supabase.from("agencies").select("id").eq("is_root", true).maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Não foi encontrada uma agência para associar — a tua conta não tem agência definida.");
+      return data.id;
+    },
+  });
+}
+
 function usePlans() {
   return useQuery({
     queryKey: ["plans", "agency"],
@@ -59,7 +77,8 @@ function usePortal(agencyId) {
 }
 
 export default function AgencyBillingModule({ session }) {
-  const agencyId = session.agency_id;
+  const agencyIdQuery = useAgencyId(session);
+  const agencyId = agencyIdQuery.data;
   const subQuery = useSubscription(agencyId);
   const plansQuery = usePlans();
   const checkout = useCheckout(agencyId);
@@ -91,10 +110,20 @@ export default function AgencyBillingModule({ session }) {
 
   const salesLink = `https://wa.me/${SALES_WHATSAPP}?text=${encodeURIComponent("Olá! Tenho interesse no plano Enterprise do EMPOWER OS para a minha agência.")}`;
 
+  if (agencyIdQuery.isLoading) {
+    return (
+      <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 900 }}>
+        <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>
+      </div>
+    );
+  }
+
   if (!agencyId) {
     return (
       <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 900 }}>
-        <div style={{ ...sans, fontSize: 13, color: c.mist }}>Esta conta não está associada a uma agência.</div>
+        <div style={{ ...sans, fontSize: 13, color: c.mist }}>
+          {agencyIdQuery.error?.message || "Não foi encontrada nenhuma agência (nem raiz) para associar a esta conta."}
+        </div>
       </div>
     );
   }
