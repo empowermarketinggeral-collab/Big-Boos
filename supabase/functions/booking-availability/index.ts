@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     .select("starts_at, ends_at")
     .eq("brand_id", brandId)
     .eq("staff_id", staffId)
-    .eq("status", "confirmed")
+    .in("status", ["confirmed", "pending_payment"])
     .gte("starts_at", dayStart.toISOString())
     .lte("starts_at", dayEnd.toISOString());
 

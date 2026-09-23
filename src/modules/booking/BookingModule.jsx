@@ -3,7 +3,16 @@ import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, PAGE_FONT_OPTIONS, PAGE_COLOR_SWATCHES, DEFAULT_PAGE_STYLE } from "../../shared/theme.jsx";
-import { ArrowLeft, Plus, Trash2, Pencil, Link2, CheckCircle2, Calendar as CalendarIcon, User, History } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Pencil, Link2, CheckCircle2, Calendar as CalendarIcon, User, History, Upload, CreditCard } from "lucide-react";
+
+async function uploadStaffPhoto(brandId, staffId, file) {
+  const ext = file.name.split(".").pop();
+  const path = `${brandId}/staff/${staffId}-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from("brand-logos").upload(path, file, { upsert: true });
+  if (error) throw error;
+  const { data } = supabase.storage.from("brand-logos").getPublicUrl(path);
+  return data.publicUrl;
+}
 
 /* ---------------------------------------------------------
    AGENDAMENTO / MARCAÇÕES — v2
@@ -47,13 +56,15 @@ function useStaff(brandId) {
 function useSaveStaff(brandId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name, email }) => {
+    mutationFn: async ({ id, name, email, photoUrl }) => {
       if (id) {
-        const { error } = await supabase.from("booking_staff").update({ name, email }).eq("id", id);
+        const { error } = await supabase.from("booking_staff").update({ name, email, photo_url: photoUrl }).eq("id", id);
         if (error) throw error;
+        return { id };
       } else {
-        const { error } = await supabase.from("booking_staff").insert({ brand_id: brandId, name, email });
+        const { data, error } = await supabase.from("booking_staff").insert({ brand_id: brandId, name, email }).select("id").single();
         if (error) throw error;
+        return data;
       }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["booking_staff", brandId] }),
@@ -302,6 +313,31 @@ function useBookingSlug(brandId) {
   });
 }
 
+function usePaymentSettings(brandId) {
+  return useQuery({
+    queryKey: ["booking_payment_settings", brandId],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("booking_payment_settings").select("*").eq("brand_id", brandId).maybeSingle();
+      if (error) throw error;
+      return data || { enabled: false, percentage: 100, scope: "all" };
+    },
+  });
+}
+function useSavePaymentSettings(brandId) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ enabled, percentage, scope }) => {
+      const { error } = await supabase.from("booking_payment_settings").upsert(
+        { brand_id: brandId, enabled, percentage, scope, updated_at: new Date().toISOString() },
+        { onConflict: "brand_id" }
+      );
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["booking_payment_settings", brandId] }),
+  });
+}
+
 function useBookingStyle(brandId) {
   return useQuery({
     queryKey: ["brand_booking_style", brandId],
@@ -328,15 +364,42 @@ function useUpdateBookingStyle(brandId) {
    PROFISSIONAIS
 --------------------------------------------------------- */
 function StaffFormModal({ brandId, staff, onClose }) {
+  const [savedId, setSavedId] = useState(staff?.id || null);
   const [name, setName] = useState(staff?.name || "");
   const [email, setEmail] = useState(staff?.email || "");
+  const [photoUrl, setPhotoUrl] = useState(staff?.photo_url || "");
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const saveStaff = useSaveStaff(brandId);
+
+  const pickPhoto = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError("");
+    try {
+      // Uma pessoa nova ainda não tem id — grava o nome primeiro para
+      // ter um id a usar no caminho do ficheiro.
+      let id = savedId;
+      if (!id) {
+        const created = await saveStaff.mutateAsync({ name: name.trim() || "Profissional", email: email.trim() });
+        id = created.id;
+        setSavedId(id);
+      }
+      const url = await uploadStaffPhoto(brandId, id, file);
+      await saveStaff.mutateAsync({ id, name: name.trim() || "Profissional", email: email.trim(), photoUrl: url });
+      setPhotoUrl(url);
+    } catch (err) {
+      setError(err.message || "Não foi possível enviar a foto.");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const save = async () => {
     if (!name.trim()) { setError("O nome é obrigatório."); return; }
     try {
-      await saveStaff.mutateAsync({ id: staff?.id, name: name.trim(), email: email.trim() });
+      await saveStaff.mutateAsync({ id: savedId, name: name.trim(), email: email.trim(), photoUrl });
       onClose();
     } catch (err) {
       setError(err.message || "Não foi possível guardar.");
@@ -346,6 +409,15 @@ function StaffFormModal({ brandId, staff, onClose }) {
   return (
     <Modal title={staff ? "Editar profissional" : "Novo profissional"} onClose={onClose} width={360}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 56, height: 56, borderRadius: "50%", overflow: "hidden", background: c.paper, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            {photoUrl ? <img src={photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <User size={22} color={c.mistLight} />}
+          </div>
+          <label style={{ ...btnGhost, padding: "6px 12px", cursor: "pointer" }}>
+            <Upload size={12} /> {uploading ? "A enviar…" : "Foto"}
+            <input type="file" accept="image/*" onChange={pickPhoto} disabled={uploading} style={{ display: "none" }} />
+          </label>
+        </div>
         <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome" />
         <input style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (opcional)" />
         {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}
@@ -383,7 +455,11 @@ function StaffSection({ brand, selectedStaffId, onSelectStaff }) {
               background: selectedStaffId === s.id ? c.boss : c.paper, color: selectedStaffId === s.id ? "#fff" : c.ink,
             }}
           >
-            <User size={12} />
+            {s.photo_url ? (
+              <img src={s.photo_url} alt="" style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+            ) : (
+              <User size={12} />
+            )}
             <span style={{ ...sans, fontSize: 12 }}>{s.name}</span>
             <button onClick={(e) => { e.stopPropagation(); setEditing(s); setShowForm(true); }} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", opacity: 0.75, padding: 3 }}><Pencil size={11} /></button>
             <button onClick={(e) => { e.stopPropagation(); deleteStaff.mutate(s.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", opacity: 0.75, padding: 3 }}><Trash2 size={11} /></button>
@@ -744,6 +820,51 @@ function RemindersSection({ brand }) {
 }
 
 /* ---------------------------------------------------------
+   SINAL / DEPÓSITO
+--------------------------------------------------------- */
+function PaymentSettingsSection({ brand }) {
+  const settingsQuery = usePaymentSettings(brand.id);
+  const save = useSavePaymentSettings(brand.id);
+  const s = settingsQuery.data || { enabled: false, percentage: 100, scope: "all" };
+
+  const persist = (patch) => save.mutate({ enabled: s.enabled, percentage: s.percentage, scope: s.scope, ...patch });
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+      <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 4, display: "flex", alignItems: "center", gap: 7 }}>
+        <CreditCard size={15} color={c.boss} /> Sinal ao marcar
+      </div>
+      <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 14 }}>
+        Pede pagamento (via Stripe) antes de confirmar a marcação. A marcação só fica confirmada depois de paga.
+      </div>
+      <label style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.ink, display: "flex", alignItems: "center", gap: 7, marginBottom: 14 }}>
+        <input type="checkbox" checked={s.enabled} onChange={(e) => persist({ enabled: e.target.checked })} />
+        Pedir sinal para confirmar marcações
+      </label>
+      {s.enabled && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Percentagem do valor total</div>
+            <select value={s.percentage} onChange={(e) => persist({ percentage: Number(e.target.value) })} style={{ ...inputStyle, maxWidth: 200 }}>
+              <option value={20}>20%</option>
+              <option value={50}>50%</option>
+              <option value={100}>100% (valor total)</option>
+            </select>
+          </div>
+          <div>
+            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Quem tem de pagar sinal</div>
+            <select value={s.scope} onChange={(e) => persist({ scope: e.target.value })} style={{ ...inputStyle, maxWidth: 260 }}>
+              <option value="all">Todos os clientes</option>
+              <option value="new_customers">Só clientes novos (sem marcação anterior)</option>
+            </select>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
    MÓDULO
 --------------------------------------------------------- */
 export default function BookingModule({ brand, onBack }) {
@@ -795,6 +916,7 @@ export default function BookingModule({ brand, onBack }) {
         <AvailabilitySection brand={brand} staffId={selectedStaffId} />
         <AppointmentsSection brand={brand} />
         <RemindersSection brand={brand} />
+        <PaymentSettingsSection brand={brand} />
         <AppearanceSection brand={brand} />
       </div>
     </div>
@@ -875,10 +997,17 @@ export function PublicBookingPage() {
     if (!phone.trim() && !email.trim()) { setError("Escreve o telefone ou o email."); return; }
     setSubmitting(true);
     try {
-      await invokeFunction("booking-create", {
+      const result = await invokeFunction("booking-create", {
         brandId: state.brand.id, serviceId, staffId, startsAt: chosenSlot, upsellIds: selectedUpsellIds,
         name: name.trim(), phone: phone.trim(), email: email.trim(),
+        successUrl: window.location.href, cancelUrl: window.location.href,
       });
+      if (result.paymentUrl) {
+        // Não confirma ainda — a marca pede sinal. A marcação só fica
+        // confirmada quando o Stripe avisar que o pagamento passou.
+        window.location.href = result.paymentUrl;
+        return;
+      }
       setConfirmed(true);
     } catch (err) {
       setError(err.message || "Não foi possível confirmar.");

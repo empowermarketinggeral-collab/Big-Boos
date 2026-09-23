@@ -7,6 +7,16 @@
 // formulário. Envia a mensagem de confirmação (se ativada) na hora;
 // os lembretes de 24h/1h/pós-visita ficam a cargo da booking-reminders,
 // agendada à parte.
+//
+// SINAL/DEPÓSITO: se a marca pedir sinal (booking_payment_settings),
+// a marcação nasce como "pending_payment" e devolve um paymentUrl do
+// Stripe Checkout em vez de confirmar logo — só fica "confirmed"
+// quando o stripe-webhook recebe checkout.session.completed. Uma
+// marcação "pending_payment" continua a contar como horário ocupado
+// (não liberta o slot só porque ainda não foi paga), evitando duas
+// pessoas a reservar o mesmo horário enquanto uma está a pagar. A
+// booking-reminders cancela sozinha marcações pending_payment
+// abandonadas há mais de 30 minutos.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -90,6 +100,19 @@ async function sendEmail(admin, brandId, toEmail, subject, html) {
   });
 }
 
+async function sendConfirmation(admin, brandId, contactId, name, phone, email, serviceName, start) {
+  const { data: confirmationSetting } = await admin
+    .from("booking_reminder_settings")
+    .select("enabled, channel, message_template")
+    .eq("brand_id", brandId).eq("type", "confirmation").maybeSingle();
+  if (!confirmationSetting?.enabled) return;
+  const vars = { nome: name, servico: serviceName, data: start.toLocaleDateString("pt-PT"), hora: start.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }) };
+  const text = fillTemplate(confirmationSetting.message_template, vars) || `A tua marcação de ${serviceName} ficou confirmada para ${vars.data} às ${vars.hora}.`;
+  if (confirmationSetting.channel === "whatsapp" && phone) await sendWhatsappText(admin, brandId, phone, text);
+  if (confirmationSetting.channel === "sms" && phone) await sendSmsText(admin, brandId, phone, text, contactId);
+  if (confirmationSetting.channel === "email" && email) await sendEmail(admin, brandId, email, "Marcação confirmada", text);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -104,7 +127,7 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: "Corpo do pedido inválido." }, 400);
   }
-  const { brandId, serviceId, staffId, startsAt, upsellIds, name, phone, email } = body;
+  const { brandId, serviceId, staffId, startsAt, upsellIds, name, phone, email, successUrl, cancelUrl } = body;
   if (!brandId || !serviceId || !staffId || !startsAt || !name) {
     return json({ error: "Faltam campos obrigatórios." }, 400);
   }
@@ -128,12 +151,14 @@ Deno.serve(async (req) => {
     return json({ error: "Esse horário já passou." }, 400);
   }
 
+  // pending_payment também bloqueia o horário — evita duas pessoas a
+  // reservarem o mesmo slot enquanto uma está a meio do pagamento.
   const { data: clash } = await admin
     .from("booking_appointments")
     .select("id")
     .eq("brand_id", brandId)
     .eq("staff_id", staffId)
-    .eq("status", "confirmed")
+    .in("status", ["confirmed", "pending_payment"])
     .lt("starts_at", end.toISOString())
     .gt("ends_at", start.toISOString())
     .limit(1);
@@ -171,25 +196,67 @@ Deno.serve(async (req) => {
     contactId = created.id;
   }
 
-  const { error: apptError } = await admin.from("booking_appointments").insert({
+  // Sinal/depósito — decide se esta marcação precisa de pagamento
+  // antes de confirmar.
+  const { data: paymentSettings } = await admin.from("booking_payment_settings").select("enabled, percentage, scope").eq("brand_id", brandId).maybeSingle();
+  let depositRequired = false;
+  if (paymentSettings?.enabled) {
+    if (paymentSettings.scope === "all") {
+      depositRequired = true;
+    } else {
+      const { data: priorConfirmed } = await admin
+        .from("booking_appointments")
+        .select("id")
+        .eq("brand_id", brandId).eq("contact_id", contactId).eq("status", "confirmed")
+        .limit(1);
+      depositRequired = !(priorConfirmed && priorConfirmed.length > 0);
+    }
+  }
+  const depositAmount = depositRequired ? Math.round(totalPrice * (paymentSettings.percentage / 100) * 100) / 100 : null;
+
+  const { data: appt, error: apptError } = await admin.from("booking_appointments").insert({
     brand_id: brandId, service_id: serviceId, staff_id: staffId, contact_id: contactId,
     customer_name: name, customer_phone: phone || null, customer_email: email || null,
-    starts_at: start.toISOString(), ends_at: end.toISOString(), status: "confirmed",
+    starts_at: start.toISOString(), ends_at: end.toISOString(),
+    status: depositRequired ? "pending_payment" : "confirmed",
     selected_upsells: selectedUpsells, total_price: totalPrice,
-  });
+    deposit_required: depositRequired, deposit_amount: depositAmount,
+    deposit_status: depositRequired ? "pending" : "not_required",
+  }).select("id").single();
   if (apptError) return json({ error: apptError.message }, 500);
 
-  const { data: confirmationSetting } = await admin
-    .from("booking_reminder_settings")
-    .select("enabled, channel, message_template")
-    .eq("brand_id", brandId).eq("type", "confirmation").maybeSingle();
-  if (confirmationSetting?.enabled) {
-    const vars = { nome: name, servico: service.name, data: start.toLocaleDateString("pt-PT"), hora: start.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }) };
-    const text = fillTemplate(confirmationSetting.message_template, vars) || `A tua marcação de ${service.name} ficou confirmada para ${vars.data} às ${vars.hora}.`;
-    if (confirmationSetting.channel === "whatsapp" && phone) await sendWhatsappText(admin, brandId, phone, text);
-    if (confirmationSetting.channel === "sms" && phone) await sendSmsText(admin, brandId, phone, text, contactId);
-    if (confirmationSetting.channel === "email" && email) await sendEmail(admin, brandId, email, "Marcação confirmada", text);
+  if (depositRequired) {
+    const secretKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!secretKey) {
+      await admin.from("booking_appointments").update({ status: "cancelled", deposit_status: "failed" }).eq("id", appt.id);
+      return json({ error: "O pagamento de sinal não está configurado. Contacta a marca diretamente." }, 500);
+    }
+    const origin = req.headers.get("origin") || "";
+    const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${secretKey}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        mode: "payment",
+        "line_items[0][price_data][currency]": "eur",
+        "line_items[0][price_data][product_data][name]": `Sinal — ${service.name}`,
+        "line_items[0][price_data][unit_amount]": String(Math.round(depositAmount * 100)),
+        "line_items[0][quantity]": "1",
+        "metadata[appointment_id]": appt.id,
+        "metadata[type]": "booking_deposit",
+        success_url: successUrl || origin,
+        cancel_url: cancelUrl || origin,
+      }),
+    });
+    const session = await res.json();
+    if (!res.ok) {
+      await admin.from("booking_appointments").update({ status: "cancelled", deposit_status: "failed" }).eq("id", appt.id);
+      return json({ error: session?.error?.message || "Não foi possível iniciar o pagamento." }, 502);
+    }
+    await admin.from("booking_appointments").update({ stripe_checkout_session_id: session.id }).eq("id", appt.id);
+    return json({ ok: true, paymentUrl: session.url });
   }
+
+  await sendConfirmation(admin, brandId, contactId, name, phone, email, service.name, start);
 
   return json({ ok: true });
 });

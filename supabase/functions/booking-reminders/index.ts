@@ -126,6 +126,25 @@ Deno.serve(async () => {
   const now = Date.now();
   let sent24h = 0, sent1h = 0, sentPostVisit = 0;
 
+  // Marcações "pending_payment" (sinal por pagar) abandonadas há mais
+  // de 30 minutos — cancela e liberta o horário. Quem pagar depois de
+  // cancelado só recebe o erro do Stripe (não há reembolso automático
+  // aqui, porque o checkout já teria expirado do lado do Stripe antes
+  // de chegar a este ponto na prática).
+  let expiredPending = 0;
+  {
+    const cutoff = new Date(now - 30 * 60000).toISOString();
+    const { data: expired } = await admin
+      .from("booking_appointments")
+      .select("id")
+      .eq("status", "pending_payment")
+      .lt("created_at", cutoff);
+    for (const appt of expired || []) {
+      await admin.from("booking_appointments").update({ status: "cancelled", deposit_status: "failed" }).eq("id", appt.id);
+      expiredPending++;
+    }
+  }
+
   // 24h antes — janela de 23h50 a 24h10 para caber na cadência do cron
   {
     const from = new Date(now + 23.83 * 3600000).toISOString();
@@ -182,5 +201,5 @@ Deno.serve(async () => {
     }
   }
 
-  return new Response(JSON.stringify({ sent24h, sent1h, sentPostVisit }), { status: 200, headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify({ sent24h, sent1h, sentPostVisit, expiredPending }), { status: 200, headers: { "Content-Type": "application/json" } });
 });
