@@ -29,6 +29,7 @@ const ACTION_TYPES = [
   { value: "remove_tag", label: "Remover tag" },
   { value: "create_task", label: "Criar tarefa" },
   { value: "send_whatsapp", label: "Enviar mensagem de WhatsApp" },
+  { value: "send_sms", label: "Enviar SMS" },
   { value: "http_request", label: "Pedido HTTP (webhook)" },
 ];
 
@@ -265,7 +266,7 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
     const config =
       actionType === "add_tag" || actionType === "remove_tag" ? { tagId } :
       actionType === "create_task" ? { title, dueInMinutes: dueInMinutes ? Number(dueInMinutes) : null } :
-      actionType === "send_whatsapp" ? { body } :
+      actionType === "send_whatsapp" || actionType === "send_sms" ? { body } :
       actionType === "http_request" ? { url } : {};
     return { type: "action", position: step?.position ?? position, action_type: actionType, config };
   };
@@ -275,7 +276,7 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
     if (type === "action" && (actionType === "add_tag" || actionType === "remove_tag") && !tagId) {
       setError("Escolhe a tag."); return;
     }
-    if (type === "action" && actionType === "send_whatsapp" && !body.trim()) {
+    if (type === "action" && (actionType === "send_whatsapp" || actionType === "send_sms") && !body.trim()) {
       setError("Escreve a mensagem."); return;
     }
     if (type === "action" && actionType === "http_request" && !url.trim()) {
@@ -346,7 +347,7 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
               </>
             )}
 
-            {actionType === "send_whatsapp" && (
+            {(actionType === "send_whatsapp" || actionType === "send_sms") && (
               <div>
                 <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Mensagem</div>
                 <textarea rows={3} style={{ ...inputStyle, resize: "vertical" }} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Texto a enviar ao contacto" />

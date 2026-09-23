@@ -11,10 +11,13 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Suporta os dois fornecedores ligados em whatsapp-connect: 'meta'
+// (Cloud API direta) e 'twilio' (alternativa quando a verificação de
+// negócio da Meta fica bloqueada — ver docs/GUIA_TWILIO.md).
 async function sendWhatsappText(admin, brandId, toPhone, body) {
   const { data: account } = await admin
     .from("whatsapp_accounts")
-    .select("phone_number_id, access_token_ref")
+    .select("provider, phone_number_id, twilio_account_sid, access_token_ref")
     .eq("brand_id", brandId)
     .maybeSingle();
   if (!account) throw new Error("Esta marca não tem WhatsApp ligado.");
@@ -38,27 +41,53 @@ async function sendWhatsappText(admin, brandId, toPhone, body) {
     conversation = created;
   }
 
-  const metaRes = await fetch(`https://graph.facebook.com/v20.0/${account.phone_number_id}/messages`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ messaging_product: "whatsapp", to: toPhone, type: "text", text: { body } }),
-  });
-  const metaData = await metaRes.json();
+  let ok, msgId, errMsg;
+  if (account.provider === "twilio") {
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${account.twilio_account_sid}/Messages.json`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${btoa(`${account.twilio_account_sid}:${token}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ From: `whatsapp:${account.phone_number_id}`, To: `whatsapp:${toPhone}`, Body: body }),
+    });
+    const data = await res.json();
+    ok = res.ok; msgId = data?.sid || null; errMsg = data?.message;
+  } else {
+    const res = await fetch(`https://graph.facebook.com/v20.0/${account.phone_number_id}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ messaging_product: "whatsapp", to: toPhone, type: "text", text: { body } }),
+    });
+    const data = await res.json();
+    ok = res.ok; msgId = data?.messages?.[0]?.id || null; errMsg = data?.error?.message;
+  }
 
   await admin.from("whatsapp_messages").insert({
-    brand_id: brandId,
-    conversation_id: conversation.id,
-    direction: "outbound",
-    wa_message_id: metaData?.messages?.[0]?.id || null,
-    type: "text",
-    body,
-    status: metaRes.ok ? "sent" : "failed",
+    brand_id: brandId, conversation_id: conversation.id, direction: "outbound",
+    wa_message_id: msgId, type: "text", body, status: ok ? "sent" : "failed",
   });
   await admin.from("whatsapp_conversations").update({ last_message_at: new Date().toISOString() }).eq("id", conversation.id);
 
-  if (!metaRes.ok) {
-    throw new Error(metaData?.error?.message || "Falha ao enviar WhatsApp.");
-  }
+  if (!ok) throw new Error(errMsg || "Falha ao enviar WhatsApp.");
+}
+
+async function sendSmsText(admin, brandId, toPhone, body) {
+  const { data: account } = await admin.from("sms_accounts").select("account_sid, from_number, auth_token_ref").eq("brand_id", brandId).maybeSingle();
+  if (!account) throw new Error("Esta marca não tem SMS ligado.");
+
+  const { data: token } = await admin.rpc("vault_read_secret", { p_id: account.auth_token_ref });
+  if (!token) throw new Error("Não foi possível obter o token de acesso.");
+
+  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${account.account_sid}/Messages.json`, {
+    method: "POST",
+    headers: { Authorization: `Basic ${btoa(`${account.account_sid}:${token}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ From: account.from_number, To: toPhone, Body: body }),
+  });
+  const data = await res.json();
+
+  await admin.from("sms_messages").insert({
+    brand_id: brandId, to_number: toPhone, body, direction: "outbound",
+    provider_ref: data?.sid || null, status: res.ok ? "sent" : "failed",
+  });
+  if (!res.ok) throw new Error(data?.message || "Falha ao enviar SMS.");
 }
 
 async function runAction(admin, brandId, step, contact) {
@@ -87,6 +116,11 @@ async function runAction(admin, brandId, step, contact) {
     case "send_whatsapp": {
       if (!contact?.phone) throw new Error("O contacto não tem telefone.");
       await sendWhatsappText(admin, brandId, contact.phone, config.body || "");
+      return;
+    }
+    case "send_sms": {
+      if (!contact?.phone) throw new Error("O contacto não tem telefone.");
+      await sendSmsText(admin, brandId, contact.phone, config.body || "");
       return;
     }
     case "http_request": {

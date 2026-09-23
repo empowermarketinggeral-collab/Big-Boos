@@ -1,9 +1,6 @@
-// EMPOWER OS — liga uma conta WhatsApp Business a uma marca.
-// Chamado pelo frontend via supabase.functions.invoke("whatsapp-connect", { body }).
-// Suporta dois fornecedores: 'meta' (Cloud API direta, precisa de
-// verificação de negócio da Meta) e 'twilio' (alternativa quando essa
-// verificação fica bloqueada — ver docs/GUIA_TWILIO.md).
-// O token/auth token NUNCA é guardado em claro — fica no Supabase Vault.
+// EMPOWER OS — liga uma conta Twilio (SMS) a uma marca.
+// Chamado pelo frontend via supabase.functions.invoke("sms-connect", { body }).
+// O Auth Token NUNCA é guardado em claro — fica no Supabase Vault.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -31,15 +28,9 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: "Corpo do pedido inválido." }, 400);
   }
-  const { brandId, provider, wabaId, phoneNumberId, displayPhone, accessToken, twilioAccountSid } = body;
-  if (!brandId || !provider) {
+  const { brandId, accountSid, fromNumber, authToken } = body;
+  if (!brandId || !accountSid || !fromNumber || !authToken) {
     return json({ error: "Faltam campos obrigatórios." }, 400);
-  }
-  if (provider === "meta" && (!wabaId || !phoneNumberId || !accessToken)) {
-    return json({ error: "WABA ID, Phone Number ID e o token de acesso são obrigatórios." }, 400);
-  }
-  if (provider === "twilio" && (!twilioAccountSid || !phoneNumberId || !accessToken)) {
-    return json({ error: "Account SID, número de WhatsApp e Auth Token são obrigatórios." }, 400);
   }
 
   const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
@@ -50,28 +41,19 @@ Deno.serve(async (req) => {
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-  const secretName = `whatsapp_token_${brandId}`;
   const { data: secretId, error: vaultError } = await adminClient.rpc("vault_upsert_secret", {
-    p_name: secretName,
-    p_secret: accessToken,
+    p_name: `sms_auth_token_${brandId}`,
+    p_secret: authToken,
   });
   if (vaultError) {
     return json({ error: `Não foi possível guardar o token: ${vaultError.message}` }, 500);
   }
 
-  const { error: upsertError } = await adminClient.from("whatsapp_accounts").upsert(
-    {
-      brand_id: brandId,
-      provider,
-      waba_id: provider === "meta" ? wabaId : null,
-      phone_number_id: phoneNumberId,
-      twilio_account_sid: provider === "twilio" ? twilioAccountSid : null,
-      display_phone: displayPhone || null,
-      access_token_ref: secretId,
-      status: "connected",
-    },
-    { onConflict: "brand_id" }
-  );
+  const { data: existing } = await adminClient.from("sms_accounts").select("id").eq("brand_id", brandId).maybeSingle();
+  const payload = { brand_id: brandId, account_sid: accountSid, from_number: fromNumber, auth_token_ref: secretId, status: "connected" };
+  const { error: upsertError } = existing
+    ? await adminClient.from("sms_accounts").update(payload).eq("id", existing.id)
+    : await adminClient.from("sms_accounts").insert(payload);
   if (upsertError) {
     return json({ error: upsertError.message }, 500);
   }

@@ -1,5 +1,7 @@
 // EMPOWER OS — envia uma mensagem de texto WhatsApp para o contacto de
 // uma conversa existente, usando o token guardado no Vault da marca.
+// Suporta os dois fornecedores ligados em whatsapp-connect: 'meta'
+// (Cloud API direta) e 'twilio' (alternativa — ver docs/GUIA_TWILIO.md).
 // Chamado pelo frontend via supabase.functions.invoke("whatsapp-send", { body }).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -10,19 +12,35 @@ const corsHeaders = {
 };
 
 function json(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+
+async function sendViaMeta(phoneNumberId, token, toPhone, body) {
+  const res = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ messaging_product: "whatsapp", to: toPhone, type: "text", text: { body } }),
   });
+  const data = await res.json();
+  return { ok: res.ok, id: data?.messages?.[0]?.id || null, error: data?.error?.message };
+}
+
+async function sendViaTwilio(accountSid, authToken, fromNumber, toPhone, body) {
+  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${btoa(`${accountSid}:${authToken}`)}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({ From: `whatsapp:${fromNumber}`, To: `whatsapp:${toPhone}`, Body: body }),
+  });
+  const data = await res.json();
+  return { ok: res.ok, id: data?.sid || null, error: data?.message };
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-  if (req.method !== "POST") {
-    return json({ error: "Method not allowed" }, 405);
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   const authHeader = req.headers.get("Authorization") || "";
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -40,11 +58,7 @@ Deno.serve(async (req) => {
     return json({ error: "Faltam campos obrigatórios." }, 400);
   }
 
-  // Confirma, via RLS, que o utilizador pode ver esta conversa (e
-  // portanto a marca a que pertence) antes de fazermos nada como admin.
-  const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
+  const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
   const { data: conversation, error: convError } = await userClient
     .from("whatsapp_conversations")
     .select("id, brand_id, wa_contact_phone")
@@ -58,58 +72,37 @@ Deno.serve(async (req) => {
 
   const { data: account, error: accountError } = await adminClient
     .from("whatsapp_accounts")
-    .select("phone_number_id, access_token_ref")
+    .select("provider, phone_number_id, twilio_account_sid, access_token_ref")
     .eq("brand_id", conversation.brand_id)
     .maybeSingle();
   if (accountError || !account) {
     return json({ error: "Esta marca não tem WhatsApp ligado." }, 400);
   }
 
-  const { data: token, error: tokenError } = await adminClient.rpc("vault_read_secret", {
-    p_id: account.access_token_ref,
-  });
+  const { data: token, error: tokenError } = await adminClient.rpc("vault_read_secret", { p_id: account.access_token_ref });
   if (tokenError || !token) {
     return json({ error: "Não foi possível obter o token de acesso." }, 500);
   }
 
-  const metaRes = await fetch(`https://graph.facebook.com/v20.0/${account.phone_number_id}/messages`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to: conversation.wa_contact_phone,
-      type: "text",
-      text: { body },
-    }),
-  });
-  const metaData = await metaRes.json();
+  const result = account.provider === "twilio"
+    ? await sendViaTwilio(account.twilio_account_sid, token, account.phone_number_id, conversation.wa_contact_phone, body)
+    : await sendViaMeta(account.phone_number_id, token, conversation.wa_contact_phone, body);
 
-  if (!metaRes.ok) {
-    await adminClient.from("whatsapp_messages").insert({
-      brand_id: conversation.brand_id,
-      conversation_id: conversationId,
-      direction: "outbound",
-      type: "text",
-      body,
-      status: "failed",
-    });
-    return json({ error: metaData?.error?.message || "Falha ao enviar a mensagem." }, 502);
-  }
-
-  const waMessageId = metaData?.messages?.[0]?.id || null;
   await adminClient.from("whatsapp_messages").insert({
     brand_id: conversation.brand_id,
     conversation_id: conversationId,
     direction: "outbound",
-    wa_message_id: waMessageId,
+    wa_message_id: result.id,
     type: "text",
     body,
-    status: "sent",
+    status: result.ok ? "sent" : "failed",
   });
-  await adminClient
-    .from("whatsapp_conversations")
-    .update({ last_message_at: new Date().toISOString() })
-    .eq("id", conversationId);
+
+  if (!result.ok) {
+    return json({ error: result.error || "Falha ao enviar a mensagem." }, 502);
+  }
+
+  await adminClient.from("whatsapp_conversations").update({ last_message_at: new Date().toISOString() }).eq("id", conversationId);
 
   return json({ ok: true });
 });

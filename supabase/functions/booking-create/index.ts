@@ -24,7 +24,7 @@ function fillTemplate(template, vars) {
 }
 
 async function sendWhatsappText(admin, brandId, toPhone, body) {
-  const { data: account } = await admin.from("whatsapp_accounts").select("phone_number_id, access_token_ref").eq("brand_id", brandId).maybeSingle();
+  const { data: account } = await admin.from("whatsapp_accounts").select("provider, phone_number_id, twilio_account_sid, access_token_ref").eq("brand_id", brandId).maybeSingle();
   if (!account) return;
   const { data: token } = await admin.rpc("vault_read_secret", { p_id: account.access_token_ref });
   if (!token) return;
@@ -34,15 +34,46 @@ async function sendWhatsappText(admin, brandId, toPhone, body) {
     const { data: created } = await admin.from("whatsapp_conversations").insert({ brand_id: brandId, wa_contact_phone: toPhone }).select("id").single();
     conversation = created;
   }
-  const res = await fetch(`https://graph.facebook.com/v20.0/${account.phone_number_id}/messages`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ messaging_product: "whatsapp", to: toPhone, type: "text", text: { body } }),
-  });
-  const data = await res.json();
+
+  let ok, msgId;
+  if (account.provider === "twilio") {
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${account.twilio_account_sid}/Messages.json`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${btoa(`${account.twilio_account_sid}:${token}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ From: `whatsapp:${account.phone_number_id}`, To: `whatsapp:${toPhone}`, Body: body }),
+    });
+    const data = await res.json();
+    ok = res.ok; msgId = data?.sid || null;
+  } else {
+    const res = await fetch(`https://graph.facebook.com/v20.0/${account.phone_number_id}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ messaging_product: "whatsapp", to: toPhone, type: "text", text: { body } }),
+    });
+    const data = await res.json();
+    ok = res.ok; msgId = data?.messages?.[0]?.id || null;
+  }
+
   await admin.from("whatsapp_messages").insert({
     brand_id: brandId, conversation_id: conversation.id, direction: "outbound",
-    wa_message_id: data?.messages?.[0]?.id || null, type: "text", body, status: res.ok ? "sent" : "failed",
+    wa_message_id: msgId, type: "text", body, status: ok ? "sent" : "failed",
+  });
+}
+
+async function sendSmsText(admin, brandId, toPhone, body) {
+  const { data: account } = await admin.from("sms_accounts").select("account_sid, from_number, auth_token_ref").eq("brand_id", brandId).maybeSingle();
+  if (!account) return;
+  const { data: token } = await admin.rpc("vault_read_secret", { p_id: account.auth_token_ref });
+  if (!token) return;
+  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${account.account_sid}/Messages.json`, {
+    method: "POST",
+    headers: { Authorization: `Basic ${btoa(`${account.account_sid}:${token}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ From: account.from_number, To: toPhone, Body: body }),
+  });
+  const data = await res.json();
+  await admin.from("sms_messages").insert({
+    brand_id: brandId, to_number: toPhone, body, direction: "outbound",
+    provider_ref: data?.sid || null, status: res.ok ? "sent" : "failed",
   });
 }
 
@@ -156,6 +187,7 @@ Deno.serve(async (req) => {
     const vars = { nome: name, servico: service.name, data: start.toLocaleDateString("pt-PT"), hora: start.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }) };
     const text = fillTemplate(confirmationSetting.message_template, vars) || `A tua marcação de ${service.name} ficou confirmada para ${vars.data} às ${vars.hora}.`;
     if (confirmationSetting.channel === "whatsapp" && phone) await sendWhatsappText(admin, brandId, phone, text);
+    if (confirmationSetting.channel === "sms" && phone) await sendSmsText(admin, brandId, phone, text);
     if (confirmationSetting.channel === "email" && email) await sendEmail(admin, brandId, email, "Marcação confirmada", text);
   }
 

@@ -39,8 +39,8 @@ function useWhatsappAccount(brandId) {
 function useConnectWhatsapp(brandId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ wabaId, phoneNumberId, displayPhone, accessToken }) => {
-      return invokeFunction("whatsapp-connect", { brandId, wabaId, phoneNumberId, displayPhone, accessToken });
+    mutationFn: async ({ provider, wabaId, phoneNumberId, displayPhone, accessToken, twilioAccountSid }) => {
+      return invokeFunction("whatsapp-connect", { brandId, provider, wabaId, phoneNumberId, displayPhone, accessToken, twilioAccountSid });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["whatsapp_account", brandId] }),
   });
@@ -95,8 +95,10 @@ function useSendMessage(brandId) {
    LIGAR CONTA
 --------------------------------------------------------- */
 function ConnectWhatsappForm({ brandId }) {
+  const [provider, setProvider] = useState("meta");
   const [wabaId, setWabaId] = useState("");
   const [phoneNumberId, setPhoneNumberId] = useState("");
+  const [twilioAccountSid, setTwilioAccountSid] = useState("");
   const [displayPhone, setDisplayPhone] = useState("");
   const [accessToken, setAccessToken] = useState("");
   const [error, setError] = useState("");
@@ -104,14 +106,20 @@ function ConnectWhatsappForm({ brandId }) {
 
   const submit = async () => {
     setError("");
-    if (!wabaId.trim() || !phoneNumberId.trim() || !accessToken.trim()) {
+    if (provider === "meta" && (!wabaId.trim() || !phoneNumberId.trim() || !accessToken.trim())) {
       setError("WABA ID, Phone Number ID e o token de acesso são obrigatórios.");
+      return;
+    }
+    if (provider === "twilio" && (!twilioAccountSid.trim() || !phoneNumberId.trim() || !accessToken.trim())) {
+      setError("Account SID, número de WhatsApp e Auth Token são obrigatórios.");
       return;
     }
     try {
       await connect.mutateAsync({
+        provider,
         wabaId: wabaId.trim(),
         phoneNumberId: phoneNumberId.trim(),
+        twilioAccountSid: twilioAccountSid.trim(),
         displayPhone: displayPhone.trim(),
         accessToken: accessToken.trim(),
       });
@@ -124,27 +132,63 @@ function ConnectWhatsappForm({ brandId }) {
     <div style={{ maxWidth: 480 }}>
       <Eyebrow>WhatsApp Business</Eyebrow>
       <h1 style={{ ...serif, fontSize: 24, color: c.ink, marginBottom: 8 }}>Ligar a conta desta marca</h1>
-      <p style={{ ...sans, fontSize: 13, color: c.mist, lineHeight: 1.6, marginBottom: 22 }}>
-        Precisas destes 3 valores da tua app na Meta for Developers. Segue{" "}
-        <strong>docs/GUIA_WHATSAPP_META.md</strong> se ainda não os tiveres — o token nunca fica visível depois de guardado.
-      </p>
+
+      <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 8, padding: 3, marginBottom: 16, width: "fit-content" }}>
+        {[{ k: "meta", l: "Meta (direto)" }, { k: "twilio", l: "Twilio" }].map((o) => (
+          <button
+            key={o.k}
+            onClick={() => setProvider(o.k)}
+            style={{
+              ...sans, fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer",
+              color: provider === o.k ? "#fff" : c.mist, background: provider === o.k ? c.boss : "transparent",
+            }}
+          >
+            {o.l}
+          </button>
+        ))}
+      </div>
+
+      {provider === "meta" ? (
+        <p style={{ ...sans, fontSize: 13, color: c.mist, lineHeight: 1.6, marginBottom: 22 }}>
+          Precisas destes 3 valores da tua app na Meta for Developers. Segue <strong>docs/GUIA_WHATSAPP_META.md</strong> se ainda não os tiveres.
+        </p>
+      ) : (
+        <p style={{ ...sans, fontSize: 13, color: c.mist, lineHeight: 1.6, marginBottom: 22 }}>
+          Alternativa quando a verificação de negócio da Meta fica bloqueada. Segue <strong>docs/GUIA_TWILIO.md</strong> se ainda não tiveres estes valores.
+        </p>
+      )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>WABA ID</div>
-          <input style={inputStyle} value={wabaId} onChange={(e) => setWabaId(e.target.value)} placeholder="WhatsApp Business Account ID" />
-        </div>
-        <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Phone Number ID</div>
-          <input style={inputStyle} value={phoneNumberId} onChange={(e) => setPhoneNumberId(e.target.value)} placeholder="Phone Number ID" />
-        </div>
+        {provider === "meta" ? (
+          <>
+            <div>
+              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>WABA ID</div>
+              <input style={inputStyle} value={wabaId} onChange={(e) => setWabaId(e.target.value)} placeholder="WhatsApp Business Account ID" />
+            </div>
+            <div>
+              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Phone Number ID</div>
+              <input style={inputStyle} value={phoneNumberId} onChange={(e) => setPhoneNumberId(e.target.value)} placeholder="Phone Number ID" />
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Account SID</div>
+              <input style={inputStyle} value={twilioAccountSid} onChange={(e) => setTwilioAccountSid(e.target.value)} placeholder="AC…" />
+            </div>
+            <div>
+              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Número de WhatsApp (Twilio)</div>
+              <input style={inputStyle} value={phoneNumberId} onChange={(e) => setPhoneNumberId(e.target.value)} placeholder="+351…" />
+            </div>
+          </>
+        )}
         <div>
           <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Número (opcional, só para identificar)</div>
           <input style={inputStyle} value={displayPhone} onChange={(e) => setDisplayPhone(e.target.value)} placeholder="+351 9XX XXX XXX" />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Token de acesso</div>
-          <input style={inputStyle} type="password" value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="Token permanente da Meta" />
+          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>{provider === "meta" ? "Token de acesso" : "Auth Token"}</div>
+          <input style={inputStyle} type="password" value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder={provider === "meta" ? "Token permanente da Meta" : "Auth Token da Twilio"} />
         </div>
 
         {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}

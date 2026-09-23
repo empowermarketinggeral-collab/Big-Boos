@@ -659,6 +659,7 @@ function ReminderRow({ brand, type, label, setting }) {
         </label>
         <select value={channel} onChange={(e) => { setChannel(e.target.value); persist({ channel: e.target.value }); }} style={{ ...sans, fontSize: 11.5, border: `1px solid ${c.line}`, borderRadius: 6, padding: "4px 7px" }}>
           <option value="whatsapp">WhatsApp</option>
+          <option value="sms">SMS</option>
           <option value="email">Email</option>
         </select>
       </div>
