@@ -98,6 +98,19 @@ function useSendMessage(brandId) {
   });
 }
 
+function useWaUsage(brandId) {
+  return useQuery({
+    queryKey: ["messaging_usage", brandId, "whatsapp"],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const since = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+      const { data, error } = await supabase.from("messaging_usage_daily").select("num_messages, cost, currency").eq("brand_id", brandId).eq("channel", "whatsapp").gte("date", since);
+      if (error) throw error;
+      return (data || []).reduce((acc, r) => ({ numMessages: acc.numMessages + r.num_messages, cost: acc.cost + Number(r.cost), currency: r.currency || acc.currency }), { numMessages: 0, cost: 0, currency: "USD" });
+    },
+  });
+}
+
 /* ---------------------------------------------------------
    DATA — templates
 --------------------------------------------------------- */
@@ -989,6 +1002,7 @@ const TABS = [{ k: "inbox", l: "Inbox" }, { k: "templates", l: "Templates" }, { 
 
 export default function WhatsappModule({ brand, onBack }) {
   const accountQuery = useWhatsappAccount(brand.id);
+  const usageQuery = useWaUsage(brand.id);
   const [tab, setTab] = useState("inbox");
   const [showStart, setShowStart] = useState(false);
 
@@ -1020,6 +1034,11 @@ export default function WhatsappModule({ brand, onBack }) {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ ...sans, fontSize: 11.5, color: c.mist }}>{accountQuery.data.display_phone || accountQuery.data.phone_number_id}</div>
+              {accountQuery.data.provider === "twilio" && usageQuery.data && usageQuery.data.numMessages > 0 && (
+                <div style={{ ...sans, fontSize: 11, color: c.mist, background: c.paper, borderRadius: 999, padding: "4px 10px" }}>
+                  {usageQuery.data.numMessages} msgs · {usageQuery.data.cost.toFixed(2)} {usageQuery.data.currency} (30 dias)
+                </div>
+              )}
               {tab === "inbox" && (
                 <button onClick={() => setShowStart(true)} style={{ ...btnPrimary, padding: "8px 14px", display: "flex", alignItems: "center", gap: 6 }}>
                   <UserPlus size={14} /> Nova conversa

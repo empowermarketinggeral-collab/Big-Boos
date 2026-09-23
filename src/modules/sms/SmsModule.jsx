@@ -34,6 +34,19 @@ function useConnectSms(brandId) {
   });
 }
 
+function useSmsUsage(brandId) {
+  return useQuery({
+    queryKey: ["messaging_usage", brandId, "sms"],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const since = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+      const { data, error } = await supabase.from("messaging_usage_daily").select("num_messages, cost, currency").eq("brand_id", brandId).eq("channel", "sms").gte("date", since);
+      if (error) throw error;
+      return (data || []).reduce((acc, r) => ({ numMessages: acc.numMessages + r.num_messages, cost: acc.cost + Number(r.cost), currency: r.currency || acc.currency }), { numMessages: 0, cost: 0, currency: "USD" });
+    },
+  });
+}
+
 function useSmsMessages(brandId) {
   return useQuery({
     queryKey: ["sms_messages", brandId],
@@ -518,6 +531,7 @@ const TABS = [{ k: "envios", l: "Envios" }, { k: "campanhas", l: "Campanhas" }];
 export default function SmsModule({ brand, onBack }) {
   const accountQuery = useSmsAccount(brand.id);
   const messagesQuery = useSmsMessages(brand.id);
+  const usageQuery = useSmsUsage(brand.id);
   const [tab, setTab] = useState("envios");
   const [showSend, setShowSend] = useState(false);
 
@@ -549,6 +563,11 @@ export default function SmsModule({ brand, onBack }) {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ ...sans, fontSize: 11.5, color: c.mist }}>{accountQuery.data.from_number}</div>
+              {usageQuery.data && usageQuery.data.numMessages > 0 && (
+                <div style={{ ...sans, fontSize: 11, color: c.mist, background: c.paper, borderRadius: 999, padding: "4px 10px" }}>
+                  {usageQuery.data.numMessages} SMS · {usageQuery.data.cost.toFixed(2)} {usageQuery.data.currency} (30 dias)
+                </div>
+              )}
               {tab === "envios" && (
                 <button onClick={() => setShowSend(true)} style={{ ...btnPrimary, padding: "8px 14px", display: "flex", alignItems: "center", gap: 6 }}>
                   <Send size={14} /> Enviar SMS
