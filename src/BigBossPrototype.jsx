@@ -8,7 +8,7 @@ import {
   Clock, ChevronRight, ChevronLeft, BookMarked, ClipboardList, Layers, Video,
   Link2, Calculator, Sparkles, Eye, Zap, Target, TrendingUp,
   Trash2, Pencil, ChevronUp, ChevronDown, Image as ImageIcon,
-  Instagram, Facebook, Youtube, MessageCircle, Music2, Palette, Handshake, Kanban, Mail, MessageSquare, Inbox,
+  Instagram, Facebook, Youtube, MessageCircle, Music2, Palette, Handshake, Kanban, Mail, MessageSquare, Inbox, CreditCard,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -23,6 +23,7 @@ import SocialModule from "./modules/social/SocialModule.jsx";
 import BookingModule from "./modules/booking/BookingModule.jsx";
 import SmsModule from "./modules/sms/SmsModule.jsx";
 import InboxModule from "./modules/inbox/InboxModule.jsx";
+import BillingModule from "./modules/billing/BillingModule.jsx";
 import { c, sans, serif, StatusDot, Eyebrow, ChartCard, CAN_MANAGE_ROLES, Modal, btnPrimary, btnGhost } from "./shared/theme.jsx";
 
 /* ---------------------------------------------------------
@@ -2311,6 +2312,7 @@ const MODULE_GROUPS = [
       { key: "brand-book", label: "Brand Book", sub: "Identidade visual e diretrizes", icon: BookOpen },
       { key: "plano", label: "Plano Estratégico", sub: "Fases e tarefas", icon: Layers },
       { key: "dashboards", label: "Dashboards", sub: "Performance da marca", icon: BarChart3 },
+      { key: "billing", label: "Faturação", sub: "Subscrição e faturas de serviços", icon: CreditCard },
     ],
   },
 ];
@@ -2878,6 +2880,9 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
   }
   if (sub === "inbox") {
     return <InboxModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
+  }
+  if (sub === "billing") {
+    return <BillingModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
   }
   if (sub === "conteudos") {
     return <ConteudosView brand={brand} onBack={() => onOpenSub(null)} session={session} />;
