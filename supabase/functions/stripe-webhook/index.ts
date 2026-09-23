@@ -64,6 +64,18 @@ Deno.serve(async (req) => {
         planId = plan?.id || null;
       }
 
+      const newStatus = STRIPE_STATUS_MAP[sub.status] || "active";
+      const ownerColumn = brandId ? "brand_id" : "agency_id";
+      const ownerId = brandId || agencyId;
+
+      // past_due_since só é marcado na primeira vez que entra em
+      // atraso, e limpo assim que deixa de estar — é a partir dele
+      // que o aviso no topo da app conta os 7+3 dias.
+      const { data: existing } = await admin.from("subscriptions").select("status, past_due_since").eq(ownerColumn, ownerId).maybeSingle();
+      let pastDueSince = existing?.past_due_since || null;
+      if (newStatus === "past_due" && existing?.status !== "past_due") pastDueSince = new Date().toISOString();
+      else if (newStatus !== "past_due") pastDueSince = null;
+
       await admin.from("subscriptions").upsert(
         {
           brand_id: brandId,
@@ -71,10 +83,11 @@ Deno.serve(async (req) => {
           plan_id: planId,
           stripe_customer_ref: sub.customer,
           stripe_subscription_ref: sub.id,
-          status: STRIPE_STATUS_MAP[sub.status] || "active",
+          status: newStatus,
           current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
+          past_due_since: pastDueSince,
         },
-        { onConflict: brandId ? "brand_id" : "agency_id" }
+        { onConflict: ownerColumn }
       );
     }
   }

@@ -25,6 +25,7 @@ import SmsModule from "./modules/sms/SmsModule.jsx";
 import InboxModule from "./modules/inbox/InboxModule.jsx";
 import BillingModule from "./modules/billing/BillingModule.jsx";
 import AgencyBillingModule from "./modules/billing/AgencyBillingModule.jsx";
+import PaymentReminderBanner from "./modules/billing/PaymentReminderBanner.jsx";
 import { c, sans, serif, StatusDot, Eyebrow, ChartCard, CAN_MANAGE_ROLES, Modal, btnPrimary, btnGhost } from "./shared/theme.jsx";
 
 /* ---------------------------------------------------------
@@ -10187,7 +10188,9 @@ function BigBossPrototypeInner() {
   }
 
   return (
-    <div className="bb-app" style={{ display: "flex", background: c.paper, minHeight: "100vh", ...sans }}>
+    <div style={{ minHeight: "100vh" }}>
+      <PaymentReminderBanner session={session} />
+      <div className="bb-app" style={{ display: "flex", background: c.paper, minHeight: "100vh", ...sans }}>
       <style>{FONTS}</style>
       <Sidebar active={nav} onNavigate={goToNav} session={session} roleInfo={roleInfo} onLogout={logout} />
       <div style={{ flex: 1 }}>
@@ -10197,6 +10200,7 @@ function BigBossPrototypeInner() {
       {import.meta.env.DEV && (
         <DevRoleSwitcher role={session.role} onChange={previewAs} />
       )}
+      </div>
     </div>
   );
 }
