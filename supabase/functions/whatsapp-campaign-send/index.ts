@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!account) return json({ error: "Esta marca não tem WhatsApp ligado." }, 400);
 
-  const { data: template } = await adminClient.from("whatsapp_templates").select("id, name, language, twilio_content_sid, status").eq("id", campaign.template_id).maybeSingle();
+  const { data: template } = await adminClient.from("whatsapp_templates").select("id, name, language, twilio_content_sid, status").eq("id", campaign.template_id).eq("brand_id", campaign.brand_id).maybeSingle();
   if (!template) return json({ error: "Template da campanha não encontrado." }, 400);
   if (template.status !== "approved") return json({ error: "O template desta campanha ainda não foi aprovado." }, 400);
 

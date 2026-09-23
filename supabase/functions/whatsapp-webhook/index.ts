@@ -5,10 +5,29 @@
 //
 // GET  — handshake de verificação exigido pela Meta ao registares o webhook.
 // POST — eventos reais (mensagens recebidas, estados de entrega, etc.).
+//
+// A assinatura X-Hub-Signature-256 é verificada com o App Secret da
+// Meta (META_APP_SECRET nos Secrets do projeto — o mesmo para todas
+// as marcas, porque todas passam pela mesma App da Meta). Sem isto,
+// qualquer pedido a fingir-se de mensagem de um phone_number_id
+// conhecido seria aceite como se viesse mesmo da Meta.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const VERIFY_TOKEN = Deno.env.get("WHATSAPP_VERIFY_TOKEN") || "";
+const encoder = new TextEncoder();
+
+async function verifyMetaSignature(rawBody, signatureHeader, appSecret) {
+  if (!signatureHeader?.startsWith("sha256=")) return false;
+  const expectedHex = signatureHeader.slice("sha256=".length);
+  const key = await crypto.subtle.importKey("raw", encoder.encode(appSecret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const signed = await crypto.subtle.sign("HMAC", key, encoder.encode(rawBody));
+  const computedHex = Array.from(new Uint8Array(signed)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  if (computedHex.length !== expectedHex.length) return false;
+  let diff = 0;
+  for (let i = 0; i < computedHex.length; i++) diff |= computedHex.charCodeAt(i) ^ expectedHex.charCodeAt(i);
+  return diff === 0;
+}
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
@@ -27,13 +46,21 @@ Deno.serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
+  const appSecret = Deno.env.get("META_APP_SECRET");
+  const rawBody = await req.text();
+  const signatureHeader = req.headers.get("x-hub-signature-256");
+
+  if (!appSecret || !(await verifyMetaSignature(rawBody, signatureHeader, appSecret))) {
+    return new Response("Assinatura inválida.", { status: 403 });
+  }
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
   let payload;
   try {
-    payload = await req.json();
+    payload = JSON.parse(rawBody);
   } catch {
     return new Response("Bad Request", { status: 400 });
   }

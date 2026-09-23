@@ -97,13 +97,21 @@ Deno.serve(async (req) => {
   const { data: token } = await adminClient.rpc("vault_read_secret", { p_id: account.access_token_ref });
   if (!token) return json({ error: "Não foi possível obter o token de acesso." }, 500);
 
+  // contactId vem do pedido — confirma que pertence mesmo a esta
+  // marca antes de o ligar à conversa.
+  let verifiedContactId = null;
+  if (contactId) {
+    const { data: contact } = await adminClient.from("contacts").select("id").eq("id", contactId).eq("brand_id", brandId).maybeSingle();
+    verifiedContactId = contact?.id || null;
+  }
+
   let conversation = (
     await adminClient.from("whatsapp_conversations").select("id").eq("brand_id", brandId).eq("wa_contact_phone", phone).maybeSingle()
   ).data;
   if (!conversation) {
     const { data: created, error: createError } = await adminClient
       .from("whatsapp_conversations")
-      .insert({ brand_id: brandId, contact_id: contactId || null, wa_contact_phone: phone })
+      .insert({ brand_id: brandId, contact_id: verifiedContactId, wa_contact_phone: phone })
       .select("id")
       .single();
     if (createError) return json({ error: createError.message }, 500);

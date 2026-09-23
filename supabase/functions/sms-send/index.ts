@@ -62,8 +62,17 @@ Deno.serve(async (req) => {
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
+  // contactId vem do pedido — confirma que pertence mesmo a esta
+  // marca antes de o ligar à mensagem (evita ligar um contacto de
+  // outra marca por engano ou de propósito).
+  let verifiedContactId = null;
+  if (contactId) {
+    const { data: contact } = await adminClient.from("contacts").select("id").eq("id", contactId).eq("brand_id", brandId).maybeSingle();
+    verifiedContactId = contact?.id || null;
+  }
+
   try {
-    await sendSmsText(adminClient, brandId, toPhone, text, contactId || null);
+    await sendSmsText(adminClient, brandId, toPhone, text, verifiedContactId);
   } catch (err) {
     return json({ error: err?.message || "Falha ao enviar SMS." }, 502);
   }
