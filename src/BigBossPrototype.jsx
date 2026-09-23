@@ -3124,10 +3124,11 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
                   }}
                 >
                   <Icon size={19} color={c.boss} strokeWidth={1.7} />
+                  {/* Nomes de módulos nunca traduzem — são nome de produto, não texto de interface. */}
                   <div style={{ ...serif, fontSize: 15.5, color: c.ink, fontWeight: 500, marginTop: 14 }}>
-                    {t(`module.${m.key}`, m.label)}
+                    {m.label}
                   </div>
-                  <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 3 }}>{t(`module.${m.key}.sub`, m.sub)}</div>
+                  <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 3 }}>{m.sub}</div>
                 </button>
               );
             })}
