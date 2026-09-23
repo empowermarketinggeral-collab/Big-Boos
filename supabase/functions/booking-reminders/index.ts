@@ -11,9 +11,9 @@ function fillTemplate(template, vars) {
 
 async function sendWhatsappText(admin, brandId, toPhone, body) {
   const { data: account } = await admin.from("whatsapp_accounts").select("provider, phone_number_id, twilio_account_sid, access_token_ref").eq("brand_id", brandId).maybeSingle();
-  if (!account) return;
+  if (!account) throw new Error("Esta marca não tem WhatsApp ligado.");
   const { data: token } = await admin.rpc("vault_read_secret", { p_id: account.access_token_ref });
-  if (!token) return;
+  if (!token) throw new Error("Não foi possível obter o token de acesso.");
 
   let { data: conversation } = await admin.from("whatsapp_conversations").select("id").eq("brand_id", brandId).eq("wa_contact_phone", toPhone).maybeSingle();
   if (!conversation) {
@@ -21,7 +21,7 @@ async function sendWhatsappText(admin, brandId, toPhone, body) {
     conversation = created;
   }
 
-  let ok, msgId;
+  let ok, msgId, errMsg;
   if (account.provider === "twilio") {
     const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${account.twilio_account_sid}/Messages.json`, {
       method: "POST",
@@ -29,7 +29,7 @@ async function sendWhatsappText(admin, brandId, toPhone, body) {
       body: new URLSearchParams({ From: `whatsapp:${account.phone_number_id}`, To: `whatsapp:${toPhone}`, Body: body }),
     });
     const data = await res.json();
-    ok = res.ok; msgId = data?.sid || null;
+    ok = res.ok; msgId = data?.sid || null; errMsg = data?.message;
   } else {
     const res = await fetch(`https://graph.facebook.com/v20.0/${account.phone_number_id}/messages`, {
       method: "POST",
@@ -37,20 +37,21 @@ async function sendWhatsappText(admin, brandId, toPhone, body) {
       body: JSON.stringify({ messaging_product: "whatsapp", to: toPhone, type: "text", text: { body } }),
     });
     const data = await res.json();
-    ok = res.ok; msgId = data?.messages?.[0]?.id || null;
+    ok = res.ok; msgId = data?.messages?.[0]?.id || null; errMsg = data?.error?.message;
   }
 
   await admin.from("whatsapp_messages").insert({
     brand_id: brandId, conversation_id: conversation.id, direction: "outbound",
     wa_message_id: msgId, type: "text", body, status: ok ? "sent" : "failed",
   });
+  if (!ok) throw new Error(errMsg || "Falha ao enviar WhatsApp.");
 }
 
 async function sendSmsText(admin, brandId, toPhone, body, contactId) {
   const { data: account } = await admin.from("sms_accounts").select("account_sid, from_number, auth_token_ref").eq("brand_id", brandId).maybeSingle();
-  if (!account) return;
+  if (!account) throw new Error("Esta marca não tem SMS ligado.");
   const { data: token } = await admin.rpc("vault_read_secret", { p_id: account.auth_token_ref });
-  if (!token) return;
+  if (!token) throw new Error("Não foi possível obter o token de acesso.");
   const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${account.account_sid}/Messages.json`, {
     method: "POST",
     headers: { Authorization: `Basic ${btoa(`${account.account_sid}:${token}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
@@ -61,19 +62,36 @@ async function sendSmsText(admin, brandId, toPhone, body, contactId) {
     brand_id: brandId, contact_id: contactId || null, to_number: toPhone, body, direction: "outbound",
     provider_ref: data?.sid || null, status: res.ok ? "sent" : "failed",
   });
+  if (!res.ok) throw new Error(data?.message || "Falha ao enviar SMS.");
 }
 
-async function sendEmail(admin, brandId, toEmail, subject, html) {
+async function sendEmail(admin, brandId, toEmail, subject, html, contactId) {
   const { data: domain } = await admin.from("email_domains").select("from_name, from_email, api_key_ref").eq("brand_id", brandId).maybeSingle();
-  if (!domain) return;
+  if (!domain) throw new Error("Esta marca não tem email ligado.");
   const { data: apiKey } = await admin.rpc("vault_read_secret", { p_id: domain.api_key_ref });
-  if (!apiKey) return;
+  if (!apiKey) throw new Error("Não foi possível obter a chave de envio.");
   const from = domain.from_name ? `${domain.from_name} <${domain.from_email}>` : domain.from_email;
-  await fetch("https://api.resend.com/emails", {
+  const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from, to: toEmail, subject, html }),
   });
+  const data = await res.json();
+
+  // email_sends.contact_id é obrigatório — sem contacto CRM ligado à
+  // marcação (ex: cliente convidado, sem ficha), não há onde registar
+  // o envio; envia-se na mesma, só não fica esse registo de tracking.
+  if (contactId) {
+    await admin.from("email_sends").insert({
+      brand_id: brandId,
+      contact_id: contactId,
+      provider_ref: data?.id || null,
+      status: res.ok ? "sent" : "failed",
+      error: res.ok ? null : data?.message || data?.error || JSON.stringify(data),
+      sent_at: res.ok ? new Date().toISOString() : null,
+    });
+  }
+  if (!res.ok) throw new Error(data?.message || "Falha ao enviar email.");
 }
 
 async function notify(admin, appt, setting, defaultText) {
@@ -86,7 +104,18 @@ async function notify(admin, appt, setting, defaultText) {
   const text = fillTemplate(setting.message_template, vars) || defaultText(vars);
   if (setting.channel === "whatsapp" && appt.customer_phone) await sendWhatsappText(admin, appt.brand_id, appt.customer_phone, text);
   if (setting.channel === "sms" && appt.customer_phone) await sendSmsText(admin, appt.brand_id, appt.customer_phone, text, appt.contact_id);
-  if (setting.channel === "email" && appt.customer_email) await sendEmail(admin, appt.brand_id, appt.customer_email, "Marcação", text);
+  if (setting.channel === "email" && appt.customer_email) await sendEmail(admin, appt.brand_id, appt.customer_email, "Marcação", text, appt.contact_id);
+}
+
+// As funções de envio acima lançam erro em falha (ex: marca sem canal
+// ligado, ou a API do fornecedor a recusar). Isola cada marcação para
+// uma falha não travar o resto do lote neste ciclo do cron.
+async function notifySafe(admin, appt, setting, defaultText) {
+  try {
+    await notify(admin, appt, setting, defaultText);
+  } catch (err) {
+    console.error("Falha ao notificar marcação", { apptId: appt.id, channel: setting.channel, error: String(err?.message || err) });
+  }
 }
 
 Deno.serve(async () => {
@@ -109,7 +138,7 @@ Deno.serve(async () => {
         .eq("brand_id", setting.brand_id).eq("status", "confirmed").eq("reminder_24h_sent", false)
         .gte("starts_at", from).lte("starts_at", to);
       for (const appt of appts || []) {
-        await notify(admin, appt, setting, (v) => `Lembrete: tens ${v.servico} marcado amanhã, ${v.data} às ${v.hora}.`);
+        await notifySafe(admin, appt, setting, (v) => `Lembrete: tens ${v.servico} marcado amanhã, ${v.data} às ${v.hora}.`);
         await admin.from("booking_appointments").update({ reminder_24h_sent: true }).eq("id", appt.id);
         sent24h++;
       }
@@ -128,7 +157,7 @@ Deno.serve(async () => {
         .eq("brand_id", setting.brand_id).eq("status", "confirmed").eq("reminder_1h_sent", false)
         .gte("starts_at", from).lte("starts_at", to);
       for (const appt of appts || []) {
-        await notify(admin, appt, setting, (v) => `Lembrete: tens ${v.servico} marcado daqui a 1 hora, às ${v.hora}.`);
+        await notifySafe(admin, appt, setting, (v) => `Lembrete: tens ${v.servico} marcado daqui a 1 hora, às ${v.hora}.`);
         await admin.from("booking_appointments").update({ reminder_1h_sent: true }).eq("id", appt.id);
         sent1h++;
       }
@@ -146,7 +175,7 @@ Deno.serve(async () => {
         .lte("ends_at", new Date(now).toISOString());
       for (const appt of appts || []) {
         const reviewLine = setting.review_link ? ` Se gostaste, avalia-nos aqui: ${setting.review_link}` : "";
-        await notify(admin, appt, setting, (v) => `Obrigado pela tua visita, ${v.nome}!${reviewLine}`);
+        await notifySafe(admin, appt, setting, (v) => `Obrigado pela tua visita, ${v.nome}!${reviewLine}`);
         await admin.from("booking_appointments").update({ post_visit_sent: true, status: "completed" }).eq("id", appt.id);
         sentPostVisit++;
       }

@@ -90,6 +90,23 @@ async function sendSmsText(admin, brandId, toPhone, body, contactId) {
   if (!res.ok) throw new Error(data?.message || "Falha ao enviar SMS.");
 }
 
+async function sendEmailViaResend(admin, brandId, toEmail, subject, html) {
+  const { data: domain } = await admin.from("email_domains").select("from_name, from_email, api_key_ref").eq("brand_id", brandId).maybeSingle();
+  if (!domain) return { ok: false, providerRef: null, error: "Esta marca não tem email ligado." };
+
+  const { data: apiKey } = await admin.rpc("vault_read_secret", { p_id: domain.api_key_ref });
+  if (!apiKey) return { ok: false, providerRef: null, error: "Não foi possível obter a chave de envio." };
+
+  const from = domain.from_name ? `${domain.from_name} <${domain.from_email}>` : domain.from_email;
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from, to: toEmail, subject, html: html || "" }),
+  });
+  const data = await res.json();
+  return { ok: res.ok, providerRef: data?.id || null, error: res.ok ? null : data?.message || data?.error || JSON.stringify(data) };
+}
+
 async function runAction(admin, brandId, step, contact) {
   const config = step.config || {};
   switch (step.action_type) {
@@ -121,6 +138,21 @@ async function runAction(admin, brandId, step, contact) {
     case "send_sms": {
       if (!contact?.phone) throw new Error("O contacto não tem telefone.");
       await sendSmsText(admin, brandId, contact.phone, config.body || "", contact.id);
+      return;
+    }
+    case "send_email": {
+      if (!contact?.email) throw new Error("O contacto não tem email.");
+      const result = await sendEmailViaResend(admin, brandId, contact.email, config.subject || "", config.body || "");
+      await admin.from("email_sends").insert({
+        brand_id: brandId,
+        automation_step_id: step.id,
+        contact_id: contact.id,
+        provider_ref: result.providerRef,
+        status: result.ok ? "sent" : "failed",
+        error: result.ok ? null : result.error,
+        sent_at: result.ok ? new Date().toISOString() : null,
+      });
+      if (!result.ok) throw new Error(result.error || "Falha ao enviar email.");
       return;
     }
     case "http_request": {
