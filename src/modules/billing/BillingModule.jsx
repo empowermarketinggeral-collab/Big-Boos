@@ -52,8 +52,11 @@ function useSubscription(brandId) {
 function useCheckout(brandId) {
   return useMutation({
     mutationFn: async (planId) => {
-      const currentUrl = window.location.href;
-      return invokeFunction("stripe-checkout", { brandId, planId, successUrl: currentUrl, cancelUrl: currentUrl });
+      // Este link vai para o cliente, não para quem o está a gerar —
+      // por isso aponta para a raiz pública da app (login), nunca para
+      // o URL interno de onde foi gerado.
+      const origin = window.location.origin;
+      return invokeFunction("stripe-checkout", { brandId, planId, successUrl: `${origin}/?pagamento=sucesso`, cancelUrl: origin });
     },
   });
 }
@@ -138,23 +141,41 @@ function useDeleteItem(brandId) {
 /* ---------------------------------------------------------
    SUBSCRIÇÃO
 --------------------------------------------------------- */
-function SubscriptionCard({ brandId }) {
+function SubscriptionCard({ brandId, isClient }) {
   const subQuery = useSubscription(brandId);
   const plansQuery = usePlans();
   const checkout = useCheckout(brandId);
   const portal = usePortal(brandId);
   const [error, setError] = useState("");
+  const [checkoutLink, setCheckoutLink] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const sub = subQuery.data;
   const isActive = sub && (sub.status === "active" || sub.status === "trialing");
 
-  const goCheckout = async (planId) => {
+  // A marca nunca se subscreve a si própria — é a equipa da agência
+  // que gera o link de pagamento aqui e o envia ao cliente por fora
+  // (WhatsApp/email). Só depois de confirmado o pagamento é que faz
+  // sentido dar acesso à marca — por isso isto nunca abre o Checkout
+  // diretamente no browser de quem está a gerar o link.
+  const generateLink = async (planId) => {
     setError("");
+    setCheckoutLink(null);
     try {
       const result = await checkout.mutateAsync(planId);
-      window.location.href = result.url;
+      setCheckoutLink(result.url);
     } catch (err) {
-      setError(err.message || "Não foi possível iniciar o checkout.");
+      setError(err.message || "Não foi possível gerar o link.");
+    }
+  };
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(checkoutLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError("Não foi possível copiar — copia manualmente.");
     }
   };
 
@@ -167,6 +188,10 @@ function SubscriptionCard({ brandId }) {
       setError(err.message || "Não foi possível abrir o portal.");
     }
   };
+
+  const waShareLink = checkoutLink
+    ? `https://wa.me/?text=${encodeURIComponent(`Olá! Aqui está o link para ativares o acesso à plataforma: ${checkoutLink}`)}`
+    : null;
 
   return (
     <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20, marginBottom: 24 }}>
@@ -188,12 +213,16 @@ function SubscriptionCard({ brandId }) {
             <ExternalLink size={13} /> {portal.isPending ? "A abrir…" : "Gerir subscrição"}
           </button>
         </div>
+      ) : isClient ? (
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>
+          A tua subscrição ainda não está ativa — fala com a tua agência.
+        </div>
       ) : (
         <>
           {sub?.status === "canceled" && (
-            <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 14 }}>A subscrição anterior foi cancelada. Escolhe um plano para reativar.</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 14 }}>A subscrição anterior foi cancelada. Gera um novo link para reativar.</div>
           )}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: checkoutLink ? 16 : 0 }}>
             {(plansQuery.data || []).map((plan) => (
               <div key={plan.id} style={{ border: `1px solid ${c.line}`, borderRadius: 12, padding: 16 }}>
                 <div style={{ ...serif, fontSize: 16, color: c.ink, marginBottom: 4 }}>{plan.name}</div>
@@ -207,12 +236,23 @@ function SubscriptionCard({ brandId }) {
                     </div>
                   ))}
                 </div>
-                <button onClick={() => goCheckout(plan.id)} disabled={checkout.isPending} style={{ ...btnPrimary, width: "100%", justifyContent: "center" }}>
-                  {checkout.isPending ? "A abrir…" : "Subscrever"}
+                <button onClick={() => generateLink(plan.id)} disabled={checkout.isPending} style={{ ...btnPrimary, width: "100%", justifyContent: "center" }}>
+                  {checkout.isPending ? "A gerar…" : "Gerar link de pagamento"}
                 </button>
               </div>
             ))}
           </div>
+          {checkoutLink && (
+            <div style={{ background: c.paper, borderRadius: 12, padding: 16 }}>
+              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 8 }}>Envia este link ao cliente para ele ativar o acesso:</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <input readOnly value={checkoutLink} onFocus={(e) => e.target.select()} style={{ ...inputStyle, flex: 1, minWidth: 200 }} />
+                <button onClick={copyLink} style={btnGhost}>{copied ? "Copiado ✓" : "Copiar"}</button>
+                <a href={waShareLink} target="_blank" rel="noreferrer" style={{ ...btnPrimary, textDecoration: "none" }}>Enviar por WhatsApp</a>
+              </div>
+              <div style={{ ...sans, fontSize: 11, color: c.mistLight, marginTop: 8 }}>Este link expira ao fim de algum tempo se não for usado — gera um novo se precisares.</div>
+            </div>
+          )}
         </>
       )}
       {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginTop: 12 }}>{error}</div>}
@@ -230,7 +270,7 @@ function invoiceTotal(invoice) {
   return (invoice.service_invoice_items || []).reduce((sum, it) => sum + it.quantity * it.unit_price_cents, 0);
 }
 
-function InvoiceEditor({ brandId, invoice, onBack }) {
+function InvoiceEditor({ brandId, invoice, onBack, isClient }) {
   const updateInvoice = useUpdateInvoice(brandId);
   const deleteInvoiceItem = useDeleteItem(brandId);
   const addItem = useAddItem(brandId, invoice.id);
@@ -243,7 +283,9 @@ function InvoiceEditor({ brandId, invoice, onBack }) {
   const [saved, setSaved] = useState(false);
 
   const total = invoiceTotal(invoice);
-  const locked = invoice.status === "paid" || invoice.status === "cancelled";
+  // O cliente só lê — o backend (RLS) já bloqueia escrita dele nesta
+  // tabela, isto é só para a UI não mostrar controlos que iam falhar.
+  const locked = isClient || invoice.status === "paid" || invoice.status === "cancelled";
 
   const save = async () => {
     await updateInvoice.mutateAsync({ id: invoice.id, patch: { title, due_date: dueDate || null, notes } });
@@ -321,17 +363,19 @@ function InvoiceEditor({ brandId, invoice, onBack }) {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {invoice.status === "draft" && <button onClick={() => setStatus("sent")} style={btnPrimary}>Marcar como enviada</button>}
-          {(invoice.status === "sent" || invoice.status === "overdue") && <button onClick={() => setStatus("paid")} style={{ ...btnPrimary, background: c.sage }}>Marcar como paga</button>}
-          {invoice.status !== "cancelled" && invoice.status !== "paid" && <button onClick={() => setStatus("cancelled")} style={btnGhost}>Cancelar fatura</button>}
-        </div>
+        {!isClient && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {invoice.status === "draft" && <button onClick={() => setStatus("sent")} style={btnPrimary}>Marcar como enviada</button>}
+            {(invoice.status === "sent" || invoice.status === "overdue") && <button onClick={() => setStatus("paid")} style={{ ...btnPrimary, background: c.sage }}>Marcar como paga</button>}
+            {invoice.status !== "cancelled" && invoice.status !== "paid" && <button onClick={() => setStatus("cancelled")} style={btnGhost}>Cancelar fatura</button>}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function InvoicesPanel({ brandId }) {
+function InvoicesPanel({ brandId, isClient }) {
   const invoicesQuery = useInvoices(brandId);
   const createInvoice = useCreateInvoice(brandId);
   const deleteInvoice = useDeleteInvoice(brandId);
@@ -343,15 +387,17 @@ function InvoicesPanel({ brandId }) {
   const invoices = invoicesQuery.data || [];
   const open = openId ? invoices.find((iv) => iv.id === openId) : null;
 
-  if (open) return <InvoiceEditor brandId={brandId} invoice={open} onBack={() => setOpenId(null)} />;
+  if (open) return <InvoiceEditor brandId={brandId} invoice={open} onBack={() => setOpenId(null)} isClient={isClient} />;
 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div style={{ ...serif, fontSize: 17, color: c.ink }}>Faturas de serviços</div>
-        <button onClick={() => setShowNew(true)} style={btnPrimary}>
-          <Plus size={14} /> Nova fatura
-        </button>
+        {!isClient && (
+          <button onClick={() => setShowNew(true)} style={btnPrimary}>
+            <Plus size={14} /> Nova fatura
+          </button>
+        )}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {invoices.map((iv) => (
@@ -365,7 +411,7 @@ function InvoicesPanel({ brandId }) {
             <span style={{ ...sans, fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", borderRadius: 999, padding: "4px 10px", color: INVOICE_STATUS_COLOR[iv.status], background: c.paper }}>
               {INVOICE_STATUS_LABEL[iv.status]}
             </span>
-            {iv.status === "draft" && (
+            {!isClient && iv.status === "draft" && (
               <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(iv); }} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 6, flexShrink: 0 }}>
                 <Trash2 size={14} />
               </button>
@@ -377,7 +423,7 @@ function InvoicesPanel({ brandId }) {
         )}
       </div>
 
-      {showNew && (
+      {!isClient && showNew && (
         <Modal title="Nova fatura" onClose={() => setShowNew(false)} width={360}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <input style={inputStyle} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Ex: Gestão de redes — outubro" autoFocus />
@@ -411,7 +457,9 @@ function InvoicesPanel({ brandId }) {
 /* ---------------------------------------------------------
    MÓDULO
 --------------------------------------------------------- */
-export default function BillingModule({ brand, onBack }) {
+export default function BillingModule({ brand, onBack, session }) {
+  const isClient = session?.role === "aprovador_marca" || session?.role === "agencia_aprovador";
+
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
@@ -423,8 +471,8 @@ export default function BillingModule({ brand, onBack }) {
         <CreditCard size={20} color={c.boss} /> Faturação
       </h1>
 
-      <SubscriptionCard brandId={brand.id} />
-      <InvoicesPanel brandId={brand.id} />
+      <SubscriptionCard brandId={brand.id} isClient={isClient} />
+      <InvoicesPanel brandId={brand.id} isClient={isClient} />
     </div>
   );
 }
