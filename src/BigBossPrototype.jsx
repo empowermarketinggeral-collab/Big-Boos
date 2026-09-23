@@ -9576,6 +9576,12 @@ function LoginPage() {
             {loading ? t("login.submitting") : t("login.title")}
           </button>
         </form>
+
+        <div style={{ textAlign: "center", marginTop: 16 }}>
+          <a href="/registar" style={{ ...sans, fontSize: 12, color: c.mist, textDecoration: "none" }}>
+            Não tens conta? Regista a tua agência
+          </a>
+        </div>
       </div>
     </div>
   );
