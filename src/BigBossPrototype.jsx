@@ -8,7 +8,7 @@ import {
   Clock, ChevronRight, ChevronLeft, BookMarked, ClipboardList, Layers, Video,
   Link2, Calculator, Sparkles, Eye, Zap, Target, TrendingUp,
   Trash2, Pencil, ChevronUp, ChevronDown, Image as ImageIcon,
-  Instagram, Facebook, Youtube, MessageCircle, Music2, Palette, Handshake, Kanban, Mail, MessageSquare,
+  Instagram, Facebook, Youtube, MessageCircle, Music2, Palette, Handshake, Kanban, Mail, MessageSquare, Inbox,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -23,6 +23,7 @@ import FunnelsModule from "./modules/funnels/FunnelsModule.jsx";
 import SocialModule from "./modules/social/SocialModule.jsx";
 import BookingModule from "./modules/booking/BookingModule.jsx";
 import SmsModule from "./modules/sms/SmsModule.jsx";
+import InboxModule from "./modules/inbox/InboxModule.jsx";
 import { c, sans, serif, StatusDot, Eyebrow, ChartCard, CAN_MANAGE_ROLES } from "./shared/theme.jsx";
 
 /* ---------------------------------------------------------
@@ -2258,6 +2259,7 @@ function useRemoveMember() {
 }
 
 const MODULES = [
+  { key: "inbox", label: "Inbox Unificado", sub: "Todas as conversas, num só sítio", icon: Inbox },
   { key: "crm", label: "CRM", sub: "Contactos, pipeline e negócios", icon: Kanban },
   { key: "whatsapp", label: "WhatsApp", sub: "Inbox e conversas", icon: MessageCircle },
   { key: "automacoes", label: "Automações", sub: "Fluxos automáticos", icon: Zap },
@@ -2772,6 +2774,9 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
   }
   if (sub === "sms") {
     return <SmsModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
+  }
+  if (sub === "inbox") {
+    return <InboxModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
   }
   if (sub === "conteudos") {
     return <ConteudosView brand={brand} onBack={() => onOpenSub(null)} session={session} />;

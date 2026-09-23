@@ -69,7 +69,7 @@ async function sendWhatsappText(admin, brandId, toPhone, body) {
   if (!ok) throw new Error(errMsg || "Falha ao enviar WhatsApp.");
 }
 
-async function sendSmsText(admin, brandId, toPhone, body) {
+async function sendSmsText(admin, brandId, toPhone, body, contactId) {
   const { data: account } = await admin.from("sms_accounts").select("account_sid, from_number, auth_token_ref").eq("brand_id", brandId).maybeSingle();
   if (!account) throw new Error("Esta marca não tem SMS ligado.");
 
@@ -84,7 +84,7 @@ async function sendSmsText(admin, brandId, toPhone, body) {
   const data = await res.json();
 
   await admin.from("sms_messages").insert({
-    brand_id: brandId, to_number: toPhone, body, direction: "outbound",
+    brand_id: brandId, contact_id: contactId || null, to_number: toPhone, body, direction: "outbound",
     provider_ref: data?.sid || null, status: res.ok ? "sent" : "failed",
   });
   if (!res.ok) throw new Error(data?.message || "Falha ao enviar SMS.");
@@ -120,7 +120,7 @@ async function runAction(admin, brandId, step, contact) {
     }
     case "send_sms": {
       if (!contact?.phone) throw new Error("O contacto não tem telefone.");
-      await sendSmsText(admin, brandId, contact.phone, config.body || "");
+      await sendSmsText(admin, brandId, contact.phone, config.body || "", contact.id);
       return;
     }
     case "http_request": {

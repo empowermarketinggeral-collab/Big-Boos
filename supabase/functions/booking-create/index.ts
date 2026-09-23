@@ -60,7 +60,7 @@ async function sendWhatsappText(admin, brandId, toPhone, body) {
   });
 }
 
-async function sendSmsText(admin, brandId, toPhone, body) {
+async function sendSmsText(admin, brandId, toPhone, body, contactId) {
   const { data: account } = await admin.from("sms_accounts").select("account_sid, from_number, auth_token_ref").eq("brand_id", brandId).maybeSingle();
   if (!account) return;
   const { data: token } = await admin.rpc("vault_read_secret", { p_id: account.auth_token_ref });
@@ -72,7 +72,7 @@ async function sendSmsText(admin, brandId, toPhone, body) {
   });
   const data = await res.json();
   await admin.from("sms_messages").insert({
-    brand_id: brandId, to_number: toPhone, body, direction: "outbound",
+    brand_id: brandId, contact_id: contactId || null, to_number: toPhone, body, direction: "outbound",
     provider_ref: data?.sid || null, status: res.ok ? "sent" : "failed",
   });
 }
@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
     const vars = { nome: name, servico: service.name, data: start.toLocaleDateString("pt-PT"), hora: start.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }) };
     const text = fillTemplate(confirmationSetting.message_template, vars) || `A tua marcação de ${service.name} ficou confirmada para ${vars.data} às ${vars.hora}.`;
     if (confirmationSetting.channel === "whatsapp" && phone) await sendWhatsappText(admin, brandId, phone, text);
-    if (confirmationSetting.channel === "sms" && phone) await sendSmsText(admin, brandId, phone, text);
+    if (confirmationSetting.channel === "sms" && phone) await sendSmsText(admin, brandId, phone, text, contactId);
     if (confirmationSetting.channel === "email" && email) await sendEmail(admin, brandId, email, "Marcação confirmada", text);
   }
 
