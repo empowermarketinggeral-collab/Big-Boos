@@ -980,7 +980,7 @@ function Inbox({ brandId }) {
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", height: "calc(100vh - 260px)", minHeight: 420, border: `1px solid ${c.line}`, borderRadius: 14, overflow: "hidden" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "var(--bb-split, 280px 1fr)", height: "calc(100vh - 260px)", minHeight: 420, border: `1px solid ${c.line}`, borderRadius: 14, overflow: "hidden" }}>
       <div style={{ borderRight: `1px solid ${c.line}`, overflowY: "auto", padding: 8 }}>
         {conversations.map((conv) => (
           <ConversationRow key={conv.id} conversation={conv} active={selected?.id === conv.id} onSelect={() => setSelectedId(conv.id)} />

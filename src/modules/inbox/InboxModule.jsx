@@ -244,7 +244,7 @@ export default function InboxModule({ brand, onBack }) {
           Ainda sem atividade em WhatsApp, Email ou SMS para esta marca.
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", height: "calc(100vh - 220px)", minHeight: 420, border: `1px solid ${c.line}`, borderRadius: 14, overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "var(--bb-split, 280px 1fr)", height: "calc(100vh - 220px)", minHeight: 420, border: `1px solid ${c.line}`, borderRadius: 14, overflow: "hidden" }}>
           <div style={{ borderRight: `1px solid ${c.line}`, overflowY: "auto", padding: 8 }}>
             {contacts.map((entry) => (
               <ContactRow key={entry.contactId} entry={entry} active={selected?.contactId === entry.contactId} onSelect={() => setSelectedId(entry.contactId)} />
