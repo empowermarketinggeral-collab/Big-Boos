@@ -1,7 +1,7 @@
 -- =========================================================
 -- WINGCARE — templates de WhatsApp da reativação (Twilio)
 -- =========================================================
--- Corre isto depois do 62_wingcare_fronts_brands_courses.sql (não
+-- Corre isto depois do 65 (ou só depois do 62 — não
 -- depende do 63). Um único Run; pode voltar a correr sem duplicar.
 --
 -- 1. whatsapp_templates passa a aceitar o estado 'draft' (rascunho por

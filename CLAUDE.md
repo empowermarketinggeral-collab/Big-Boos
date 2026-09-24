@@ -8,7 +8,7 @@ Papéis em `profiles.role`: `admin_geral` (vê tudo), `membro` (equipa da agênc
 
 ## Como o utilizador faz deploy (importante)
 - **Frontend**: commit + push para `main` → Vercel. Só faz commit/push depois de o utilizador dizer que sim.
-- **SQL**: migrações numeradas em `supabase/NN_nome.sql` (a próxima é a 66). O utilizador cola-as à mão no SQL Editor do Supabase, por ordem. Escreve sempre migrações que se possam correr uma vez e diz-lhe o que correr.
+- **SQL**: migrações numeradas em `supabase/NN_nome.sql` (a próxima é a 68). O utilizador cola-as à mão no SQL Editor do Supabase, por ordem. Escreve sempre migrações que se possam correr uma vez e diz-lhe o que correr.
 - **Edge Functions**: o utilizador cola o código no Dashboard do Supabase, função a função. Por isso **cada `supabase/functions/<nome>/index.ts` tem de ser autossuficiente** — sem imports de pastas partilhadas (`_shared` não funciona). A duplicação de código entre funções é aceite de propósito.
 - Ao entregar funções alteradas, dá o código completo (ou envia os ficheiros) e diz se "Verify JWT" fica ligado. Desligado só em: webhooks (`stripe-webhook`, `twilio-whatsapp-webhook`, `whatsapp-webhook`, `lead-intake` — este autentica com token por marca), `agency-signup`, funções chamadas por cron e páginas públicas de marcação.
 - Segredos globais (ex: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) vivem em Edge Function Secrets (`Deno.env.get`). Segredos por marca (tokens Twilio/Meta/Resend/redes sociais) vão para o Vault via `vault_upsert_secret` e guarda-se só a referência na tabela.
