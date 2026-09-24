@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
 import {
-  ArrowLeft, Plus, X, Trash2, Pencil, Phone, Mail, Search, GripVertical, Download, Upload,
+  ArrowLeft, Plus, X, Trash2, Pencil, Phone, Mail, Search, GripVertical, Download, Upload, Link2,
 } from "lucide-react";
+import LeadIntakeModal from "./LeadIntakeModal.jsx";
 
 /* ---------------------------------------------------------
    CRM — Contactos + Pipeline (Kanban) + Negócios
@@ -34,6 +35,8 @@ function mapContactRow(row) {
     source: row.source || "",
     optedInWhatsapp: !!row.opted_in_whatsapp,
     optedInEmail: !!row.opted_in_email,
+    birthDate: row.birth_date || "",
+    referredBy: row.referred_by || "",
     tags: (row.contact_tags || []).map((ct) => ct.tags).filter(Boolean),
     createdAt: row.created_at,
   };
@@ -58,18 +61,19 @@ function useContacts(brandId) {
 function useSaveContact(brandId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name, email, phone, source, optedInEmail, optedInWhatsapp, createdBy }) => {
+    mutationFn: async ({ id, name, email, phone, source, optedInEmail, optedInWhatsapp, birthDate, referredBy, createdBy }) => {
+      const extra = { birth_date: birthDate || null, referred_by: referredBy || null };
       if (id) {
         const { error } = await supabase
           .from("contacts")
-          .update({ name, email, phone, source, opted_in_email: optedInEmail, opted_in_whatsapp: optedInWhatsapp })
+          .update({ name, email, phone, source, opted_in_email: optedInEmail, opted_in_whatsapp: optedInWhatsapp, ...extra })
           .eq("id", id);
         if (error) throw error;
         return id;
       }
       const { data, error } = await supabase
         .from("contacts")
-        .insert({ brand_id: brandId, name, email, phone, source, opted_in_email: optedInEmail, opted_in_whatsapp: optedInWhatsapp, created_by: createdBy })
+        .insert({ brand_id: brandId, name, email, phone, source, opted_in_email: optedInEmail, opted_in_whatsapp: optedInWhatsapp, ...extra, created_by: createdBy })
         .select()
         .single();
       if (error) throw error;
@@ -459,7 +463,9 @@ function useAddDealNote(brandId, dealId) {
 /* ---------------------------------------------------------
    CONTACTOS
 --------------------------------------------------------- */
-function ContactFormModal({ brandId, contact, onClose, session }) {
+function ContactFormModal({ brandId, contact, contacts, onClose, session }) {
+  const [birthDate, setBirthDate] = useState(contact?.birthDate || "");
+  const [referredBy, setReferredBy] = useState(contact?.referredBy || "");
   const [name, setName] = useState(contact?.name || "");
   const [email, setEmail] = useState(contact?.email || "");
   const [phone, setPhone] = useState(contact?.phone || "");
@@ -478,7 +484,7 @@ function ContactFormModal({ brandId, contact, onClose, session }) {
   const save = async () => {
     if (!name.trim()) { setError("O nome é obrigatório."); return; }
     try {
-      await saveContact.mutateAsync({ id: contact?.id, name, email, phone, source, optedInEmail, optedInWhatsapp, createdBy: session.id });
+      await saveContact.mutateAsync({ id: contact?.id, name, email, phone, source, optedInEmail, optedInWhatsapp, birthDate, referredBy, createdBy: session.id });
       onClose();
     } catch (err) {
       setError(err.message || "Não foi possível guardar.");
@@ -516,6 +522,20 @@ function ContactFormModal({ brandId, contact, onClose, session }) {
             <option value="importacao">Importação</option>
             <option value="lead_magnet">Lead magnet</option>
             <option value="funil">Funil</option>
+            <option value="landing_page">Landing page</option>
+          </select>
+        </div>
+        <div>
+          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Data de nascimento (para automações de aniversário)</div>
+          <input style={inputStyle} type="date" value={birthDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setBirthDate(e.target.value)} />
+        </div>
+        <div>
+          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Indicado por</div>
+          <select style={inputStyle} value={referredBy} onChange={(e) => setReferredBy(e.target.value)}>
+            <option value="">— ninguém —</option>
+            {(contacts || []).filter((ct) => ct.id !== contact?.id).map((ct) => (
+              <option key={ct.id} value={ct.id}>{ct.name}{ct.phone ? ` · ${ct.phone}` : ""}</option>
+            ))}
           </select>
         </div>
 
@@ -580,6 +600,7 @@ function ContactsView({ brand, session }) {
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [showLeadIntake, setShowLeadIntake] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(null);
   const [importResult, setImportResult] = useState(null);
   const [importError, setImportError] = useState("");
@@ -629,6 +650,9 @@ function ContactsView({ brand, session }) {
           <button onClick={() => fileInputRef.current?.click()} style={btnGhost} disabled={importContacts.isPending}>
             <Upload size={13} /> {importContacts.isPending ? "A importar…" : "Importar"}
           </button>
+          <button onClick={() => setShowLeadIntake(true)} style={btnGhost}>
+            <Link2 size={13} /> Entrada de leads
+          </button>
           <button onClick={() => { setEditing(null); setShowForm(true); }} style={btnPrimary}>
             <Plus size={14} /> Novo contacto
           </button>
@@ -652,10 +676,12 @@ function ContactsView({ brand, session }) {
         <ContactFormModal
           brandId={brand.id}
           contact={editing}
+          contacts={contactsQuery.data}
           session={session}
           onClose={() => { setShowForm(false); setEditing(null); }}
         />
       )}
+      {showLeadIntake && <LeadIntakeModal brand={brand} onClose={() => setShowLeadIntake(false)} />}
 
       {contactsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
 

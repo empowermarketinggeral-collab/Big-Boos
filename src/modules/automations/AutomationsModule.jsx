@@ -22,6 +22,23 @@ const TRIGGER_TYPES = [
   { value: "contact_tagged", label: "Tag adicionada a um contacto" },
   { value: "whatsapp_message_received", label: "Mensagem de WhatsApp recebida" },
   { value: "form_submitted", label: "Formulário submetido" },
+  { value: "contact_birthday", label: "Aniversário do contacto" },
+  { value: "annual_date", label: "Data especial (Natal, Ano Novo…)" },
+  { value: "contact_referred", label: "Contacto indicado por outro (indicação)" },
+];
+
+// Hora (Lisboa) a que os gatilhos por data arrancam — trigger_config.hourLocal.
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => h);
+const hourLabel = (h) => `${String(h).padStart(2, "0")}:00`;
+const DEFAULT_SEND_HOUR = 9;
+const MAX_DAY_BY_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+// Datas que se repetem todos os anos — atalhos para o gatilho "annual_date".
+const SPECIAL_DATES = [
+  { key: "natal", label: "Natal (25 dez)", month: 12, day: 25 },
+  { key: "ano_novo", label: "Ano Novo (1 jan)", month: 1, day: 1 },
+  { key: "dia_mulher", label: "Dia da Mulher (8 mar)", month: 3, day: 8 },
+  { key: "custom", label: "Outra data…" },
 ];
 
 const ACTION_TYPES = [
@@ -182,16 +199,41 @@ function NewAutomationModal({ brandId, tags, forms, onClose }) {
   const [triggerType, setTriggerType] = useState(TRIGGER_TYPES[0].value);
   const [tagId, setTagId] = useState("");
   const [formId, setFormId] = useState("");
+  const [specialDate, setSpecialDate] = useState(SPECIAL_DATES[0].key);
+  const [customMonth, setCustomMonth] = useState("1");
+  const [customDay, setCustomDay] = useState("1");
+  const [daysBefore, setDaysBefore] = useState("0");
+  const [hourLocal, setHourLocal] = useState(String(DEFAULT_SEND_HOUR));
+  const [audienceTagId, setAudienceTagId] = useState("");
+  const [requireConsent, setRequireConsent] = useState(true);
+  const [referralTarget, setReferralTarget] = useState("referrer");
   const [error, setError] = useState("");
   const createAutomation = useCreateAutomation(brandId);
+
+  const isDateTrigger = triggerType === "contact_birthday" || triggerType === "annual_date";
 
   const save = async () => {
     if (!name.trim()) { setError("O nome é obrigatório."); return; }
     if (triggerType === "contact_tagged" && !tagId) { setError("Escolhe a tag."); return; }
+    let dateConfig = null;
+    if (isDateTrigger) {
+      const before = Math.min(60, Math.max(0, parseInt(daysBefore, 10) || 0));
+      dateConfig = { daysBefore: before, hourLocal: parseInt(hourLocal, 10), requireConsent, ...(audienceTagId ? { tagId: audienceTagId } : {}) };
+      if (triggerType === "annual_date") {
+        const preset = SPECIAL_DATES.find((d) => d.key === specialDate);
+        const month = preset?.month ?? parseInt(customMonth, 10);
+        const day = preset?.day ?? parseInt(customDay, 10);
+        const maxDay = MAX_DAY_BY_MONTH[month - 1];
+        if (!month || !day || month < 1 || month > 12 || day < 1 || day > maxDay) { setError("Data inválida."); return; }
+        dateConfig = { ...dateConfig, month, day };
+      }
+    }
     try {
       const triggerConfig =
         triggerType === "contact_tagged" ? { tagId } :
-        triggerType === "form_submitted" && formId ? { formId } : {};
+        triggerType === "form_submitted" && formId ? { formId } :
+        triggerType === "contact_referred" ? { target: referralTarget } :
+        dateConfig || {};
       await createAutomation.mutateAsync({ name: name.trim(), triggerType, triggerConfig });
       onClose();
     } catch (err) {
@@ -229,6 +271,63 @@ function NewAutomationModal({ brandId, tags, forms, onClose }) {
               <option value="">Qualquer formulário</option>
               {(forms || []).map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
+          </div>
+        )}
+        {triggerType === "annual_date" && (
+          <div>
+            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Data (repete-se todos os anos)</div>
+            <select style={inputStyle} value={specialDate} onChange={(e) => setSpecialDate(e.target.value)}>
+              {SPECIAL_DATES.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+            </select>
+            {specialDate === "custom" && (
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <input style={inputStyle} type="number" min="1" max="31" value={customDay} onChange={(e) => setCustomDay(e.target.value)} placeholder="Dia" />
+                <input style={inputStyle} type="number" min="1" max="12" value={customMonth} onChange={(e) => setCustomMonth(e.target.value)} placeholder="Mês" />
+              </div>
+            )}
+          </div>
+        )}
+        {isDateTrigger && (
+          <>
+            <div>
+              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Quantos dias antes? (0 = no próprio dia)</div>
+              <input style={inputStyle} type="number" min="0" max="60" value={daysBefore} onChange={(e) => setDaysBefore(e.target.value)} />
+            </div>
+            <div>
+              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Hora de envio (hora de Lisboa)</div>
+              <select style={inputStyle} value={hourLocal} onChange={(e) => setHourLocal(e.target.value)}>
+                {HOUR_OPTIONS.map((h) => <option key={h} value={h}>{hourLabel(h)}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Só contactos com a tag (opcional)</div>
+              <select style={inputStyle} value={audienceTagId} onChange={(e) => setAudienceTagId(e.target.value)}>
+                <option value="">Todos os contactos</option>
+                {(tags || []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+            <label style={{ ...sans, fontSize: 12.5, color: c.ink, display: "flex", alignItems: "flex-start", gap: 7 }}>
+              <input type="checkbox" checked={requireConsent} onChange={(e) => setRequireConsent(e.target.checked)} style={{ marginTop: 2 }} />
+              Só contactos com consentimento (WhatsApp, email ou SMS) — recomendado
+            </label>
+            <div style={{ ...sans, fontSize: 11.5, color: c.mist }}>
+              {triggerType === "contact_birthday"
+                ? "Precisa da data de nascimento preenchida na ficha do contacto. "
+                : ""}
+              Uma vez por contacto e por ano, à hora escolhida. Se ativares a automação depois dessa hora, envia na hora seguinte.
+            </div>
+          </>
+        )}
+        {triggerType === "contact_referred" && (
+          <div>
+            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>A automação corre para…</div>
+            <select style={inputStyle} value={referralTarget} onChange={(e) => setReferralTarget(e.target.value)}>
+              <option value="referrer">Quem indicou (agradecimento / recompensa)</option>
+              <option value="referred">Quem foi indicado (boas-vindas)</option>
+            </select>
+            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 5 }}>
+              Dispara quando um contacto passa a ter "Indicado por" preenchido — na ficha do contacto ou pela entrada de leads.
+            </div>
           </div>
         )}
         {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}
@@ -463,6 +562,95 @@ function stepSummary(step) {
   return actionLabel(step.action_type);
 }
 
+/* Definições dos gatilhos por data (hora, antecedência, público) — editáveis
+   depois de criada a automação, incluindo as criadas por SQL. */
+function DateTriggerSettings({ automation, tags, updateAutomation }) {
+  const cfg = automation.trigger_config || {};
+  const isAnnual = automation.trigger_type === "annual_date";
+  const [hour, setHour] = useState(String(cfg.hourLocal ?? DEFAULT_SEND_HOUR));
+  const [daysBefore, setDaysBefore] = useState(String(cfg.daysBefore ?? 0));
+  const [requireConsent, setRequireConsent] = useState(cfg.requireConsent !== false);
+  const [tagId, setTagId] = useState(cfg.tagId || "");
+  const [day, setDay] = useState(String(cfg.day ?? ""));
+  const [month, setMonth] = useState(String(cfg.month ?? ""));
+  const [message, setMessage] = useState({ text: "", ok: false });
+
+  const save = async () => {
+    const nextConfig = {
+      ...cfg,
+      hourLocal: Math.min(23, Math.max(0, parseInt(hour, 10) || 0)),
+      daysBefore: Math.min(60, Math.max(0, parseInt(daysBefore, 10) || 0)),
+      requireConsent,
+    };
+    delete nextConfig.tagId;
+    if (tagId) nextConfig.tagId = tagId;
+    if (isAnnual) {
+      const m = parseInt(month, 10);
+      const d = parseInt(day, 10);
+      if (!m || !d || m < 1 || m > 12 || d < 1 || d > MAX_DAY_BY_MONTH[m - 1]) {
+        setMessage({ text: "Data inválida.", ok: false });
+        return;
+      }
+      nextConfig.month = m;
+      nextConfig.day = d;
+    }
+    try {
+      await updateAutomation.mutateAsync({ id: automation.id, patch: { trigger_config: nextConfig } });
+      setMessage({ text: "Guardado.", ok: true });
+    } catch (err) {
+      setMessage({ text: err.message || "Não foi possível guardar.", ok: false });
+    }
+  };
+
+  const label = { ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 };
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: 16, marginBottom: 20 }}>
+      <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.ink, marginBottom: 12 }}>Quando arranca</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+        {isAnnual && (
+          <>
+            <div>
+              <div style={label}>Dia</div>
+              <input style={inputStyle} type="number" min="1" max="31" value={day} onChange={(e) => { setDay(e.target.value); setMessage({ text: "", ok: false }); }} />
+            </div>
+            <div>
+              <div style={label}>Mês</div>
+              <input style={inputStyle} type="number" min="1" max="12" value={month} onChange={(e) => { setMonth(e.target.value); setMessage({ text: "", ok: false }); }} />
+            </div>
+          </>
+        )}
+        <div>
+          <div style={label}>Hora (Lisboa)</div>
+          <select style={inputStyle} value={hour} onChange={(e) => { setHour(e.target.value); setMessage({ text: "", ok: false }); }}>
+            {HOUR_OPTIONS.map((h) => <option key={h} value={h}>{hourLabel(h)}</option>)}
+          </select>
+        </div>
+        <div>
+          <div style={label}>Dias antes</div>
+          <input style={inputStyle} type="number" min="0" max="60" value={daysBefore} onChange={(e) => { setDaysBefore(e.target.value); setMessage({ text: "", ok: false }); }} />
+        </div>
+        <div>
+          <div style={label}>Só contactos com a tag</div>
+          <select style={inputStyle} value={tagId} onChange={(e) => { setTagId(e.target.value); setMessage({ text: "", ok: false }); }}>
+            <option value="">Todos os contactos</option>
+            {(tags || []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+      </div>
+      <label style={{ ...sans, fontSize: 12.5, color: c.ink, display: "flex", alignItems: "flex-start", gap: 7, marginTop: 12 }}>
+        <input type="checkbox" checked={requireConsent} onChange={(e) => { setRequireConsent(e.target.checked); setMessage({ text: "", ok: false }); }} style={{ marginTop: 2 }} />
+        Só contactos com consentimento (WhatsApp, email ou SMS) — recomendado
+      </label>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+        <button onClick={save} disabled={updateAutomation.isPending} style={btnPrimary}>
+          {updateAutomation.isPending ? "A guardar…" : "Guardar"}
+        </button>
+        {message.text && <span style={{ ...sans, fontSize: 12.5, color: message.ok ? c.boss : c.rose }}>{message.text}</span>}
+      </div>
+    </div>
+  );
+}
+
 function AutomationEditor({ brand, automation, onBack }) {
   const stepsQuery = useSteps(automation.id);
   const tagsQuery = useTags(brand.id);
@@ -494,6 +682,10 @@ function AutomationEditor({ brand, automation, onBack }) {
       <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 24 }}>
         Quando: <strong>{triggerLabel(automation.trigger_type)}</strong>
       </div>
+
+      {(automation.trigger_type === "contact_birthday" || automation.trigger_type === "annual_date") && (
+        <DateTriggerSettings key={automation.id} automation={automation} tags={tagsQuery.data} updateAutomation={updateAutomation} />
+      )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {steps.map((step, i) => (
