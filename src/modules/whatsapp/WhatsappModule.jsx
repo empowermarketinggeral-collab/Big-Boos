@@ -144,6 +144,14 @@ function useRegisterTwilioTemplate(brandId) {
   });
 }
 
+function useSubmitTwilioDraft(brandId) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (templateId) => invokeFunction("whatsapp-templates", { brandId, action: "submit_twilio", templateId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["whatsapp_templates", brandId] }),
+  });
+}
+
 function useCheckTemplateStatus(brandId) {
   const qc = useQueryClient();
   return useMutation({
@@ -385,8 +393,8 @@ function ConnectWhatsappForm({ brandId }) {
 /* ---------------------------------------------------------
    TEMPLATES
 --------------------------------------------------------- */
-const TEMPLATE_STATUS_LABEL = { pending: "A aguardar aprovação", approved: "Aprovado", rejected: "Rejeitado" };
-const TEMPLATE_STATUS_COLOR = { pending: c.amber, approved: c.sage, rejected: c.rose };
+const TEMPLATE_STATUS_LABEL = { draft: "Rascunho", pending: "A aguardar aprovação", approved: "Aprovado", rejected: "Rejeitado" };
+const TEMPLATE_STATUS_COLOR = { draft: c.mist, pending: c.amber, approved: c.sage, rejected: c.rose };
 
 function NewTemplateModal({ brandId, provider, onClose }) {
   const [name, setName] = useState("");
@@ -473,8 +481,20 @@ function NewTemplateModal({ brandId, provider, onClose }) {
 function TemplatesPanel({ brandId, provider }) {
   const templatesQuery = useTemplates(brandId);
   const checkStatus = useCheckTemplateStatus(brandId);
+  const submitDraft = useSubmitTwilioDraft(brandId);
   const deleteTemplate = useDeleteTemplate(brandId);
   const [showNew, setShowNew] = useState(false);
+  const [actionError, setActionError] = useState("");
+
+  const runAction = async (mutation, id) => {
+    setActionError("");
+    try {
+      const res = await mutation.mutateAsync(id);
+      if (res?.rejectionReason) setActionError(`Rejeitado: ${res.rejectionReason}`);
+    } catch (err) {
+      setActionError(err.message || "Não foi possível concluir a ação.");
+    }
+  };
   const templates = templatesQuery.data || [];
 
   return (
@@ -485,6 +505,7 @@ function TemplatesPanel({ brandId, provider }) {
           <Plus size={14} /> Novo template
         </button>
       </div>
+      {actionError && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 10 }}>{actionError}</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {templates.map((tpl) => (
           <div key={tpl.id} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px" }}>
@@ -498,8 +519,13 @@ function TemplatesPanel({ brandId, provider }) {
             <span style={{ ...sans, fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", borderRadius: 999, padding: "4px 10px", color: TEMPLATE_STATUS_COLOR[tpl.status], background: c.paper, flexShrink: 0 }}>
               {TEMPLATE_STATUS_LABEL[tpl.status] || tpl.status}
             </span>
-            {tpl.status === "pending" && tpl.meta_template_id && (
-              <button onClick={() => checkStatus.mutate(tpl.id)} disabled={checkStatus.isPending} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 5 }} title="Verificar estado">
+            {provider === "twilio" && (tpl.status === "draft" || tpl.status === "rejected") && (
+              <button onClick={() => runAction(submitDraft, tpl.id)} disabled={submitDraft.isPending} style={{ ...btnGhost, padding: "5px 10px", fontSize: 12, flexShrink: 0 }}>
+                {submitDraft.isPending && submitDraft.variables === tpl.id ? "A submeter…" : "Submeter"}
+              </button>
+            )}
+            {(tpl.status === "pending" || tpl.status === "rejected") && (tpl.meta_template_id || tpl.twilio_content_sid) && (
+              <button onClick={() => runAction(checkStatus, tpl.id)} disabled={checkStatus.isPending} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 5 }} title="Verificar estado">
                 <RefreshCw size={14} />
               </button>
             )}

@@ -14,7 +14,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // Suporta os dois fornecedores ligados em whatsapp-connect: 'meta'
 // (Cloud API direta) e 'twilio' (alternativa quando a verificação de
 // negócio da Meta fica bloqueada — ver docs/GUIA_TWILIO.md).
-async function sendWhatsappText(admin, brandId, toPhone, body) {
+// Com "template" (linha aprovada de whatsapp_templates) envia o template
+// com as variáveis {{1}}, {{2}}… — obrigatório fora da janela de 24h.
+async function sendWhatsappText(admin, brandId, toPhone, body, template = null, values = []) {
   const { data: account } = await admin
     .from("whatsapp_accounts")
     .select("provider, phone_number_id, twilio_account_sid, access_token_ref")
@@ -46,7 +48,16 @@ async function sendWhatsappText(admin, brandId, toPhone, body) {
     const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${account.twilio_account_sid}/Messages.json`, {
       method: "POST",
       headers: { Authorization: `Basic ${btoa(`${account.twilio_account_sid}:${token}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ From: `whatsapp:${account.phone_number_id}`, To: `whatsapp:${toPhone}`, Body: body }),
+      body: new URLSearchParams(
+        template
+          ? {
+              From: `whatsapp:${account.phone_number_id}`,
+              To: `whatsapp:${toPhone}`,
+              ContentSid: template.twilio_content_sid,
+              ContentVariables: JSON.stringify(Object.fromEntries(values.map((v, i) => [String(i + 1), v]))),
+            }
+          : { From: `whatsapp:${account.phone_number_id}`, To: `whatsapp:${toPhone}`, Body: body }
+      ),
     });
     const data = await res.json();
     ok = res.ok; msgId = data?.sid || null; errMsg = data?.message;
@@ -54,7 +65,18 @@ async function sendWhatsappText(admin, brandId, toPhone, body) {
     const res = await fetch(`https://graph.facebook.com/v20.0/${account.phone_number_id}/messages`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ messaging_product: "whatsapp", to: toPhone, type: "text", text: { body } }),
+      body: JSON.stringify(
+        template
+          ? {
+              messaging_product: "whatsapp", to: toPhone, type: "template",
+              template: {
+                name: template.name,
+                language: { code: template.language || "pt_PT" },
+                components: values.length ? [{ type: "body", parameters: values.map((text) => ({ type: "text", text })) }] : [],
+              },
+            }
+          : { messaging_product: "whatsapp", to: toPhone, type: "text", text: { body } }
+      ),
     });
     const data = await res.json();
     ok = res.ok; msgId = data?.messages?.[0]?.id || null; errMsg = data?.error?.message;
@@ -62,7 +84,7 @@ async function sendWhatsappText(admin, brandId, toPhone, body) {
 
   await admin.from("whatsapp_messages").insert({
     brand_id: brandId, conversation_id: conversation.id, direction: "outbound",
-    wa_message_id: msgId, type: "text", body, status: ok ? "sent" : "failed",
+    wa_message_id: msgId, type: template ? "template" : "text", body, status: ok ? "sent" : "failed",
   });
   await admin.from("whatsapp_conversations").update({ last_message_at: new Date().toISOString() }).eq("id", conversation.id);
 
@@ -196,6 +218,22 @@ async function runAction(admin, brandId, step, contact) {
     }
     case "send_whatsapp": {
       if (!contact?.phone) throw new Error("O contacto não tem telefone.");
+      if (config.templateName) {
+        const { data: tpl } = await admin
+          .from("whatsapp_templates")
+          .select("name, language, body, status, twilio_content_sid")
+          .eq("brand_id", brandId)
+          .eq("name", config.templateName)
+          .eq("status", "approved")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!tpl) throw new Error(`O template "${config.templateName}" ainda não está aprovado.`);
+        const values = (config.templateVariables || []).map((v) => renderTemplate(String(v), contact));
+        const text = (tpl.body || "").replace(/\{\{(\d+)\}\}/g, (_m, n) => values[Number(n) - 1] ?? "");
+        await sendWhatsappText(admin, brandId, contact.phone, text, tpl, values);
+        return;
+      }
       await sendWhatsappText(admin, brandId, contact.phone, renderTemplate(config.body || "", contact));
       return;
     }

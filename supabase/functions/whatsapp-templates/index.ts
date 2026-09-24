@@ -7,9 +7,9 @@
 // aprovação da Meta é assíncrona (horas/dias) — não há webhook aqui,
 // o botão "Verificar estado" no frontend chama isto com action:"check".
 //
-// Só suporta provider='meta' por agora. A Twilio tem a sua própria
-// API de Conteúdo para templates (diferente da Graph API) — fica por
-// fazer nesta fase; devolve erro claro em vez de falhar silenciosamente.
+// Meta: submete pela Graph API. Twilio: cria o conteúdo na Content API
+// da Twilio e pede a aprovação ao WhatsApp (action "submit_twilio" para
+// um template em rascunho já guardado, "check" para ver o estado).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
 
   const { data: account } = await adminClient
     .from("whatsapp_accounts")
-    .select("provider, waba_id, access_token_ref")
+    .select("provider, waba_id, twilio_account_sid, access_token_ref")
     .eq("brand_id", brandId)
     .maybeSingle();
   if (!account) return json({ error: "Esta marca não tem WhatsApp ligado." }, 400);
@@ -77,12 +77,88 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
-  if (account.provider !== "meta") {
-    return json({ error: "Esta ação só está disponível para contas ligadas via Meta (não via Twilio)." }, 400);
-  }
-
   const { data: token } = await adminClient.rpc("vault_read_secret", { p_id: account.access_token_ref });
   if (!token) return json({ error: "Não foi possível obter o token de acesso." }, 500);
+
+  if (account.provider === "twilio") {
+    const twilioAuth = `Basic ${btoa(`${account.twilio_account_sid}:${token}`)}`;
+
+    // Submete um template guardado em rascunho (ex.: criado por migração).
+    if (action === "submit_twilio") {
+      const { templateId } = payload;
+      if (!templateId) return json({ error: "Falta o templateId." }, 400);
+      const { data: tpl } = await adminClient
+        .from("whatsapp_templates")
+        .select("id, name, language, category, body, variables, status, twilio_content_sid")
+        .eq("id", templateId)
+        .eq("brand_id", brandId)
+        .maybeSingle();
+      if (!tpl) return json({ error: "Template não encontrado." }, 404);
+      if (tpl.status !== "draft" && tpl.status !== "rejected") return json({ error: "Este template já foi submetido." }, 400);
+      if (!tpl.body) return json({ error: "O template não tem texto." }, 400);
+
+      // Valores de exemplo exigidos pelo WhatsApp para cada {{n}}.
+      const samples = Array.isArray(tpl.variables) ? tpl.variables : [];
+      const variables = {};
+      for (const m of tpl.body.matchAll(/\{\{(\d+)\}\}/g)) {
+        const n = m[1];
+        variables[n] = String(samples[Number(n) - 1] ?? `exemplo ${n}`);
+      }
+
+      let contentSid = tpl.twilio_content_sid;
+      if (!contentSid || tpl.status === "rejected") {
+        const createRes = await fetch("https://content.twilio.com/v1/Content", {
+          method: "POST",
+          headers: { Authorization: twilioAuth, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            friendly_name: tpl.name,
+            language: tpl.language || "pt_PT",
+            variables,
+            types: { "twilio/text": { body: tpl.body } },
+          }),
+        });
+        const created = await createRes.json();
+        if (!createRes.ok) return json({ error: created?.message || "A Twilio recusou o conteúdo." }, 502);
+        contentSid = created.sid;
+        await adminClient.from("whatsapp_templates").update({ twilio_content_sid: contentSid }).eq("id", tpl.id);
+      }
+
+      const approvalRes = await fetch(`https://content.twilio.com/v1/Content/${contentSid}/ApprovalRequests/whatsapp`, {
+        method: "POST",
+        headers: { Authorization: twilioAuth, "Content-Type": "application/json" },
+        body: JSON.stringify({ name: tpl.name, category: tpl.category || "MARKETING" }),
+      });
+      const approval = await approvalRes.json();
+      if (!approvalRes.ok) return json({ error: approval?.message || "A Twilio recusou o pedido de aprovação." }, 502);
+
+      await adminClient.from("whatsapp_templates").update({ status: "pending" }).eq("id", tpl.id);
+      return json({ ok: true, contentSid });
+    }
+
+    if (action === "check") {
+      const { templateId } = payload;
+      if (!templateId) return json({ error: "Falta o templateId." }, 400);
+      const { data: tpl } = await adminClient.from("whatsapp_templates").select("id, twilio_content_sid").eq("id", templateId).eq("brand_id", brandId).maybeSingle();
+      if (!tpl?.twilio_content_sid) return json({ error: "Template sem submissão à Twilio." }, 400);
+
+      const res = await fetch(`https://content.twilio.com/v1/Content/${tpl.twilio_content_sid}/ApprovalRequests`, {
+        headers: { Authorization: twilioAuth },
+      });
+      const data = await res.json();
+      if (!res.ok) return json({ error: data?.message || "Não foi possível verificar o estado." }, 502);
+
+      const wa = data?.whatsapp || {};
+      const status = wa.status === "approved" ? "approved" : wa.status === "rejected" ? "rejected" : "pending";
+      await adminClient.from("whatsapp_templates").update({ status }).eq("id", tpl.id);
+      return json({ ok: true, status, rejectionReason: wa.rejection_reason || null });
+    }
+
+    return json({ error: "Esta ação não está disponível para contas ligadas via Twilio." }, 400);
+  }
+
+  if (account.provider !== "meta") {
+    return json({ error: "Fornecedor de WhatsApp desconhecido." }, 400);
+  }
 
   if (action === "submit") {
     const { name, language, category, body, variables } = payload;
