@@ -6,6 +6,7 @@ import {
   ArrowLeft, Plus, X, Trash2, Pencil, Phone, Mail, Search, GripVertical, Download, Upload, Link2,
 } from "lucide-react";
 import LeadIntakeModal from "./LeadIntakeModal.jsx";
+import TagsView from "./TagsView.jsx";
 
 /* ---------------------------------------------------------
    CRM — Contactos + Pipeline (Kanban) + Negócios
@@ -1211,10 +1212,10 @@ export default function CrmModule({ brand, onBack, session }) {
         <ArrowLeft size={14} /> {brand.name}
       </button>
       <Eyebrow>CRM</Eyebrow>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: 0 }}>Contactos &amp; Pipeline</h1>
         <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 9, padding: 3 }}>
-          {[{ key: "pipeline", label: "Pipeline" }, { key: "contactos", label: "Contactos" }].map((t) => (
+          {[{ key: "pipeline", label: "Pipeline" }, { key: "contactos", label: "Contactos" }, { key: "tags", label: "Tags" }].map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
@@ -1229,7 +1230,9 @@ export default function CrmModule({ brand, onBack, session }) {
         </div>
       </div>
 
-      {tab === "pipeline" ? <PipelineView brand={brand} session={session} /> : <ContactsView brand={brand} session={session} />}
+      {tab === "pipeline" && <PipelineView brand={brand} session={session} />}
+      {tab === "contactos" && <ContactsView brand={brand} session={session} />}
+      {tab === "tags" && <TagsView brand={brand} />}
     </div>
   );
 }
