@@ -107,6 +107,61 @@ async function sendEmailViaResend(admin, brandId, toEmail, subject, html) {
   return { ok: res.ok, providerRef: data?.id || null, error: res.ok ? null : data?.message || data?.error || JSON.stringify(data) };
 }
 
+// Substitui {{variavel}} pelos dados do contacto. Falha (em vez de enviar
+// "Olá !") se alguma variável não tiver valor.
+function renderTemplate(text, contact) {
+  if (!text) return text;
+  const missing = [];
+  const out = text.replace(/\{\{\s*([\w]+)\s*\}\}/g, (_m, key) => {
+    let value;
+    if (key === "primeiro_nome") value = (contact?.name || "").trim().split(/\s+/)[0];
+    else if (key === "nome") value = contact?.name;
+    else if (key === "email") value = contact?.email;
+    else if (key === "telefone") value = contact?.phone;
+    else if (key === "ano_seguinte") value = String(new Date().getFullYear() + 1);
+    else value = contact?.custom_fields?.[key];
+    if (value === undefined || value === null || String(value).trim() === "") missing.push(key);
+    return String(value ?? "");
+  });
+  if (missing.length) throw new Error(`Variável sem valor no contacto: ${[...new Set(missing)].join(", ")}`);
+  return out;
+}
+
+// Paragem automática: tag de paragem (ex.: já comprou) ou resposta do contacto no WhatsApp.
+async function shouldCancel(admin, run, contact, triggerConfig) {
+  if (!contact) return false;
+  const stopTagIds = triggerConfig?.stopTagIds;
+  if (Array.isArray(stopTagIds) && stopTagIds.length) {
+    const { data } = await admin.from("contact_tags").select("tag_id").eq("contact_id", contact.id).in("tag_id", stopTagIds).limit(1);
+    if (data && data.length) return true;
+  }
+  if (triggerConfig?.stopOnReply) {
+    const { data: convs } = await admin.from("whatsapp_conversations").select("id").eq("brand_id", run.brand_id).eq("contact_id", contact.id);
+    if (convs && convs.length) {
+      const { count } = await admin
+        .from("whatsapp_messages")
+        .select("id", { count: "exact", head: true })
+        .in("conversation_id", convs.map((c) => c.id))
+        .eq("direction", "inbound")
+        .gt("created_at", run.created_at);
+      if (count && count > 0) return true;
+    }
+  }
+  return false;
+}
+
+// Espera relativa a uma data guardada no contacto (ex.: início do curso - 7 dias).
+// Devolve null se a data já passou (o passo é saltado).
+function computeUntilFieldTime(contact, config) {
+  const raw = contact?.custom_fields?.[config.untilField];
+  if (!raw) throw new Error(`O contacto não tem o campo de data "${config.untilField}".`);
+  const base = new Date(`${String(raw).slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(base.getTime())) throw new Error(`Data inválida em "${config.untilField}": ${raw}`);
+  base.setUTCDate(base.getUTCDate() + Number(config.offsetDays || 0));
+  base.setUTCHours(Number(config.hourUTC ?? 9), 0, 0, 0);
+  return base.getTime() > Date.now() ? base : null;
+}
+
 async function runAction(admin, brandId, step, contact) {
   const config = step.config || {};
   switch (step.action_type) {
@@ -118,6 +173,15 @@ async function runAction(admin, brandId, step, contact) {
     case "remove_tag": {
       if (!contact || !config.tagId) return;
       await admin.from("contact_tags").delete().eq("contact_id", contact.id).eq("tag_id", config.tagId);
+      return;
+    }
+    case "update_contact": {
+      // Guarda campos personalizados (ex.: linha_interesse) para as mensagens seguintes usarem.
+      if (!contact || !config.fields || typeof config.fields !== "object") return;
+      const merged = { ...(contact.custom_fields || {}), ...config.fields };
+      const { error } = await admin.from("contacts").update({ custom_fields: merged }).eq("id", contact.id);
+      if (error) throw new Error(error.message);
+      contact.custom_fields = merged;
       return;
     }
     case "create_task": {
@@ -132,17 +196,17 @@ async function runAction(admin, brandId, step, contact) {
     }
     case "send_whatsapp": {
       if (!contact?.phone) throw new Error("O contacto não tem telefone.");
-      await sendWhatsappText(admin, brandId, contact.phone, config.body || "");
+      await sendWhatsappText(admin, brandId, contact.phone, renderTemplate(config.body || "", contact));
       return;
     }
     case "send_sms": {
       if (!contact?.phone) throw new Error("O contacto não tem telefone.");
-      await sendSmsText(admin, brandId, contact.phone, config.body || "", contact.id);
+      await sendSmsText(admin, brandId, contact.phone, renderTemplate(config.body || "", contact), contact.id);
       return;
     }
     case "send_email": {
       if (!contact?.email) throw new Error("O contacto não tem email.");
-      const result = await sendEmailViaResend(admin, brandId, contact.email, config.subject || "", config.body || "");
+      const result = await sendEmailViaResend(admin, brandId, contact.email, renderTemplate(config.subject || "", contact), renderTemplate(config.body || "", contact));
       await admin.from("email_sends").insert({
         brand_id: brandId,
         automation_step_id: step.id,
@@ -189,6 +253,13 @@ async function processRun(admin, run) {
     contact = data;
   }
 
+  const { data: automation } = await admin.from("automations").select("trigger_config, status").eq("id", run.automation_id).maybeSingle();
+  if (automation?.status === "paused") return;
+  if (await shouldCancel(admin, run, contact, automation?.trigger_config)) {
+    await admin.from("automation_runs").update({ status: "cancelled" }).eq("id", run.id);
+    return;
+  }
+
   while (true) {
     idx++;
     if (idx >= steps.length) {
@@ -198,10 +269,22 @@ async function processRun(admin, run) {
     const step = steps[idx];
 
     if (step.type === "wait") {
-      const waitMs = (step.wait_minutes || 0) * 60000;
+      let nextRunAt;
+      if (step.config?.untilField) {
+        try {
+          const target = computeUntilFieldTime(contact, step.config);
+          if (!target) continue;
+          nextRunAt = target;
+        } catch (err) {
+          await admin.from("automation_runs").update({ status: "failed", current_step_id: step.id, error: String(err?.message || err) }).eq("id", run.id);
+          return;
+        }
+      } else {
+        nextRunAt = new Date(Date.now() + (step.wait_minutes || 0) * 60000);
+      }
       await admin
         .from("automation_runs")
-        .update({ status: "waiting", current_step_id: step.id, next_run_at: new Date(Date.now() + waitMs).toISOString() })
+        .update({ status: "waiting", current_step_id: step.id, next_run_at: nextRunAt.toISOString() })
         .eq("id", run.id);
       return;
     }
@@ -210,6 +293,11 @@ async function processRun(admin, run) {
       try {
         await runAction(admin, run.brand_id, step, contact);
       } catch (err) {
+        // Passo opcional (ex.: email a um contacto sem email): regista o erro e continua.
+        if (step.config?.optional) {
+          await admin.from("automation_runs").update({ error: `Passo opcional ignorado: ${String(err?.message || err)}` }).eq("id", run.id);
+          continue;
+        }
         await admin
           .from("automation_runs")
           .update({ status: "failed", current_step_id: step.id, error: String(err?.message || err) })

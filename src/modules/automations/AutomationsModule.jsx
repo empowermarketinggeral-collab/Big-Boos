@@ -30,6 +30,8 @@ const ACTION_TYPES = [
   { value: "create_task", label: "Criar tarefa" },
   { value: "send_whatsapp", label: "Enviar mensagem de WhatsApp" },
   { value: "send_sms", label: "Enviar SMS" },
+  { value: "send_email", label: "Enviar email" },
+  { value: "update_contact", label: "Atualizar campos do contacto" },
   { value: "http_request", label: "Pedido HTTP (webhook)" },
 ];
 
@@ -254,6 +256,12 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
   const [dueInMinutes, setDueInMinutes] = useState(step?.config?.dueInMinutes || "");
   const [body, setBody] = useState(step?.config?.body || "");
   const [url, setUrl] = useState(step?.config?.url || "");
+  const [subject, setSubject] = useState(step?.config?.subject || "");
+  const [fieldsText, setFieldsText] = useState(
+    Object.entries(step?.config?.fields || {}).map(([k, v]) => `${k}=${v}`).join("\n")
+  );
+  const [optional, setOptional] = useState(!!step?.config?.optional);
+  const untilField = step?.type === "wait" ? step?.config?.untilField : null;
   const [error, setError] = useState("");
 
   const createStep = useCreateStep(brandId, automationId);
@@ -261,13 +269,20 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
 
   const buildPayload = () => {
     if (type === "wait") {
-      return { type: "wait", position: step?.position ?? position, wait_minutes: Number(waitMinutes) || 1, action_type: null, config: {} };
+      // Esperas até uma data do contacto (ex.: 7 dias antes do curso) mantêm a configuração.
+      return { type: "wait", position: step?.position ?? position, wait_minutes: Number(waitMinutes) || 1, action_type: null, config: untilField ? step.config : {} };
     }
-    const config =
+    const baseConfig =
       actionType === "add_tag" || actionType === "remove_tag" ? { tagId } :
       actionType === "create_task" ? { title, dueInMinutes: dueInMinutes ? Number(dueInMinutes) : null } :
       actionType === "send_whatsapp" || actionType === "send_sms" ? { body } :
+      actionType === "send_email" ? { subject, body } :
+      actionType === "update_contact" ? { fields: parseFields(fieldsText) } :
       actionType === "http_request" ? { url } : {};
+    // Mantém opções extra já guardadas (ex.: mediaUrl) quando a ação não muda.
+    const kept = step?.action_type === actionType ? step.config || {} : {};
+    const config = { ...kept, ...baseConfig };
+    if (optional) config.optional = true; else delete config.optional;
     return { type: "action", position: step?.position ?? position, action_type: actionType, config };
   };
 
@@ -278,6 +293,12 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
     }
     if (type === "action" && (actionType === "send_whatsapp" || actionType === "send_sms") && !body.trim()) {
       setError("Escreve a mensagem."); return;
+    }
+    if (type === "action" && actionType === "send_email" && (!subject.trim() || !body.trim())) {
+      setError("Escreve o assunto e o conteúdo do email."); return;
+    }
+    if (type === "action" && actionType === "update_contact" && !Object.keys(parseFields(fieldsText)).length) {
+      setError("Indica pelo menos um campo (campo=valor)."); return;
     }
     if (type === "action" && actionType === "http_request" && !url.trim()) {
       setError("Indica o URL."); return;
@@ -310,7 +331,11 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
           ))}
         </div>
 
-        {type === "wait" ? (
+        {type === "wait" && untilField ? (
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>
+            Espera até à data do campo <b>{untilField}</b> do contacto ({untilOffsetLabel(step.config)}). Esta espera só se altera por SQL.
+          </div>
+        ) : type === "wait" ? (
           <div>
             <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Esperar quantos minutos</div>
             <input type="number" min="1" style={inputStyle} value={waitMinutes} onChange={(e) => setWaitMinutes(e.target.value)} />
@@ -354,6 +379,33 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
               </div>
             )}
 
+            {actionType === "send_email" && (
+              <>
+                <div>
+                  <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Assunto</div>
+                  <input style={inputStyle} value={subject} onChange={(e) => setSubject(e.target.value)} />
+                </div>
+                <div>
+                  <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Conteúdo (HTML)</div>
+                  <textarea rows={8} style={{ ...inputStyle, resize: "vertical", fontFamily: "monospace", fontSize: 12 }} value={body} onChange={(e) => setBody(e.target.value)} />
+                </div>
+              </>
+            )}
+
+            {actionType === "update_contact" && (
+              <div>
+                <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Campos personalizados (um por linha: campo=valor)</div>
+                <textarea rows={3} style={{ ...inputStyle, resize: "vertical" }} value={fieldsText} onChange={(e) => setFieldsText(e.target.value)} placeholder="linha_interesse=Skin Cleansing" />
+              </div>
+            )}
+
+            {(actionType === "send_whatsapp" || actionType === "send_sms" || actionType === "send_email") && (
+              <label style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="checkbox" checked={optional} onChange={(e) => setOptional(e.target.checked)} />
+                Opcional: se o contacto não tiver este canal ou o envio falhar, continua a automação
+              </label>
+            )}
+
             {actionType === "http_request" && (
               <div>
                 <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>URL</div>
@@ -376,8 +428,38 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
   );
 }
 
+function parseFields(text) {
+  const fields = {};
+  for (const line of String(text || "").split("\n")) {
+    const i = line.indexOf("=");
+    if (i <= 0) continue;
+    const key = line.slice(0, i).trim();
+    if (key) fields[key] = line.slice(i + 1).trim();
+  }
+  return fields;
+}
+
+function untilOffsetLabel(config) {
+  const d = Number(config?.offsetDays || 0);
+  const when = d === 0 ? "no próprio dia" : d < 0 ? `${-d} dia(s) antes` : `${d} dia(s) depois`;
+  return `${when}, ${config?.hourUTC ?? 9}h UTC`;
+}
+
+function formatWait(minutes) {
+  const m = Number(minutes) || 0;
+  if (m >= 1440 && m % 1440 === 0) return `${m / 1440} dia(s)`;
+  if (m >= 60 && m % 60 === 0) return `${m / 60} h`;
+  return `${m} min`;
+}
+
 function stepSummary(step) {
-  if (step.type === "wait") return `Esperar ${step.wait_minutes} min`;
+  if (step.type === "wait") {
+    if (step.config?.untilField) return `Esperar até ${step.config.untilField} (${untilOffsetLabel(step.config)})`;
+    return `Esperar ${formatWait(step.wait_minutes)}`;
+  }
+  const cfg = step.config || {};
+  if (step.action_type === "send_email" && cfg.subject) return `${actionLabel(step.action_type)}: ${cfg.subject}`;
+  if (step.action_type === "create_task" && cfg.title) return `${actionLabel(step.action_type)}: ${cfg.title}`;
   return actionLabel(step.action_type);
 }
 
