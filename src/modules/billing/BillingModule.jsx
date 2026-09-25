@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
 import { ArrowLeft, CreditCard, Check, Plus, Trash2, ExternalLink } from "lucide-react";
+import InvoiceLinksPanel from "./InvoiceLinksPanel.jsx";
 
 /* ---------------------------------------------------------
    BILLING — subscrição da plataforma (Stripe Checkout/Portal) +
@@ -472,6 +473,7 @@ export default function BillingModule({ brand, onBack, session }) {
       </h1>
 
       <SubscriptionCard brandId={brand.id} isClient={isClient} />
+      <InvoiceLinksPanel brandId={brand.id} isClient={isClient} userId={session?.id} />
       <InvoicesPanel brandId={brand.id} isClient={isClient} />
     </div>
   );

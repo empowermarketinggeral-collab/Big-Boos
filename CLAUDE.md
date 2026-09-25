@@ -8,7 +8,7 @@ Papéis em `profiles.role`: `admin_geral` (vê tudo), `membro` (equipa da agênc
 
 ## Como o utilizador faz deploy (importante)
 - **Frontend**: commit + push para `main` → Vercel. Só faz commit/push depois de o utilizador dizer que sim.
-- **SQL**: migrações numeradas em `supabase/NN_nome.sql` (a próxima é a 71). O utilizador cola-as à mão no SQL Editor do Supabase, por ordem. Escreve sempre migrações que se possam correr uma vez e diz-lhe o que correr.
+- **SQL**: migrações numeradas em `supabase/NN_nome.sql` (a próxima é a 72). O utilizador cola-as à mão no SQL Editor do Supabase, por ordem. Escreve sempre migrações que se possam correr uma vez e diz-lhe o que correr.
 - **Edge Functions**: o utilizador cola o código no Dashboard do Supabase, função a função. Por isso **cada `supabase/functions/<nome>/index.ts` tem de ser autossuficiente** — sem imports de pastas partilhadas (`_shared` não funciona). A duplicação de código entre funções é aceite de propósito.
 - Ao entregar funções alteradas, dá o código completo (ou envia os ficheiros) e diz se "Verify JWT" fica ligado. Desligado só em: webhooks (`stripe-webhook`, `twilio-whatsapp-webhook`, `whatsapp-webhook`, `lead-intake` — este autentica com token por marca), `agency-signup`, funções chamadas por cron e páginas públicas de marcação.
 - Segredos globais (ex: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) vivem em Edge Function Secrets (`Deno.env.get`). Segredos por marca (tokens Twilio/Meta/Resend/redes sociais) vão para o Vault via `vault_upsert_secret` e guarda-se só a referência na tabela.
@@ -28,6 +28,7 @@ Papéis em `profiles.role`: `admin_geral` (vê tudo), `membro` (equipa da agênc
 - Limites de marcas/utilizadores impostos por triggers na BD (`58_agency_plan_limits.sql`); agência raiz e agências sem subscrição não têm limite.
 - A subscrição de uma marca **não** é autoativada pelo cliente: a equipa gera o link de pagamento e envia-o. Aviso de atraso: `PaymentReminderBanner` (7 dias + 3, sem bloqueio automático — decisão do utilizador).
 - Registo público de agências em `/registar` (função `agency-signup`). Faturas de serviços (`service_invoices`) são registo manual, sem Stripe.
+- Links de faturas (`invoice_links`, migração 71): a equipa cola o link e o nome de cada fatura; o cliente só vê e abre (leitura `is_brand_member`, escrita `can_manage_brand`; só http/https).
 - Agendamento: sinal opcional por marca (`booking_payment_settings`), marcações `pending_payment` até o webhook confirmar.
 
 ## Comunicação
