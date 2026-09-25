@@ -3,6 +3,7 @@ import BigBossPrototype, { PublicProposalPage, PublicPresentationPage, PublicLin
 import { PublicFormPage } from "./modules/forms/FormsModule.jsx";
 import { PublicBookingPage } from "./modules/booking/BookingModule.jsx";
 import SignupPage from "./modules/billing/SignupPage.jsx";
+import SignContractPage from "./modules/contracts/SignContractPage.jsx";
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route path="/formulario/:slug" element={<PublicFormPage />} />
         <Route path="/agendar/:slug" element={<PublicBookingPage />} />
         <Route path="/registar" element={<SignupPage />} />
+        <Route path="/assinar/:token" element={<SignContractPage />} />
         <Route path="*" element={<BigBossPrototype />} />
       </Routes>
     </BrowserRouter>

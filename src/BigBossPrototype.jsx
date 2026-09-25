@@ -8,7 +8,7 @@ import {
   Clock, ChevronRight, ChevronLeft, BookMarked, ClipboardList, Layers, Video,
   Link2, Calculator, Sparkles, Eye, Zap, Target, TrendingUp,
   Trash2, Pencil, ChevronUp, ChevronDown, Image as ImageIcon,
-  Instagram, Facebook, Youtube, MessageCircle, Music2, Palette, Handshake, Kanban, Mail, MessageSquare, Inbox, CreditCard,
+  Instagram, Facebook, Youtube, MessageCircle, Music2, Palette, Handshake, Kanban, Mail, MessageSquare, Inbox, CreditCard, FileSignature,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -25,6 +25,8 @@ import SmsModule from "./modules/sms/SmsModule.jsx";
 import InboxModule from "./modules/inbox/InboxModule.jsx";
 import BillingModule from "./modules/billing/BillingModule.jsx";
 import AgencyBillingModule from "./modules/billing/AgencyBillingModule.jsx";
+import ContractsModule from "./modules/contracts/ContractsModule.jsx";
+import BrandContractsModule from "./modules/contracts/BrandContractsModule.jsx";
 import PaymentReminderBanner from "./modules/billing/PaymentReminderBanner.jsx";
 import { c, sans, serif, StatusDot, Eyebrow, ChartCard, CAN_MANAGE_ROLES, Modal, btnPrimary, btnGhost } from "./shared/theme.jsx";
 
@@ -2315,6 +2317,7 @@ const MODULE_GROUPS = [
       { key: "plano", label: "Plano Estratégico", sub: "Fases e tarefas", icon: Layers },
       { key: "dashboards", label: "Dashboards", sub: "Performance da marca", icon: BarChart3 },
       { key: "billing", label: "Faturação", sub: "Subscrição e faturas de serviços", icon: CreditCard },
+      { key: "contratos", label: "Contratos", sub: "PDFs e contratos assinados", icon: FileSignature },
     ],
   },
 ];
@@ -2325,6 +2328,7 @@ const NAV = [
   { key: "marcas", label: "Marcas", icon: Briefcase },
   { key: "reunioes", label: "Reuniões", icon: Handshake },
   { key: "propostas", label: "Propostas", icon: FileText },
+  { key: "contratos", label: "Contratos", icon: FileSignature },
   { key: "mapa-crescimento", label: "Mapa de Crescimento", icon: TrendingUp },
   { key: "portfolio", label: "Portfólio", icon: Layers },
   { key: "link", label: "Link na Bio", icon: Link2 },
@@ -2341,9 +2345,9 @@ const NAV = [
 // nunca a lista de agências, equipa interna, propostas ou ferramentas de gestão.
 const NAV_ACCESS = {
   admin_geral: "all",
-  membro: ["painel", "marcas", "reunioes", "propostas", "portfolio", "link", "precificacao", "centro", "conhecimento", "equipa"],
-  agencia_admin: ["painel", "marcas", "reunioes", "propostas", "portfolio", "link", "precificacao", "centro", "conhecimento", "equipa", "agencia-billing", "definicoes"],
-  agencia_membro: ["painel", "marcas", "reunioes", "propostas", "portfolio", "link", "precificacao", "centro", "conhecimento"],
+  membro: ["painel", "marcas", "reunioes", "propostas", "contratos", "portfolio", "link", "precificacao", "centro", "conhecimento", "equipa"],
+  agencia_admin: ["painel", "marcas", "reunioes", "propostas", "contratos", "portfolio", "link", "precificacao", "centro", "conhecimento", "equipa", "agencia-billing", "definicoes"],
+  agencia_membro: ["painel", "marcas", "reunioes", "propostas", "contratos", "portfolio", "link", "precificacao", "centro", "conhecimento"],
   aprovador_marca: ["painel", "marcas", "conhecimento"],
   agencia_aprovador: ["painel", "marcas", "conhecimento"],
 };
@@ -2886,6 +2890,9 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
   }
   if (sub === "billing") {
     return <BillingModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
+  }
+  if (sub === "contratos") {
+    return <BrandContractsModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
   }
   if (sub === "conteudos") {
     return <ConteudosView brand={brand} onBack={() => onOpenSub(null)} session={session} />;
@@ -10166,6 +10173,8 @@ function BigBossPrototypeInner() {
     content = <ReunioesModule session={session} />;
   } else if (nav === "propostas") {
     content = <PropostasModule session={session} />;
+  } else if (nav === "contratos") {
+    content = <ContractsModule session={session} />;
   } else if (nav === "mapa-crescimento") {
     content = <GrowthMapsModule session={session} />;
   } else if (nav === "centro") {
