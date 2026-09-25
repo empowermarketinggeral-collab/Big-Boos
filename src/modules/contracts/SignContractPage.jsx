@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { invokeFunction } from "../../lib/supabaseClient.js";
-import { c, sans, serif, inputStyle, btnPrimary } from "../../shared/theme.jsx";
+import { c, sans, serif, inputStyle, btnPrimary, display } from "../../shared/theme.jsx";
 import { CheckCircle2, Download, FileSignature } from "lucide-react";
 import ContractDocument from "./ContractDocument.jsx";
 import SignaturePad from "./SignaturePad.jsx";
@@ -82,14 +82,14 @@ export default function SignContractPage() {
     </div>
   );
 
-  if (state.loading) return shell(<div style={{ fontSize: 13, color: c.mist }}>A abrir o contrato…</div>);
+  if (state.loading) return shell(<div style={{ fontSize: 14.5, color: c.mist }}>A abrir o contrato…</div>);
 
   if (state.error) {
     return shell(
-      <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 28, textAlign: "center" }}>
+      <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 28, textAlign: "center" }}>
         <FileSignature size={28} color={c.mistLight} />
         <div style={{ ...serif, fontSize: 19, color: c.ink, margin: "12px 0 6px" }}>Não foi possível abrir o contrato</div>
-        <div style={{ fontSize: 13, color: c.mist }}>{state.error}</div>
+        <div style={{ fontSize: 14.5, color: c.mist }}>{state.error}</div>
       </div>
     );
   }
@@ -100,13 +100,13 @@ export default function SignContractPage() {
 
   return shell(
     <>
-      <div style={{ ...serif, fontSize: 13, letterSpacing: "0.08em", textTransform: "uppercase", color: c.boss, marginBottom: 6 }}>{contract.agency_name}</div>
-      <h1 style={{ ...serif, fontSize: 26, fontWeight: 500, color: c.ink, margin: "0 0 16px" }}>{contract.title}</h1>
+      <div style={{ ...serif, fontSize: 14.5, color: c.bossText, marginBottom: 6 }}>{contract.agency_name}</div>
+      <h1 style={{ ...display, fontSize: 26,  color: c.ink, margin: "0 0 16px" }}>{contract.title}</h1>
 
       {signed ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#EAF6EF", border: "1px solid #BFE3CE", borderRadius: 12, padding: "12px 16px", marginBottom: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, background: c.sageSoft, border: `1px solid ${c.sage}`, borderRadius: 3, padding: "12px 16px", marginBottom: 16, flexWrap: "wrap" }}>
           <CheckCircle2 size={18} color={c.sage} />
-          <div style={{ fontSize: 13, color: c.ink, flex: 1, minWidth: 200 }}>
+          <div style={{ fontSize: 14.5, color: c.ink, flex: 1, minWidth: 200 }}>
             Contrato assinado por ambas as partes{contract.completed_at ? ` em ${formatDateTime(contract.completed_at)}` : ""}.
           </div>
           <button onClick={downloadPdf} disabled={pdfBusy} style={btnPrimary}>
@@ -114,7 +114,7 @@ export default function SignContractPage() {
           </button>
         </div>
       ) : (
-        <div style={{ fontSize: 13, color: c.mist, lineHeight: 1.6, marginBottom: 16 }}>
+        <div style={{ fontSize: 14.5, color: c.mist, lineHeight: 1.6, marginBottom: 16 }}>
           Leia o contrato com atenção. No fim desta página pode assiná-lo. A agência já assinou.
         </div>
       )}
@@ -122,21 +122,21 @@ export default function SignContractPage() {
       <ContractDocument contract={contract} signers={signers} agencyName={contract.agency_name} />
 
       {canSign && (
-        <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 22, marginTop: 20, display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 22, marginTop: 20, display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ ...serif, fontSize: 18, color: c.ink }}>Assinar o contrato</div>
           <div>
-            <div style={{ fontSize: 11.5, color: c.mist, marginBottom: 5 }}>O seu nome completo</div>
+            <div style={{ fontSize: 12.5, color: c.mist, marginBottom: 5 }}>O seu nome completo</div>
             <input style={inputStyle} value={name} maxLength={120} onChange={(e) => setName(e.target.value)} autoComplete="name" />
           </div>
           <div>
-            <div style={{ fontSize: 11.5, color: c.mist, marginBottom: 5 }}>A sua assinatura</div>
+            <div style={{ fontSize: 12.5, color: c.mist, marginBottom: 5 }}>A sua assinatura</div>
             <SignaturePad onChange={setSignature} disabled={signing} />
           </div>
-          <label style={{ fontSize: 12.5, color: c.ink, display: "flex", alignItems: "flex-start", gap: 8, lineHeight: 1.5 }}>
+          <label style={{ fontSize: 14, color: c.ink, display: "flex", alignItems: "flex-start", gap: 8, lineHeight: 1.5 }}>
             <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} style={{ marginTop: 3 }} />
             Li o contrato e aceito os seus termos. Sei que esta assinatura eletrónica fica registada com a data, hora e endereço IP.
           </label>
-          {formError && <div style={{ fontSize: 12.5, color: c.rose }}>{formError}</div>}
+          {formError && <div style={{ fontSize: 14, color: c.rose }}>{formError}</div>}
           <div>
             <button onClick={sign} disabled={signing} style={btnPrimary}>{signing ? "A assinar…" : "Assinar contrato"}</button>
           </div>
@@ -144,9 +144,9 @@ export default function SignContractPage() {
       )}
 
       {!canSign && !signed && mine?.signed_at && (
-        <div style={{ fontSize: 13, color: c.mist, marginTop: 16 }}>A sua assinatura foi registada.</div>
+        <div style={{ fontSize: 14.5, color: c.mist, marginTop: 16 }}>A sua assinatura foi registada.</div>
       )}
-      {formError && (signed || !canSign) && <div style={{ fontSize: 12.5, color: c.rose, marginTop: 12 }}>{formError}</div>}
+      {formError && (signed || !canSign) && <div style={{ fontSize: 14, color: c.rose, marginTop: 12 }}>{formError}</div>}
     </>
   );
 }

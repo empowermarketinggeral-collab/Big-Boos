@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
-import { c, sans, serif, Eyebrow, Modal, btnPrimary, btnGhost, CAN_MANAGE_ROLES } from "../../shared/theme.jsx";
+import { c, sans, serif, Eyebrow, Modal, btnPrimary, btnGhost, CAN_MANAGE_ROLES, display } from "../../shared/theme.jsx";
 import { ArrowLeft, Upload, Download, Trash2, FileText, FileSignature } from "lucide-react";
 import ContractViewer, { StatusPill } from "./ContractViewer.jsx";
 import { formatDateTime } from "./contractDoc.js";
@@ -144,11 +144,11 @@ export default function BrandContractsModule({ brand, onBack, session }) {
 
   return shell(
     <>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
         <ArrowLeft size={14} /> {brand.name}
       </button>
       <Eyebrow>Contratos</Eyebrow>
-      <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: "0 0 24px" }}>Contratos</h1>
+      <h1 style={{ ...display, fontSize: 27,  color: c.ink, margin: "0 0 24px" }}>Contratos</h1>
 
       {/* PDFs carregados */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
@@ -163,22 +163,22 @@ export default function BrandContractsModule({ brand, onBack, session }) {
         )}
       </div>
 
-      {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 12, whiteSpace: "pre-line" }}>{error}</div>}
-      {filesQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
-      {filesQuery.isError && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>Não foi possível carregar os ficheiros.</div>}
+      {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 12, whiteSpace: "pre-line" }}>{error}</div>}
+      {filesQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A carregar…</div>}
+      {filesQuery.isError && <div style={{ ...sans, fontSize: 14, color: c.rose }}>Não foi possível carregar os ficheiros.</div>}
       {filesQuery.data?.length === 0 && (
-        <div style={{ ...sans, fontSize: 13, color: c.mist }}>
+        <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>
           Ainda não há PDFs.{canManage ? " Carrega aqui os contratos já assinados desta marca." : ""}
         </div>
       )}
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 32 }}>
         {(filesQuery.data || []).map((file) => (
-          <div key={file.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "12px 16px", flexWrap: "wrap" }}>
-            <FileText size={18} color={c.boss} style={{ flexShrink: 0 }} />
+          <div key={file.id} style={{ display: "flex", alignItems: "center", gap: 12, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "12px 16px", flexWrap: "wrap" }}>
+            <FileText size={18} color={c.bossText} style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 180 }}>
               <div style={{ ...serif, fontSize: 14.5, color: c.ink, wordBreak: "break-word" }}>{file.name}</div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>
-                {[formatSize(file.size_bytes), formatDateTime(file.created_at)].filter(Boolean).join(" · ")}
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
+                {[formatSize(file.size_bytes), formatDateTime(file.created_at)].filter(Boolean).join(", ")}
               </div>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
@@ -198,7 +198,7 @@ export default function BrandContractsModule({ brand, onBack, session }) {
       {/* Contratos criados na plataforma */}
       <h2 style={{ ...serif, fontSize: 17, fontWeight: 500, color: c.ink, margin: "0 0 12px" }}>Contratos criados na plataforma</h2>
       {contractsQuery.data && contracts.length === 0 && (
-        <div style={{ ...sans, fontSize: 13, color: c.mist }}>
+        <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>
           Ainda não há contratos criados para esta marca.{canManage ? " Cria-os no módulo Contratos da agência (menu lateral) escolhendo esta marca." : ""}
         </div>
       )}
@@ -207,13 +207,13 @@ export default function BrandContractsModule({ brand, onBack, session }) {
           <button
             key={ct.id}
             onClick={() => setViewingId(ct.id)}
-            style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "12px 16px", cursor: "pointer", textAlign: "left", width: "100%", flexWrap: "wrap" }}
+            style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "12px 16px", cursor: "pointer", textAlign: "left", width: "100%", flexWrap: "wrap" }}
           >
-            <FileSignature size={18} color={c.boss} style={{ flexShrink: 0 }} />
+            <FileSignature size={18} color={c.bossText} style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 180 }}>
               <div style={{ ...serif, fontSize: 14.5, color: c.ink }}>{ct.title}</div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>
-                {[ct.counterparty_name, formatDateTime(ct.completed_at || ct.sent_at || ct.created_at)].filter(Boolean).join(" · ")}
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
+                {[ct.counterparty_name, formatDateTime(ct.completed_at || ct.sent_at || ct.created_at)].filter(Boolean).join(", ")}
               </div>
             </div>
             <StatusPill status={ct.status} />
@@ -223,11 +223,11 @@ export default function BrandContractsModule({ brand, onBack, session }) {
 
       {confirmDelete && (
         <Modal title="Apagar ficheiro" onClose={() => setConfirmDelete(null)} width={380}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, lineHeight: 1.6, marginBottom: 16, wordBreak: "break-word" }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.6, marginBottom: 16, wordBreak: "break-word" }}>
             Apagar <b>{confirmDelete.name}</b>? Esta ação não pode ser desfeita.
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={doDelete} disabled={deleteFile.isPending} style={{ ...btnPrimary, background: c.rose }}>
+            <button onClick={doDelete} disabled={deleteFile.isPending} style={{ ...btnPrimary, background: c.roseSolid }}>
               {deleteFile.isPending ? "A apagar…" : "Apagar"}
             </button>
             <button onClick={() => setConfirmDelete(null)} style={btnGhost}>Cancelar</button>

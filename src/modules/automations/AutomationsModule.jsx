@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
-import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
+import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, Plus, Trash2, Pencil, ChevronUp, ChevronDown, Zap, Play, Pause } from "lucide-react";
 
 /* ---------------------------------------------------------
@@ -245,28 +245,28 @@ function NewAutomationModal({ brandId, tags, forms, onClose }) {
     <Modal title="Nova automação" onClose={onClose} width={420}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Nome</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Nome</div>
           <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Boas-vindas a novo lead" />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Quando…</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Quando…</div>
           <select style={inputStyle} value={triggerType} onChange={(e) => setTriggerType(e.target.value)}>
             {TRIGGER_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
         </div>
         {triggerType === "contact_tagged" && (
           <div>
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Tag</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Tag</div>
             <select style={inputStyle} value={tagId} onChange={(e) => setTagId(e.target.value)}>
               <option value="">Escolhe uma tag…</option>
               {(tags || []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
-            {!tags?.length && <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 5 }}>Ainda não há tags — cria uma primeiro no CRM.</div>}
+            {!tags?.length && <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 5 }}>Ainda não há tags — cria uma primeiro no CRM.</div>}
           </div>
         )}
         {triggerType === "form_submitted" && (
           <div>
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Formulário (opcional)</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Formulário (opcional)</div>
             <select style={inputStyle} value={formId} onChange={(e) => setFormId(e.target.value)}>
               <option value="">Qualquer formulário</option>
               {(forms || []).map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -275,7 +275,7 @@ function NewAutomationModal({ brandId, tags, forms, onClose }) {
         )}
         {triggerType === "annual_date" && (
           <div>
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Data (repete-se todos os anos)</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Data (repete-se todos os anos)</div>
             <select style={inputStyle} value={specialDate} onChange={(e) => setSpecialDate(e.target.value)}>
               {SPECIAL_DATES.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
             </select>
@@ -290,27 +290,27 @@ function NewAutomationModal({ brandId, tags, forms, onClose }) {
         {isDateTrigger && (
           <>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Quantos dias antes? (0 = no próprio dia)</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Quantos dias antes? (0 = no próprio dia)</div>
               <input style={inputStyle} type="number" min="0" max="60" value={daysBefore} onChange={(e) => setDaysBefore(e.target.value)} />
             </div>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Hora de envio (hora de Lisboa)</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Hora de envio (hora de Lisboa)</div>
               <select style={inputStyle} value={hourLocal} onChange={(e) => setHourLocal(e.target.value)}>
                 {HOUR_OPTIONS.map((h) => <option key={h} value={h}>{hourLabel(h)}</option>)}
               </select>
             </div>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Só contactos com a tag (opcional)</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Só contactos com a tag (opcional)</div>
               <select style={inputStyle} value={audienceTagId} onChange={(e) => setAudienceTagId(e.target.value)}>
                 <option value="">Todos os contactos</option>
                 {(tags || []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
-            <label style={{ ...sans, fontSize: 12.5, color: c.ink, display: "flex", alignItems: "flex-start", gap: 7 }}>
+            <label style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "flex-start", gap: 7 }}>
               <input type="checkbox" checked={requireConsent} onChange={(e) => setRequireConsent(e.target.checked)} style={{ marginTop: 2 }} />
               Só contactos com consentimento (WhatsApp, email ou SMS) — recomendado
             </label>
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist }}>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>
               {triggerType === "contact_birthday"
                 ? "Precisa da data de nascimento preenchida na ficha do contacto. "
                 : ""}
@@ -320,17 +320,17 @@ function NewAutomationModal({ brandId, tags, forms, onClose }) {
         )}
         {triggerType === "contact_referred" && (
           <div>
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>A automação corre para…</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>A automação corre para…</div>
             <select style={inputStyle} value={referralTarget} onChange={(e) => setReferralTarget(e.target.value)}>
               <option value="referrer">Quem indicou (agradecimento / recompensa)</option>
               <option value="referred">Quem foi indicado (boas-vindas)</option>
             </select>
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 5 }}>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 5 }}>
               Dispara quando um contacto passa a ter "Indicado por" preenchido — na ficha do contacto ou pela entrada de leads.
             </div>
           </div>
         )}
-        {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}
+        {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
           <button onClick={save} disabled={createAutomation.isPending} style={btnPrimary}>
             {createAutomation.isPending ? "A criar…" : "Criar automação"}
@@ -415,13 +415,13 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
   return (
     <Modal title={isEdit ? "Editar passo" : "Novo passo"} onClose={onClose} width={420}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 8, padding: 3, width: "fit-content" }}>
+        <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 6, padding: 3, width: "fit-content" }}>
           {[{ k: "action", l: "Ação" }, { k: "wait", l: "Esperar" }].map((o) => (
             <button
               key={o.k}
               onClick={() => setType(o.k)}
               style={{
-                ...sans, fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer",
+                ...sans, fontSize: 13.5, fontWeight: 600, padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer",
                 color: type === o.k ? "#fff" : c.mist, background: type === o.k ? c.boss : "transparent",
               }}
             >
@@ -431,18 +431,18 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
         </div>
 
         {type === "wait" && untilField ? (
-          <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>
+          <div style={{ ...sans, fontSize: 14, color: c.mist }}>
             Espera até à data do campo <b>{untilField}</b> do contacto ({untilOffsetLabel(step.config)}). Esta espera só se altera por SQL.
           </div>
         ) : type === "wait" ? (
           <div>
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Esperar quantos minutos</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Esperar quantos minutos</div>
             <input type="number" min="1" style={inputStyle} value={waitMinutes} onChange={(e) => setWaitMinutes(e.target.value)} />
           </div>
         ) : (
           <>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Ação</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Ação</div>
               <select style={inputStyle} value={actionType} onChange={(e) => setActionType(e.target.value)}>
                 {ACTION_TYPES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
               </select>
@@ -450,7 +450,7 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
 
             {(actionType === "add_tag" || actionType === "remove_tag") && (
               <div>
-                <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Tag</div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Tag</div>
                 <select style={inputStyle} value={tagId} onChange={(e) => setTagId(e.target.value)}>
                   <option value="">Escolhe uma tag…</option>
                   {(tags || []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -461,11 +461,11 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
             {actionType === "create_task" && (
               <>
                 <div>
-                  <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Título da tarefa</div>
+                  <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Título da tarefa</div>
                   <input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Ligar ao lead" />
                 </div>
                 <div>
-                  <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Prazo em minutos a partir de agora (opcional)</div>
+                  <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Prazo em minutos a partir de agora (opcional)</div>
                   <input type="number" style={inputStyle} value={dueInMinutes} onChange={(e) => setDueInMinutes(e.target.value)} />
                 </div>
               </>
@@ -473,7 +473,7 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
 
             {(actionType === "send_whatsapp" || actionType === "send_sms") && (
               <div>
-                <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Mensagem</div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Mensagem</div>
                 <textarea rows={3} style={{ ...inputStyle, resize: "vertical" }} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Texto a enviar ao contacto" />
               </div>
             )}
@@ -481,25 +481,25 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
             {actionType === "send_email" && (
               <>
                 <div>
-                  <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Assunto</div>
+                  <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Assunto</div>
                   <input style={inputStyle} value={subject} onChange={(e) => setSubject(e.target.value)} />
                 </div>
                 <div>
-                  <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Conteúdo (HTML)</div>
-                  <textarea rows={8} style={{ ...inputStyle, resize: "vertical", fontFamily: "monospace", fontSize: 12 }} value={body} onChange={(e) => setBody(e.target.value)} />
+                  <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Conteúdo (HTML)</div>
+                  <textarea rows={8} style={{ ...inputStyle, resize: "vertical", fontFamily: "monospace", fontSize: 13.5 }} value={body} onChange={(e) => setBody(e.target.value)} />
                 </div>
               </>
             )}
 
             {actionType === "update_contact" && (
               <div>
-                <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Campos personalizados (um por linha: campo=valor)</div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Campos personalizados (um por linha: campo=valor)</div>
                 <textarea rows={3} style={{ ...inputStyle, resize: "vertical" }} value={fieldsText} onChange={(e) => setFieldsText(e.target.value)} placeholder="linha_interesse=Skin Cleansing" />
               </div>
             )}
 
             {(actionType === "send_whatsapp" || actionType === "send_sms" || actionType === "send_email") && (
-              <label style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", gap: 8, alignItems: "center" }}>
+              <label style={{ ...sans, fontSize: 14, color: c.mist, display: "flex", gap: 8, alignItems: "center" }}>
                 <input type="checkbox" checked={optional} onChange={(e) => setOptional(e.target.checked)} />
                 Opcional: se o contacto não tiver este canal ou o envio falhar, continua a automação
               </label>
@@ -507,14 +507,14 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
 
             {actionType === "http_request" && (
               <div>
-                <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>URL</div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>URL</div>
                 <input style={inputStyle} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" />
               </div>
             )}
           </>
         )}
 
-        {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}
+        {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
 
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
           <button onClick={save} disabled={createStep.isPending || updateStep.isPending} style={btnPrimary}>
@@ -602,10 +602,10 @@ function DateTriggerSettings({ automation, tags, updateAutomation }) {
     }
   };
 
-  const label = { ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 };
+  const label = { ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 };
   return (
-    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: 16, marginBottom: 20 }}>
-      <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.ink, marginBottom: 12 }}>Quando arranca</div>
+    <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 16, marginBottom: 20 }}>
+      <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: c.ink, marginBottom: 12 }}>Quando arranca</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
         {isAnnual && (
           <>
@@ -637,7 +637,7 @@ function DateTriggerSettings({ automation, tags, updateAutomation }) {
           </select>
         </div>
       </div>
-      <label style={{ ...sans, fontSize: 12.5, color: c.ink, display: "flex", alignItems: "flex-start", gap: 7, marginTop: 12 }}>
+      <label style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "flex-start", gap: 7, marginTop: 12 }}>
         <input type="checkbox" checked={requireConsent} onChange={(e) => { setRequireConsent(e.target.checked); setMessage({ text: "", ok: false }); }} style={{ marginTop: 2 }} />
         Só contactos com consentimento (WhatsApp, email ou SMS) — recomendado
       </label>
@@ -645,7 +645,7 @@ function DateTriggerSettings({ automation, tags, updateAutomation }) {
         <button onClick={save} disabled={updateAutomation.isPending} style={btnPrimary}>
           {updateAutomation.isPending ? "A guardar…" : "Guardar"}
         </button>
-        {message.text && <span style={{ ...sans, fontSize: 12.5, color: message.ok ? c.boss : c.rose }}>{message.text}</span>}
+        {message.text && <span style={{ ...sans, fontSize: 14, color: message.ok ? c.bossText : c.rose }}>{message.text}</span>}
       </div>
     </div>
   );
@@ -666,12 +666,12 @@ function AutomationEditor({ brand, automation, onBack }) {
 
   return (
     <div>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
         <ArrowLeft size={14} /> Automações
       </button>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 10 }}>
-        <h1 style={{ ...serif, fontSize: 24, color: c.ink, margin: 0 }}>{automation.name}</h1>
+        <h1 style={{ ...display, fontSize: 24, color: c.ink, margin: 0 }}>{automation.name}</h1>
         <button
           onClick={() => updateAutomation.mutate({ id: automation.id, patch: { status: isActive ? "paused" : "active" } })}
           style={{ ...(isActive ? btnGhost : btnPrimary), display: "flex", alignItems: "center", gap: 6 }}
@@ -679,7 +679,7 @@ function AutomationEditor({ brand, automation, onBack }) {
           {isActive ? <><Pause size={13} /> Pausar</> : <><Play size={13} /> Ativar</>}
         </button>
       </div>
-      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 24 }}>
+      <div style={{ ...sans, fontSize: 14, color: c.mist, marginBottom: 24 }}>
         Quando: <strong>{triggerLabel(automation.trigger_type)}</strong>
       </div>
 
@@ -689,11 +689,11 @@ function AutomationEditor({ brand, automation, onBack }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {steps.map((step, i) => (
-          <div key={step.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "12px 16px" }}>
-            <div style={{ width: 26, height: 26, borderRadius: 999, background: c.bossSoft, color: c.boss, display: "flex", alignItems: "center", justifyContent: "center", ...sans, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+          <div key={step.id} style={{ display: "flex", alignItems: "center", gap: 12, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "12px 16px" }}>
+            <div style={{ width: 26, height: 26, borderRadius: 999, background: c.bossSoft, color: c.bossText, display: "flex", alignItems: "center", justifyContent: "center", ...sans, fontSize: 13.5, fontWeight: 700, flexShrink: 0 }}>
               {i + 1}
             </div>
-            <div style={{ flex: 1, ...sans, fontSize: 13.5, color: c.ink }}>{stepSummary(step)}</div>
+            <div style={{ flex: 1, ...sans, fontSize: 15, color: c.ink }}>{stepSummary(step)}</div>
             <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
               <button
                 onClick={() => moveStep.mutate({ stepId: step.id, otherStepId: steps[i - 1].id, stepPos: step.position, otherPos: steps[i - 1].position })}
@@ -721,7 +721,7 @@ function AutomationEditor({ brand, automation, onBack }) {
 
         <button
           onClick={() => setAddingStep(true)}
-          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: c.mist, background: "transparent", border: `1.5px dashed ${c.line}`, borderRadius: 12, padding: "12px 16px", cursor: "pointer" }}
+          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: c.mist, background: "transparent", border: `1.5px dashed ${c.line}`, borderRadius: 3, padding: "12px 16px", cursor: "pointer" }}
         >
           <Plus size={14} /> Novo passo
         </button>
@@ -740,9 +740,9 @@ function AutomationEditor({ brand, automation, onBack }) {
 
       {confirmDeleteStep && (
         <Modal title="Eliminar passo" onClose={() => setConfirmDeleteStep(null)} width={360}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 16 }}>Tens a certeza? Esta ação não pode ser desfeita.</div>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 16 }}>Tens a certeza? Esta ação não pode ser desfeita.</div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => deleteStep.mutate(confirmDeleteStep.id, { onSuccess: () => setConfirmDeleteStep(null) })} style={{ ...btnPrimary, background: c.rose }}>
+            <button onClick={() => deleteStep.mutate(confirmDeleteStep.id, { onSuccess: () => setConfirmDeleteStep(null) })} style={{ ...btnPrimary, background: c.roseSolid }}>
               Eliminar
             </button>
             <button onClick={() => setConfirmDeleteStep(null)} style={btnGhost}>Cancelar</button>
@@ -774,13 +774,13 @@ export default function AutomationsModule({ brand, onBack }) {
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
         <ArrowLeft size={14} /> Voltar à marca
       </button>
 
       <Eyebrow>Automações</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <h1 style={{ ...serif, fontSize: 24, color: c.ink, margin: 0 }}>Automações</h1>
+        <h1 style={{ ...display, fontSize: 24, color: c.ink, margin: 0 }}>Automações</h1>
         <button onClick={() => setShowNew(true)} style={btnPrimary}>
           <Plus size={14} /> Nova automação
         </button>
@@ -788,18 +788,18 @@ export default function AutomationsModule({ brand, onBack }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {automations.map((a) => (
-          <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px", cursor: "pointer" }} onClick={() => setOpenAutomation(a)}>
-            <div style={{ width: 34, height: 34, borderRadius: 9, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Zap size={16} color={c.boss} strokeWidth={1.8} />
+          <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px", cursor: "pointer" }} onClick={() => setOpenAutomation(a)}>
+            <div style={{ width: 34, height: 34, borderRadius: 6, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Zap size={16} color={c.bossText} strokeWidth={1.8} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ ...serif, fontSize: 15, color: c.ink }}>{a.name}</div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>{triggerLabel(a.trigger_type)}</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>{triggerLabel(a.trigger_type)}</div>
             </div>
             <span
               style={{
-                ...sans, fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", borderRadius: 999, padding: "4px 10px",
-                color: a.status === "active" ? c.sage : c.mist, background: a.status === "active" ? "#E7F5EC" : c.paper,
+                ...sans, fontSize: 12.5, fontWeight: 700, borderRadius: 999, padding: "4px 10px",
+                color: a.status === "active" ? c.sage : c.mist, background: a.status === "active" ? c.sageSoft : c.paper,
               }}
             >
               {a.status === "active" ? "Ativa" : a.status === "paused" ? "Pausada" : "Rascunho"}
@@ -813,7 +813,7 @@ export default function AutomationsModule({ brand, onBack }) {
           </div>
         ))}
         {!automationsQuery.isLoading && automations.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
             Ainda não há automações.
           </div>
         )}
@@ -823,11 +823,11 @@ export default function AutomationsModule({ brand, onBack }) {
 
       {confirmDelete && (
         <Modal title="Eliminar automação" onClose={() => setConfirmDelete(null)} width={380}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 16 }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 16 }}>
             Vais eliminar <strong>{confirmDelete.name}</strong> e todos os seus passos. Esta ação não pode ser desfeita.
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => deleteAutomation.mutate(confirmDelete.id, { onSuccess: () => setConfirmDelete(null) })} style={{ ...btnPrimary, background: c.rose }}>
+            <button onClick={() => deleteAutomation.mutate(confirmDelete.id, { onSuccess: () => setConfirmDelete(null) })} style={{ ...btnPrimary, background: c.roseSolid }}>
               Eliminar
             </button>
             <button onClick={() => setConfirmDelete(null)} style={btnGhost}>Cancelar</button>

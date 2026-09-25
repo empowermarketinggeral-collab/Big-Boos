@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
-import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
+import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, CreditCard, Check, Plus, Trash2, ExternalLink } from "lucide-react";
 import InvoiceLinksPanel from "./InvoiceLinksPanel.jsx";
 
@@ -195,44 +195,44 @@ function SubscriptionCard({ brandId, isClient }) {
     : null;
 
   return (
-    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20, marginBottom: 24 }}>
+    <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20, marginBottom: 24 }}>
       <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Subscrição da plataforma</div>
 
       {isActive ? (
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <div style={{ ...sans, fontSize: 15, fontWeight: 700, color: c.ink }}>{sub.plans?.name}</div>
-            <span style={{ ...sans, fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", borderRadius: 999, padding: "3px 9px", color: SUB_STATUS_COLOR[sub.status], background: c.paper }}>
+            <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, borderRadius: 999, padding: "3px 9px", color: SUB_STATUS_COLOR[sub.status], background: c.paper }}>
               {SUB_STATUS_LABEL[sub.status] || sub.status}
             </span>
           </div>
-          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 14 }}>
+          <div style={{ ...sans, fontSize: 14, color: c.mist, marginBottom: 14 }}>
             {money(sub.plans?.price_cents, sub.plans?.currency)}/mês
-            {sub.current_period_end && ` · renova a ${new Date(sub.current_period_end).toLocaleDateString("pt-PT")}`}
+            {sub.current_period_end && `, renova a ${new Date(sub.current_period_end).toLocaleDateString("pt-PT")}`}
           </div>
           <button onClick={goPortal} disabled={portal.isPending} style={{ ...btnGhost, display: "flex", alignItems: "center", gap: 6 }}>
             <ExternalLink size={13} /> {portal.isPending ? "A abrir…" : "Gerir subscrição"}
           </button>
         </div>
       ) : isClient ? (
-        <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>
+        <div style={{ ...sans, fontSize: 14, color: c.mist }}>
           A tua subscrição ainda não está ativa — fala com a tua agência.
         </div>
       ) : (
         <>
           {sub?.status === "canceled" && (
-            <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 14 }}>A subscrição anterior foi cancelada. Gera um novo link para reativar.</div>
+            <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 14 }}>A subscrição anterior foi cancelada. Gera um novo link para reativar.</div>
           )}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: checkoutLink ? 16 : 0 }}>
             {(plansQuery.data || []).map((plan) => (
-              <div key={plan.id} style={{ border: `1px solid ${c.line}`, borderRadius: 12, padding: 16 }}>
+              <div key={plan.id} style={{ border: `1px solid ${c.line}`, borderRadius: 3, padding: 16 }}>
                 <div style={{ ...serif, fontSize: 16, color: c.ink, marginBottom: 4 }}>{plan.name}</div>
                 <div style={{ ...sans, fontSize: 18, fontWeight: 700, color: c.ink, marginBottom: 10 }}>
-                  {money(plan.price_cents, plan.currency)}<span style={{ fontSize: 11, fontWeight: 400, color: c.mist }}>/mês</span>
+                  {money(plan.price_cents, plan.currency)}<span style={{ fontSize: 12.5, fontWeight: 400, color: c.mist }}>/mês</span>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 14 }}>
                   {(plan.features || []).map((f) => (
-                    <div key={f} style={{ ...sans, fontSize: 11.5, color: c.mist, display: "flex", alignItems: "center", gap: 6 }}>
+                    <div key={f} style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", alignItems: "center", gap: 6 }}>
                       <Check size={12} color={c.sage} /> {f}
                     </div>
                   ))}
@@ -244,19 +244,19 @@ function SubscriptionCard({ brandId, isClient }) {
             ))}
           </div>
           {checkoutLink && (
-            <div style={{ background: c.paper, borderRadius: 12, padding: 16 }}>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 8 }}>Envia este link ao cliente para ele ativar o acesso:</div>
+            <div style={{ background: c.paper, borderRadius: 3, padding: 16 }}>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 8 }}>Envia este link ao cliente para ele ativar o acesso:</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                 <input readOnly value={checkoutLink} onFocus={(e) => e.target.select()} style={{ ...inputStyle, flex: 1, minWidth: 200 }} />
                 <button onClick={copyLink} style={btnGhost}>{copied ? "Copiado ✓" : "Copiar"}</button>
                 <a href={waShareLink} target="_blank" rel="noreferrer" style={{ ...btnPrimary, textDecoration: "none" }}>Enviar por WhatsApp</a>
               </div>
-              <div style={{ ...sans, fontSize: 11, color: c.mistLight, marginTop: 8 }}>Este link expira ao fim de algum tempo se não for usado — gera um novo se precisares.</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mistLight, marginTop: 8 }}>Este link expira ao fim de algum tempo se não for usado — gera um novo se precisares.</div>
             </div>
           )}
         </>
       )}
-      {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginTop: 12 }}>{error}</div>}
+      {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginTop: 12 }}>{error}</div>}
     </div>
   );
 }
@@ -304,23 +304,23 @@ function InvoiceEditor({ brandId, invoice, onBack, isClient }) {
 
   return (
     <div>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
         <ArrowLeft size={14} /> Faturas
       </button>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} disabled={locked} style={{ ...serif, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none" }} />
-        <span style={{ ...sans, fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", borderRadius: 999, padding: "4px 10px", color: INVOICE_STATUS_COLOR[invoice.status], background: c.paper }}>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} disabled={locked} style={{ ...display, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none" }} />
+        <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, borderRadius: 999, padding: "4px 10px", color: INVOICE_STATUS_COLOR[invoice.status], background: c.paper }}>
           {INVOICE_STATUS_LABEL[invoice.status]}
         </span>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 640 }}>
-        <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+        <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
           <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Linhas</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
             {(invoice.service_invoice_items || []).map((it) => (
-              <div key={it.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12.5 }}>
+              <div key={it.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14 }}>
                 <div style={{ ...sans, flex: 1, color: c.ink }}>{it.description} {it.quantity > 1 && `× ${it.quantity}`}</div>
                 <div style={{ ...sans, color: c.ink }}>{money(it.quantity * it.unit_price_cents, invoice.currency)}</div>
                 {!locked && (
@@ -330,7 +330,7 @@ function InvoiceEditor({ brandId, invoice, onBack, isClient }) {
                 )}
               </div>
             ))}
-            {!(invoice.service_invoice_items || []).length && <div style={{ ...sans, fontSize: 12, color: c.mistLight }}>Sem linhas ainda.</div>}
+            {!(invoice.service_invoice_items || []).length && <div style={{ ...sans, fontSize: 13.5, color: c.mistLight }}>Sem linhas ainda.</div>}
           </div>
           {!locked && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
@@ -345,15 +345,15 @@ function InvoiceEditor({ brandId, invoice, onBack, isClient }) {
           </div>
         </div>
 
-        <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+        <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
           <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Detalhes</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Data de vencimento</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Data de vencimento</div>
               <input type="date" style={inputStyle} value={dueDate} onChange={(e) => setDueDate(e.target.value)} disabled={locked} />
             </div>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Notas (opcional)</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Notas (opcional)</div>
               <textarea rows={3} style={{ ...inputStyle, resize: "vertical" }} value={notes} onChange={(e) => setNotes(e.target.value)} disabled={locked} />
             </div>
             {!locked && (
@@ -367,7 +367,7 @@ function InvoiceEditor({ brandId, invoice, onBack, isClient }) {
         {!isClient && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {invoice.status === "draft" && <button onClick={() => setStatus("sent")} style={btnPrimary}>Marcar como enviada</button>}
-            {(invoice.status === "sent" || invoice.status === "overdue") && <button onClick={() => setStatus("paid")} style={{ ...btnPrimary, background: c.sage }}>Marcar como paga</button>}
+            {(invoice.status === "sent" || invoice.status === "overdue") && <button onClick={() => setStatus("paid")} style={{ ...btnPrimary, background: c.sageSolid }}>Marcar como paga</button>}
             {invoice.status !== "cancelled" && invoice.status !== "paid" && <button onClick={() => setStatus("cancelled")} style={btnGhost}>Cancelar fatura</button>}
           </div>
         )}
@@ -402,14 +402,14 @@ function InvoicesPanel({ brandId, isClient }) {
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {invoices.map((iv) => (
-          <div key={iv.id} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px", cursor: "pointer" }} onClick={() => setOpenId(iv.id)}>
+          <div key={iv.id} style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px", cursor: "pointer" }} onClick={() => setOpenId(iv.id)}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ ...serif, fontSize: 15, color: c.ink }}>{iv.title}</div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
                 {money(invoiceTotal(iv), iv.currency)} {iv.due_date && `· vence ${new Date(iv.due_date).toLocaleDateString("pt-PT")}`}
               </div>
             </div>
-            <span style={{ ...sans, fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", borderRadius: 999, padding: "4px 10px", color: INVOICE_STATUS_COLOR[iv.status], background: c.paper }}>
+            <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, borderRadius: 999, padding: "4px 10px", color: INVOICE_STATUS_COLOR[iv.status], background: c.paper }}>
               {INVOICE_STATUS_LABEL[iv.status]}
             </span>
             {!isClient && iv.status === "draft" && (
@@ -420,7 +420,7 @@ function InvoicesPanel({ brandId, isClient }) {
           </div>
         ))}
         {!invoicesQuery.isLoading && invoices.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>Ainda não há faturas.</div>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>Ainda não há faturas.</div>
         )}
       </div>
 
@@ -444,9 +444,9 @@ function InvoicesPanel({ brandId, isClient }) {
 
       {confirmDelete && (
         <Modal title="Eliminar fatura" onClose={() => setConfirmDelete(null)} width={360}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 16 }}>Tens a certeza? Esta ação não pode ser desfeita.</div>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 16 }}>Tens a certeza? Esta ação não pode ser desfeita.</div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => deleteInvoice.mutate(confirmDelete.id, { onSuccess: () => setConfirmDelete(null) })} style={{ ...btnPrimary, background: c.rose }}>Eliminar</button>
+            <button onClick={() => deleteInvoice.mutate(confirmDelete.id, { onSuccess: () => setConfirmDelete(null) })} style={{ ...btnPrimary, background: c.roseSolid }}>Eliminar</button>
             <button onClick={() => setConfirmDelete(null)} style={btnGhost}>Cancelar</button>
           </div>
         </Modal>
@@ -463,13 +463,13 @@ export default function BillingModule({ brand, onBack, session }) {
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
         <ArrowLeft size={14} /> Voltar à marca
       </button>
 
       <Eyebrow>Faturação</Eyebrow>
-      <h1 style={{ ...serif, fontSize: 24, color: c.ink, margin: "0 0 16px", display: "flex", alignItems: "center", gap: 10 }}>
-        <CreditCard size={20} color={c.boss} /> Faturação
+      <h1 style={{ ...display, fontSize: 24, color: c.ink, margin: "0 0 16px", display: "flex", alignItems: "center", gap: 10 }}>
+        <CreditCard size={20} color={c.bossText} /> Faturação
       </h1>
 
       <SubscriptionCard brandId={brand.id} isClient={isClient} />

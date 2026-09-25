@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
-import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
+import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import {
   ArrowLeft, Plus, X, Trash2, Pencil, Phone, Mail, Search, GripVertical, Download, Upload, Link2,
 } from "lucide-react";
@@ -503,19 +503,19 @@ function ContactFormModal({ brandId, contact, contacts, onClose, session }) {
     <Modal title={contact ? "Editar contacto" : "Novo contacto"} onClose={onClose}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Nome</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Nome</div>
           <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do contacto" />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Telefone (WhatsApp)</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Telefone (WhatsApp)</div>
           <input style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+351 912 345 678" />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Email</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Email</div>
           <input style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@exemplo.com" />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Origem</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Origem</div>
           <select style={inputStyle} value={source} onChange={(e) => setSource(e.target.value)}>
             <option value="manual">Manual</option>
             <option value="formulario">Formulário</option>
@@ -527,25 +527,25 @@ function ContactFormModal({ brandId, contact, contacts, onClose, session }) {
           </select>
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Data de nascimento (para automações de aniversário)</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Data de nascimento (para automações de aniversário)</div>
           <input style={inputStyle} type="date" value={birthDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setBirthDate(e.target.value)} />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Indicado por</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Indicado por</div>
           <select style={inputStyle} value={referredBy} onChange={(e) => setReferredBy(e.target.value)}>
             <option value="">— ninguém —</option>
             {(contacts || []).filter((ct) => ct.id !== contact?.id).map((ct) => (
-              <option key={ct.id} value={ct.id}>{ct.name}{ct.phone ? ` · ${ct.phone}` : ""}</option>
+              <option key={ct.id} value={ct.id}>{ct.name}{ct.phone ? `, ${ct.phone}` : ""}</option>
             ))}
           </select>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ ...sans, fontSize: 12.5, color: c.ink, display: "flex", alignItems: "center", gap: 7 }}>
+          <label style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "center", gap: 7 }}>
             <input type="checkbox" checked={optedInEmail} onChange={(e) => setOptedInEmail(e.target.checked)} />
             Consentimento para receber email
           </label>
-          <label style={{ ...sans, fontSize: 12.5, color: c.ink, display: "flex", alignItems: "center", gap: 7 }}>
+          <label style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "center", gap: 7 }}>
             <input type="checkbox" checked={optedInWhatsapp} onChange={(e) => setOptedInWhatsapp(e.target.checked)} />
             Consentimento para receber WhatsApp
           </label>
@@ -553,7 +553,7 @@ function ContactFormModal({ brandId, contact, contacts, onClose, session }) {
 
         {contact?.id && (
           <div>
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Tags</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Tags</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
               {(tagsQuery.data || []).map((tag) => {
                 const active = activeTagIds.has(tag.id);
@@ -562,10 +562,10 @@ function ContactFormModal({ brandId, contact, contacts, onClose, session }) {
                     key={tag.id}
                     onClick={() => toggleTag.mutate({ tagId: tag.id, active: !active })}
                     style={{
-                      ...sans, fontSize: 11.5, fontWeight: 600, padding: "5px 10px", borderRadius: 999, cursor: "pointer",
+                      ...sans, fontSize: 12.5, fontWeight: 600, padding: "5px 10px", borderRadius: 999, cursor: "pointer",
                       border: `1px solid ${active ? tag.color : c.line}`,
                       color: active ? "#fff" : c.mist,
-                      background: active ? tag.color : "#fff",
+                      background: active ? tag.color : c.folha,
                     }}
                   >
                     {tag.name}
@@ -574,13 +574,13 @@ function ContactFormModal({ brandId, contact, contacts, onClose, session }) {
               })}
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <input style={{ ...inputStyle, fontSize: 12 }} value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder="Nova tag…" />
+              <input style={{ ...inputStyle, fontSize: 13.5 }} value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder="Nova tag…" />
               <button onClick={addTag} style={btnGhost}><Plus size={13} /></button>
             </div>
           </div>
         )}
 
-        {error && <div style={{ ...sans, fontSize: 12, color: c.rose }}>{error}</div>}
+        {error && <div style={{ ...sans, fontSize: 13.5, color: c.rose }}>{error}</div>}
 
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           <button onClick={save} disabled={saveContact.isPending} style={btnPrimary}>
@@ -660,11 +660,11 @@ function ContactsView({ brand, session }) {
         </div>
       </div>
 
-      {importError && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 12 }}>{importError}</div>}
+      {importError && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 12 }}>{importError}</div>}
 
       {importResult && (
         <Modal title="Importação concluída" onClose={() => setImportResult(null)} width={360}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, lineHeight: 1.8 }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.8 }}>
             <div>{importResult.created} contacto(s) criado(s)</div>
             <div>{importResult.skipped} ignorado(s) (duplicados ou sem nome)</div>
             {importResult.failed > 0 && <div style={{ color: c.rose }}>{importResult.failed} falharam</div>}
@@ -684,27 +684,27 @@ function ContactsView({ brand, session }) {
       )}
       {showLeadIntake && <LeadIntakeModal brand={brand} onClose={() => setShowLeadIntake(false)} />}
 
-      {contactsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
+      {contactsQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A carregar…</div>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {contacts.map((ct) => (
           <div
             key={ct.id}
-            style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "12px 16px" }}
+            style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "12px 16px" }}
           >
-            <div style={{ width: 34, height: 34, borderRadius: 999, background: c.bossSoft, color: c.boss, display: "flex", alignItems: "center", justifyContent: "center", ...sans, fontSize: 12.5, fontWeight: 700, flexShrink: 0 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 999, background: c.bossSoft, color: c.bossText, display: "flex", alignItems: "center", justifyContent: "center", ...sans, fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
               {initials(ct.name)}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ ...serif, fontSize: 14.5, color: c.ink }}>{ct.name}</div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, display: "flex", gap: 12, marginTop: 2, flexWrap: "wrap" }}>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", gap: 12, marginTop: 2, flexWrap: "wrap" }}>
                 {ct.phone && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Phone size={11} /> {ct.phone}</span>}
                 {ct.email && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Mail size={11} /> {ct.email}</span>}
               </div>
             </div>
             <div style={{ display: "flex", gap: 5, flexWrap: "wrap", maxWidth: 200 }}>
               {ct.tags.map((tag) => (
-                <span key={tag.id} style={{ ...sans, fontSize: 10.5, fontWeight: 600, color: "#fff", background: tag.color, borderRadius: 999, padding: "3px 8px" }}>
+                <span key={tag.id} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: tag.color, borderRadius: 999, padding: "3px 8px" }}>
                   {tag.name}
                 </span>
               ))}
@@ -720,7 +720,7 @@ function ContactsView({ brand, session }) {
           </div>
         ))}
         {!contactsQuery.isLoading && contacts.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
             Ainda não há contactos.
           </div>
         )}
@@ -728,11 +728,11 @@ function ContactsView({ brand, session }) {
 
       {confirmingDelete && (
         <Modal title="Eliminar contacto" onClose={() => setConfirmingDelete(null)} width={360}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 16 }}>Tens a certeza? Esta ação não pode ser desfeita.</div>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 16 }}>Tens a certeza? Esta ação não pode ser desfeita.</div>
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => deleteContact.mutate(confirmingDelete, { onSuccess: () => setConfirmingDelete(null) })}
-              style={{ ...btnPrimary, background: c.rose }}
+              style={{ ...btnPrimary, background: c.roseSolid }}
             >
               Eliminar
             </button>
@@ -768,21 +768,21 @@ function NewDealModal({ brandId, pipelineId, stageId, contacts, onClose, session
     <Modal title="Novo negócio" onClose={onClose} width={380}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Título</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Título</div>
           <input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Pacote redes sociais" />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Valor (€)</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Valor (€)</div>
           <input style={inputStyle} type="number" value={value} onChange={(e) => setValue(e.target.value)} placeholder="0" />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Contacto</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Contacto</div>
           <select style={inputStyle} value={contactId} onChange={(e) => setContactId(e.target.value)}>
             <option value="">Sem contacto associado</option>
             {contacts.map((ct) => <option key={ct.id} value={ct.id}>{ct.name}</option>)}
           </select>
         </div>
-        {error && <div style={{ ...sans, fontSize: 12, color: c.rose }}>{error}</div>}
+        {error && <div style={{ ...sans, fontSize: 13.5, color: c.rose }}>{error}</div>}
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
           <button onClick={save} disabled={createDeal.isPending} style={btnPrimary}>
             {createDeal.isPending ? "A criar…" : "Criar negócio"}
@@ -809,18 +809,18 @@ function DealDrawer({ deal, stages, pipelineId, brandId, onClose, session }) {
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(23,21,31,0.35)", zIndex: 60, display: "flex", justifyContent: "flex-end" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", width: "100%", maxWidth: 420, height: "100%", padding: 24, overflowY: "auto" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: c.folha, width: "100%", maxWidth: 420, height: "100%", padding: 24, overflowY: "auto" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18 }}>
           <div>
             <div style={{ ...serif, fontSize: 18, color: c.ink }}>{deal.title}</div>
-            {deal.contactName && <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 3 }}>{deal.contactName}</div>}
+            {deal.contactName && <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginTop: 3 }}>{deal.contactName}</div>}
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 4 }}><X size={18} /></button>
         </div>
 
-        <div style={{ ...serif, fontSize: 22, color: c.boss, marginBottom: 18 }}>{money(deal.value)}</div>
+        <div style={{ ...display, fontSize: 22, color: c.bossText, marginBottom: 18 }}>{money(deal.value)}</div>
 
-        <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Fase</div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Fase</div>
         <select
           style={{ ...inputStyle, marginBottom: 18 }}
           value={deal.stageId}
@@ -832,23 +832,23 @@ function DealDrawer({ deal, stages, pipelineId, brandId, onClose, session }) {
           {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
 
-        <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 8 }}>Notas</div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 8 }}>Notas</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
           <input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Escrever uma nota…" onKeyDown={(e) => e.key === "Enter" && sendNote()} />
           <button onClick={sendNote} style={btnGhost}><Plus size={13} /></button>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
           {(activitiesQuery.data || []).map((a) => (
-            <div key={a.id} style={{ background: c.paper, borderRadius: 8, padding: "8px 12px" }}>
-              <div style={{ ...sans, fontSize: 12.5, color: c.ink }}>{a.body}</div>
-              <div style={{ ...sans, fontSize: 10.5, color: c.mistLight, marginTop: 3 }}>{new Date(a.created_at).toLocaleString("pt-PT")}</div>
+            <div key={a.id} style={{ background: c.paper, borderRadius: 6, padding: "8px 12px" }}>
+              <div style={{ ...sans, fontSize: 14, color: c.ink }}>{a.body}</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mistLight, marginTop: 3 }}>{new Date(a.created_at).toLocaleString("pt-PT")}</div>
             </div>
           ))}
         </div>
 
         <button
           onClick={() => deleteDeal.mutate(deal.id, { onSuccess: onClose })}
-          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 14px", cursor: "pointer" }}
+          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 6, padding: "9px 14px", cursor: "pointer" }}
         >
           <Trash2 size={13} /> Eliminar negócio
         </button>
@@ -863,14 +863,14 @@ function DealCard({ deal, onOpen }) {
       draggable
       onDragStart={(e) => e.dataTransfer.setData("text/plain", deal.id)}
       onClick={onOpen}
-      style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 10, padding: "10px 12px", cursor: "grab" }}
+      style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 6, padding: "10px 12px", cursor: "grab" }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
         <GripVertical size={13} color={c.mistLight} style={{ marginTop: 2, flexShrink: 0 }} />
         <div style={{ minWidth: 0 }}>
-          <div style={{ ...sans, fontSize: 13, fontWeight: 600, color: c.ink }}>{deal.title}</div>
-          {deal.contactName && <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>{deal.contactName}</div>}
-          <div style={{ ...sans, fontSize: 12, fontWeight: 600, color: c.boss, marginTop: 5 }}>{money(deal.value)}</div>
+          <div style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink }}>{deal.title}</div>
+          {deal.contactName && <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>{deal.contactName}</div>}
+          <div style={{ ...sans, fontSize: 13.5, fontWeight: 600, color: c.bossText, marginTop: 5 }}>{money(deal.value)}</div>
         </div>
       </div>
     </div>
@@ -899,7 +899,7 @@ function PipelineTab({ pipeline, active, onSelect, onRename, onDelete }) {
           if (e.key === "Enter") save();
           if (e.key === "Escape") { setName(pipeline.name); setEditing(false); }
         }}
-        style={{ ...sans, fontSize: 12.5, fontWeight: 600, padding: "7px 10px", borderRadius: 7, border: `1px solid ${c.boss}`, outline: "none", width: 140 }}
+        style={{ ...sans, fontSize: 14, fontWeight: 600, padding: "7px 10px", borderRadius: 7, border: `1px solid ${c.boss}`, outline: "none", width: 140 }}
       />
     );
   }
@@ -908,7 +908,7 @@ function PipelineTab({ pipeline, active, onSelect, onRename, onDelete }) {
     <div style={{ display: "flex", alignItems: "center", borderRadius: 7, background: active ? c.boss : "transparent" }}>
       <button
         onClick={onSelect}
-        style={{ ...sans, fontSize: 12.5, fontWeight: 600, padding: "7px 12px", border: "none", background: "transparent", color: active ? "#fff" : c.mist, cursor: "pointer" }}
+        style={{ ...sans, fontSize: 14, fontWeight: 600, padding: "7px 12px", border: "none", background: "transparent", color: active ? "#fff" : c.mist, cursor: "pointer" }}
       >
         {pipeline.name}
       </button>
@@ -932,7 +932,7 @@ function NewPipelineModal({ onCreate, onClose, isPending }) {
     <Modal title="Novo pipeline" onClose={onClose} width={360}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Nome</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Nome</div>
           <input
             autoFocus
             style={inputStyle}
@@ -942,7 +942,7 @@ function NewPipelineModal({ onCreate, onClose, isPending }) {
             onKeyDown={(e) => e.key === "Enter" && name.trim() && onCreate(name.trim())}
           />
         </div>
-        <div style={{ ...sans, fontSize: 11.5, color: c.mist }}>Começa com as fases: Novo Lead, Contactado, Qualificado, Proposta, Ganho, Perdido — todas editáveis depois.</div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>Começa com as fases: Novo Lead, Contactado, Qualificado, Proposta, Ganho, Perdido — todas editáveis depois.</div>
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
           <button onClick={() => name.trim() && onCreate(name.trim())} disabled={isPending} style={btnPrimary}>
             {isPending ? "A criar…" : "Criar pipeline"}
@@ -975,14 +975,14 @@ function StageHeader({ stage, count, total, onRename, onDelete }) {
             onChange={(e) => setName(e.target.value)}
             onBlur={save}
             onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") { setName(stage.name); setEditing(false); } }}
-            style={{ ...sans, fontSize: 12.5, fontWeight: 700, padding: "3px 6px", borderRadius: 6, border: `1px solid ${c.boss}`, outline: "none", width: "100%" }}
+            style={{ ...sans, fontSize: 14, fontWeight: 700, padding: "3px 6px", borderRadius: 6, border: `1px solid ${c.boss}`, outline: "none", width: "100%" }}
           />
         ) : (
-          <div onClick={() => setEditing(true)} style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: c.ink, cursor: "text" }} title="Clicar para renomear">
+          <div onClick={() => setEditing(true)} style={{ ...sans, fontSize: 14, fontWeight: 700, color: c.ink, cursor: "text" }} title="Clicar para renomear">
             {stage.name}
           </div>
         )}
-        <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 1 }}>{count} · {money(total)}</div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 1 }}>{count}, {money(total)}</div>
       </div>
       <button onClick={onDelete} style={{ background: "none", border: "none", cursor: "pointer", color: c.mistLight, padding: 4, flexShrink: 0 }}>
         <Trash2 size={12} />
@@ -1003,7 +1003,7 @@ function AddStageColumn({ onAdd }) {
 
   if (adding) {
     return (
-      <div style={{ background: c.paper, borderRadius: 12, padding: 12, minWidth: 200, flexShrink: 0, alignSelf: "flex-start" }}>
+      <div style={{ background: c.paper, borderRadius: 3, padding: 12, minWidth: 200, flexShrink: 0, alignSelf: "flex-start" }}>
         <input
           autoFocus
           value={name}
@@ -1011,7 +1011,7 @@ function AddStageColumn({ onAdd }) {
           onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setAdding(false); }}
           onBlur={save}
           placeholder="Nome da fase…"
-          style={{ ...sans, width: "100%", fontSize: 12.5, border: `1px solid ${c.boss}`, borderRadius: 7, padding: "7px 10px", outline: "none" }}
+          style={{ ...sans, width: "100%", fontSize: 14, border: `1px solid ${c.boss}`, borderRadius: 7, padding: "7px 10px", outline: "none" }}
         />
       </div>
     );
@@ -1021,8 +1021,8 @@ function AddStageColumn({ onAdd }) {
     <button
       onClick={() => setAdding(true)}
       style={{
-        ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: c.mist,
-        background: "transparent", border: `1.5px dashed ${c.line}`, borderRadius: 12, padding: "12px 16px",
+        ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: c.mist,
+        background: "transparent", border: `1.5px dashed ${c.line}`, borderRadius: 3, padding: "12px 16px",
         minWidth: 150, flexShrink: 0, cursor: "pointer", alignSelf: "flex-start",
       }}
     >
@@ -1072,7 +1072,7 @@ function PipelineView({ brand, session }) {
   const deleteStage = useDeleteStage(pipeline?.id);
 
   if (pipelinesQuery.isLoading || (pipelinesQuery.data?.length === 0) || !pipeline) {
-    return <div style={{ ...sans, fontSize: 13, color: c.mist }}>A preparar o pipeline…</div>;
+    return <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A preparar o pipeline…</div>;
   }
 
   const stages = stagesQuery.data || [];
@@ -1109,7 +1109,7 @@ function PipelineView({ brand, session }) {
                 const dealId = e.dataTransfer.getData("text/plain");
                 if (dealId) updateDealStage.mutate({ id: dealId, stage });
               }}
-              style={{ background: c.paper, borderRadius: 12, padding: 12, minWidth: 250, flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}
+              style={{ background: c.paper, borderRadius: 3, padding: 12, minWidth: 250, flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}
             >
               <StageHeader
                 stage={stage}
@@ -1123,7 +1123,7 @@ function PipelineView({ brand, session }) {
                   <DealCard key={deal.id} deal={deal} onOpen={() => setOpenDeal(deal)} />
                 ))}
               </div>
-              <button onClick={() => setAddingToStage(stage.id)} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: c.boss, background: "none", border: "none", cursor: "pointer", padding: "4px 2px" }}>
+              <button onClick={() => setAddingToStage(stage.id)} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 13.5, color: c.bossText, background: "none", border: "none", cursor: "pointer", padding: "4px 2px" }}>
                 <Plus size={13} /> Negócio
               </button>
             </div>
@@ -1164,13 +1164,13 @@ function PipelineView({ brand, session }) {
 
       {confirmDeletePipeline && (
         <Modal title="Eliminar pipeline" onClose={() => setConfirmDeletePipeline(null)} width={380}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 16, lineHeight: 1.5 }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 16, lineHeight: 1.5 }}>
             Vais eliminar <strong>{confirmDeletePipeline.name}</strong>, incluindo todas as fases e negócios lá dentro. Esta ação não pode ser desfeita.
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => deletePipeline.mutate(confirmDeletePipeline.id, { onSuccess: () => setConfirmDeletePipeline(null) })}
-              style={{ ...btnPrimary, background: c.rose }}
+              style={{ ...btnPrimary, background: c.roseSolid }}
             >
               Eliminar pipeline
             </button>
@@ -1181,14 +1181,14 @@ function PipelineView({ brand, session }) {
 
       {confirmDeleteStage && (
         <Modal title="Eliminar fase" onClose={() => setConfirmDeleteStage(null)} width={380}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 16, lineHeight: 1.5 }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 16, lineHeight: 1.5 }}>
             Vais eliminar a fase <strong>{confirmDeleteStage.stage.name}</strong>
             {confirmDeleteStage.count > 0 ? <> e os <strong>{confirmDeleteStage.count}</strong> negócio(s) que lá estão</> : ""}. Esta ação não pode ser desfeita.
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => deleteStage.mutate(confirmDeleteStage.stage.id, { onSuccess: () => setConfirmDeleteStage(null) })}
-              style={{ ...btnPrimary, background: c.rose }}
+              style={{ ...btnPrimary, background: c.roseSolid }}
             >
               Eliminar fase
             </button>
@@ -1208,19 +1208,19 @@ export default function CrmModule({ brand, onBack, session }) {
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1080 }}>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
         <ArrowLeft size={14} /> {brand.name}
       </button>
       <Eyebrow>CRM</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-        <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: 0 }}>Contactos &amp; Pipeline</h1>
-        <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 9, padding: 3 }}>
+        <h1 style={{ ...display, fontSize: 27,  color: c.ink, margin: 0 }}>Contactos &amp; Pipeline</h1>
+        <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 6, padding: 3 }}>
           {[{ key: "pipeline", label: "Pipeline" }, { key: "contactos", label: "Contactos" }, { key: "tags", label: "Tags" }].map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
               style={{
-                ...sans, fontSize: 12.5, fontWeight: 600, padding: "7px 14px", borderRadius: 7, border: "none", cursor: "pointer",
+                ...sans, fontSize: 14, fontWeight: 600, padding: "7px 14px", borderRadius: 7, border: "none", cursor: "pointer",
                 color: tab === t.key ? "#fff" : c.mist, background: tab === t.key ? c.boss : "transparent",
               }}
             >

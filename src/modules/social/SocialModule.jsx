@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
-import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
+import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, Plus, Trash2, Instagram, Facebook, Music2, Linkedin, Youtube, AtSign, Send, AlertCircle, BarChart3 } from "lucide-react";
 
 /* ---------------------------------------------------------
@@ -55,7 +55,7 @@ const STATUS_LABEL = {
   publishing: "A publicar…", published: "Publicado", failed: "Falhou", manual_only: "Publicar manualmente",
 };
 const STATUS_COLOR = {
-  draft: c.mist, pending_approval: c.amber, scheduled: "#3B5FC2", publishing: c.amber,
+  draft: c.mist, pending_approval: c.amber, scheduled: c.info, publishing: c.amber,
   published: c.sage, failed: c.rose, manual_only: c.amber,
 };
 
@@ -187,33 +187,33 @@ function ConnectAccountModal({ brandId, onClose }) {
     <Modal title="Ligar conta social" onClose={onClose} width={420}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Plataforma</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Plataforma</div>
           <select style={inputStyle} value={platform} onChange={(e) => setPlatform(e.target.value)}>
             {PLATFORMS.map((p) => <option key={p.value} value={p.value}>{p.label}{!p.publishable ? " — publicação manual" : ""}</option>)}
           </select>
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Nome/identificador da conta</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Nome/identificador da conta</div>
           <input style={inputStyle} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="@marca" />
         </div>
         {platformInfo.publishable && (
           <>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>{CONNECT_ID_LABEL[platform]}</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>{CONNECT_ID_LABEL[platform]}</div>
               <input style={inputStyle} value={externalAccountId} onChange={(e) => setExternalAccountId(e.target.value)} />
             </div>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Token de acesso (longa duração)</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Token de acesso (longa duração)</div>
               <input style={inputStyle} type="password" value={accessToken} onChange={(e) => setAccessToken(e.target.value)} />
             </div>
           </>
         )}
         {!platformInfo.publishable && (
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, lineHeight: 1.5 }}>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.5 }}>
             Esta plataforma não tem API oficial de publicação para apps de terceiros — os posts ficam prontos aqui, mas publicas manualmente na app da plataforma.
           </div>
         )}
-        {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}
+        {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
         <button onClick={save} disabled={connect.isPending} style={{ ...btnPrimary, width: "fit-content" }}>
           {connect.isPending ? "A ligar…" : "Ligar conta"}
         </button>
@@ -267,26 +267,26 @@ function NewPostModal({ brandId, accounts, onClose }) {
     <Modal title="Novo post" onClose={onClose} width={440}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Conta</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Conta</div>
           <select style={inputStyle} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
             {accounts.map((a) => <option key={a.id} value={a.id}>{PLATFORM_LABEL[a.platform]} — {a.display_name}</option>)}
           </select>
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Legenda</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Legenda</div>
           <textarea rows={4} style={{ ...inputStyle, resize: "vertical" }} value={caption} onChange={(e) => setCaption(e.target.value)} />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>{videoOnly ? "Vídeo (link, obrigatório)" : "Imagem (link, opcional)"}</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>{videoOnly ? "Vídeo (link, obrigatório)" : "Imagem (link, opcional)"}</div>
           <input style={inputStyle} value={mediaUrl} onChange={(e) => setMediaUrl(e.target.value)} placeholder="https://…" />
         </div>
         {publishable && (
           <div>
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Agendar para</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Agendar para</div>
             <input type="datetime-local" style={inputStyle} value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
           </div>
         )}
-        {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}
+        {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button onClick={() => save("draft")} disabled={createPost.isPending} style={btnGhost}>Guardar rascunho</button>
           {publishable ? (
@@ -326,14 +326,14 @@ function MetricsModal({ postId, brandId, onClose }) {
 
   const field = (label, value, setValue) => (
     <div>
-      <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>{label}</div>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>{label}</div>
       <input type="number" style={inputStyle} value={value} onChange={(e) => setValue(e.target.value)} />
     </div>
   );
 
   return (
     <Modal title="Registar estatísticas" onClose={onClose} width={380}>
-      <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 12, lineHeight: 1.5 }}>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 12, lineHeight: 1.5 }}>
         Ainda não recolhemos isto automaticamente da plataforma — copia os números do painel de estatísticas do post.
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -369,30 +369,30 @@ export default function SocialModule({ brand, onBack }) {
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
         <ArrowLeft size={14} /> Voltar à marca
       </button>
 
       <Eyebrow>Social Media</Eyebrow>
-      <h1 style={{ ...serif, fontSize: 24, color: c.ink, margin: "0 0 16px" }}>Planeador</h1>
+      <h1 style={{ ...display, fontSize: 24, color: c.ink, margin: "0 0 16px" }}>Planeador</h1>
 
-      <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 18, marginBottom: 24 }}>
+      <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 18, marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <div style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: c.ink }}>Contas ligadas</div>
+          <div style={{ ...sans, fontSize: 14, fontWeight: 700, color: c.ink }}>Contas ligadas</div>
           <button onClick={() => setShowConnect(true)} style={{ ...btnGhost, padding: "6px 12px" }}>
             <Plus size={12} /> Ligar conta
           </button>
         </div>
         {accounts.length === 0 ? (
-          <div style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>Nenhuma conta ligada ainda.</div>
+          <div style={{ ...sans, fontSize: 14, color: c.mistLight }}>Nenhuma conta ligada ainda.</div>
         ) : (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {accounts.map((a) => {
               const Icon = PLATFORM_ICON[a.platform];
               return (
                 <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 7, background: c.paper, borderRadius: 999, padding: "6px 6px 6px 12px" }}>
-                  <Icon size={13} color={c.boss} />
-                  <span style={{ ...sans, fontSize: 12, color: c.ink }}>{a.display_name}</span>
+                  <Icon size={13} color={c.bossText} />
+                  <span style={{ ...sans, fontSize: 13.5, color: c.ink }}>{a.display_name}</span>
                   <button onClick={() => deleteAccount.mutate(a.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 4 }}>
                     <Trash2 size={11} />
                   </button>
@@ -414,22 +414,22 @@ export default function SocialModule({ brand, onBack }) {
         {posts.map((p) => {
           const Icon = PLATFORM_ICON[p.social_accounts?.platform] || Instagram;
           return (
-            <div key={p.id} style={{ display: "flex", alignItems: "flex-start", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px" }}>
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Icon size={16} color={c.boss} strokeWidth={1.8} />
+            <div key={p.id} style={{ display: "flex", alignItems: "flex-start", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px" }}>
+              <div style={{ width: 34, height: 34, borderRadius: 6, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon size={16} color={c.bossText} strokeWidth={1.8} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ ...sans, fontSize: 13, color: c.ink, lineHeight: 1.4 }}>{p.caption || <em style={{ color: c.mistLight }}>Sem legenda</em>}</div>
-                <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 4 }}>
+                <div style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.4 }}>{p.caption || <em style={{ color: c.mistLight }}>Sem legenda</em>}</div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 4 }}>
                   {p.social_accounts?.display_name} {p.scheduled_at && `· ${new Date(p.scheduled_at).toLocaleString("pt-PT")}`}
                 </div>
                 {p.status === "failed" && p.failure_reason && (
-                  <div style={{ ...sans, fontSize: 11, color: c.rose, marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                  <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
                     <AlertCircle size={11} /> {p.failure_reason}
                   </div>
                 )}
               </div>
-              <span style={{ ...sans, fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", borderRadius: 999, padding: "4px 10px", color: STATUS_COLOR[p.status], background: c.paper, flexShrink: 0 }}>
+              <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, borderRadius: 999, padding: "4px 10px", color: STATUS_COLOR[p.status], background: c.paper, flexShrink: 0 }}>
                 {STATUS_LABEL[p.status]}
               </span>
               <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
@@ -446,7 +446,7 @@ export default function SocialModule({ brand, onBack }) {
           );
         })}
         {!postsQuery.isLoading && posts.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
             {accounts.length === 0 ? "Liga uma conta social para começares." : "Ainda não há posts."}
           </div>
         )}
@@ -458,9 +458,9 @@ export default function SocialModule({ brand, onBack }) {
 
       {confirmDeletePost && (
         <Modal title="Eliminar post" onClose={() => setConfirmDeletePost(null)} width={360}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 16 }}>Tens a certeza? Esta ação não pode ser desfeita.</div>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 16 }}>Tens a certeza? Esta ação não pode ser desfeita.</div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => deletePost.mutate(confirmDeletePost.id, { onSuccess: () => setConfirmDeletePost(null) })} style={{ ...btnPrimary, background: c.rose }}>Eliminar</button>
+            <button onClick={() => deletePost.mutate(confirmDeletePost.id, { onSuccess: () => setConfirmDeletePost(null) })} style={{ ...btnPrimary, background: c.roseSolid }}>Eliminar</button>
             <button onClick={() => setConfirmDeletePost(null)} style={btnGhost}>Cancelar</button>
           </div>
         </Modal>

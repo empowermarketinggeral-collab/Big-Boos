@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
-import { c, sans, serif, Eyebrow } from "../../shared/theme.jsx";
+import { c, sans, Eyebrow, display } from "../../shared/theme.jsx";
 import { ArrowLeft, MessageCircle, Mail, MessageSquare, Send, AlertCircle, CheckCircle2 } from "lucide-react";
 
 /* ---------------------------------------------------------
@@ -20,7 +20,7 @@ import { ArrowLeft, MessageCircle, Mail, MessageSquare, Send, AlertCircle, Check
 
 const CHANNEL_ICON = { whatsapp: MessageCircle, email: Mail, sms: MessageSquare };
 const CHANNEL_LABEL = { whatsapp: "WhatsApp", email: "Email", sms: "SMS" };
-const CHANNEL_COLOR = { whatsapp: "#2F9E63", email: "#3B5FC2", sms: "#C9821F" };
+const CHANNEL_COLOR = { whatsapp: c.sage, email: c.info, sms: c.amber };
 
 const timeLabel = (iso) => (iso ? new Date(iso).toLocaleString("pt-PT", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
 
@@ -117,15 +117,15 @@ function ContactRow({ entry, active, onSelect }) {
       onClick={onSelect}
       style={{
         display: "flex", flexDirection: "column", gap: 3, textAlign: "left", width: "100%",
-        padding: "10px 12px", borderRadius: 9, border: "none", cursor: "pointer",
+        padding: "10px 12px", borderRadius: 6, border: "none", cursor: "pointer",
         background: active ? c.bossSoft : "transparent",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <span style={{ ...sans, fontSize: 13, fontWeight: 600, color: c.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+        <span style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
         <Icon size={12} color={CHANNEL_COLOR[entry.lastChannel]} style={{ flexShrink: 0 }} />
       </div>
-      <span style={{ ...sans, fontSize: 10.5, color: c.mistLight }}>{timeLabel(entry.lastAt)}</span>
+      <span style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>{timeLabel(entry.lastAt)}</span>
     </button>
   );
 }
@@ -137,19 +137,19 @@ function TimelineItem({ item }) {
     <div style={{ display: "flex", justifyContent: outbound ? "flex-end" : "flex-start" }}>
       <div
         style={{
-          maxWidth: "78%", padding: "8px 12px", borderRadius: 12,
-          background: outbound ? c.boss : "#fff", color: outbound ? "#fff" : c.ink,
+          maxWidth: "78%", padding: "8px 12px", borderRadius: 3,
+          background: outbound ? c.boss : c.folha, color: outbound ? "#fff" : c.ink,
           border: outbound ? "none" : `1px solid ${c.line}`,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
           <Icon size={11} color={outbound ? "rgba(255,255,255,0.85)" : c.mist} />
-          <span style={{ ...sans, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: outbound ? "rgba(255,255,255,0.85)" : c.mist }}>
+          <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: outbound ? "rgba(255,255,255,0.85)" : c.mist }}>
             {CHANNEL_LABEL[item.channel]}
           </span>
         </div>
-        <div style={{ ...sans, fontSize: 13, whiteSpace: "pre-wrap" }}>{item.body}</div>
-        <div style={{ ...sans, fontSize: 10, marginTop: 4, color: outbound ? "rgba(255,255,255,0.75)" : c.mistLight, display: "flex", alignItems: "center", gap: 4 }}>
+        <div style={{ ...sans, fontSize: 14.5, whiteSpace: "pre-wrap" }}>{item.body}</div>
+        <div style={{ ...sans, fontSize: 12.5, marginTop: 4, color: outbound ? "rgba(255,255,255,0.75)" : c.mistLight, display: "flex", alignItems: "center", gap: 4 }}>
           {timeLabel(item.at)}
           {outbound && item.status === "failed" && <AlertCircle size={11} color="#FBD5DC" />}
           {outbound && item.status !== "failed" && <CheckCircle2 size={11} />}
@@ -184,34 +184,34 @@ function ContactTimeline({ brand, entry }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ padding: "12px 16px", borderBottom: `1px solid ${c.line}` }}>
-        <div style={{ ...sans, fontSize: 13.5, fontWeight: 600, color: c.ink }}>{name}</div>
-        <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 1 }}>
-          {[entry.contact?.phone, entry.contact?.email].filter(Boolean).join(" · ")}
+        <div style={{ ...sans, fontSize: 15, fontWeight: 600, color: c.ink }}>{name}</div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 1 }}>
+          {[entry.contact?.phone, entry.contact?.email].filter(Boolean).join(", ")}
         </div>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 8, background: c.paper }}>
         {(timelineQuery.data || []).map((item, i) => <TimelineItem key={i} item={item} />)}
-        {!timelineQuery.data?.length && <div style={{ ...sans, fontSize: 12.5, color: c.mistLight, textAlign: "center", padding: "30px 0" }}>Sem histórico ainda.</div>}
+        {!timelineQuery.data?.length && <div style={{ ...sans, fontSize: 14, color: c.mistLight, textAlign: "center", padding: "30px 0" }}>Sem histórico ainda.</div>}
       </div>
 
       <div style={{ padding: 12, borderTop: `1px solid ${c.line}` }}>
         {!canSendWhatsapp && (
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 8 }}>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 8 }}>
             Só é possível responder por WhatsApp a partir daqui (Email/SMS ainda não recebem respostas). Este contacto ainda não tem conversa de WhatsApp.
           </div>
         )}
-        {error && <div style={{ ...sans, fontSize: 11.5, color: c.rose, marginBottom: 8 }}>{error}</div>}
+        {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 8 }}>{error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
           <input
-            style={{ ...sans, flex: 1, fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink, background: canSendWhatsapp ? "#fff" : c.paper }}
+            style={{ ...sans, flex: 1, fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink, background: canSendWhatsapp ? c.folha : c.paper }}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
             placeholder={canSendWhatsapp ? "Responder por WhatsApp…" : "Sem canal bidirecional disponível"}
             disabled={!canSendWhatsapp}
           />
-          <button onClick={send} disabled={!canSendWhatsapp || sendWhatsapp.isPending} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 14px", cursor: canSendWhatsapp ? "pointer" : "default", opacity: canSendWhatsapp ? 1 : 0.5 }}>
+          <button onClick={send} disabled={!canSendWhatsapp || sendWhatsapp.isPending} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "9px 14px", cursor: canSendWhatsapp ? "pointer" : "default", opacity: canSendWhatsapp ? 1 : 0.5 }}>
             <Send size={14} />
           </button>
         </div>
@@ -231,20 +231,20 @@ export default function InboxModule({ brand, onBack }) {
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
         <ArrowLeft size={14} /> Voltar à marca
       </button>
 
       <Eyebrow>Inbox Unificado</Eyebrow>
-      <h1 style={{ ...serif, fontSize: 24, color: c.ink, margin: "0 0 16px" }}>Conversas</h1>
+      <h1 style={{ ...display, fontSize: 24, color: c.ink, margin: "0 0 16px" }}>Conversas</h1>
 
       {!contactsQuery.isLoading && contacts.length === 0 ? (
-        <div style={{ ...sans, fontSize: 13, color: c.mist, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "60px 0" }}>
+        <div style={{ ...sans, fontSize: 14.5, color: c.mist, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "60px 0" }}>
           <MessageCircle size={22} color={c.mistLight} />
           Ainda sem atividade em WhatsApp, Email ou SMS para esta marca.
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "var(--bb-split, 280px 1fr)", height: "calc(100vh - 220px)", minHeight: 420, border: `1px solid ${c.line}`, borderRadius: 14, overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "var(--bb-split, 280px 1fr)", height: "calc(100vh - 220px)", minHeight: 420, border: `1px solid ${c.line}`, borderRadius: 3, overflow: "hidden" }}>
           <div style={{ borderRight: `1px solid ${c.line}`, overflowY: "auto", padding: 8 }}>
             {contacts.map((entry) => (
               <ContactRow key={entry.contactId} entry={entry} active={selected?.contactId === entry.contactId} onSelect={() => setSelectedId(entry.contactId)} />
@@ -252,7 +252,7 @@ export default function InboxModule({ brand, onBack }) {
           </div>
           <div>
             {selected ? <ContactTimeline brand={brand} entry={selected} /> : (
-              <div style={{ ...sans, fontSize: 13, color: c.mist, padding: 24 }}>Seleciona um contacto.</div>
+              <div style={{ ...sans, fontSize: 14.5, color: c.mist, padding: 24 }}>Seleciona um contacto.</div>
             )}
           </div>
         </div>

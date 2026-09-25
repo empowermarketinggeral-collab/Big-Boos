@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
-import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
+import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { Plus, ArrowLeft, Save, Send, Download, Trash2, FileSignature } from "lucide-react";
 import ContractViewer, { StatusPill } from "./ContractViewer.jsx";
 import SendContractModal from "./SendContractModal.jsx";
@@ -159,15 +159,15 @@ function ContractEditPage({ session, contract, onBack, onOpen }) {
     }
   };
 
-  const label = { ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 };
+  const label = { ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 };
 
   return (
     <div>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
         <ArrowLeft size={14} /> Contratos
       </button>
       <Eyebrow>Contratos</Eyebrow>
-      <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: "0 0 20px" }}>{savedId ? "Editar contrato" : "Novo contrato"}</h1>
+      <h1 style={{ ...display, fontSize: 27,  color: c.ink, margin: "0 0 20px" }}>{savedId ? "Editar contrato" : "Novo contrato"}</h1>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 12, marginBottom: 18 }}>
         <div style={{ gridColumn: "1 / -1" }}>
@@ -191,12 +191,12 @@ function ContractEditPage({ session, contract, onBack, onOpen }) {
         </div>
       </div>
 
-      <Suspense fallback={<div style={{ ...sans, fontSize: 13, color: c.mist, padding: 24 }}>A carregar o editor…</div>}>
+      <Suspense fallback={<div style={{ ...sans, fontSize: 14.5, color: c.mist, padding: 24 }}>A carregar o editor…</div>}>
         <ContractEditor value={body} onChange={setBody} />
       </Suspense>
 
-      {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginTop: 14 }}>{error}</div>}
-      {notice && !error && <div style={{ ...sans, fontSize: 12.5, color: c.sage, marginTop: 14 }}>{notice}</div>}
+      {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginTop: 14 }}>{error}</div>}
+      {notice && !error && <div style={{ ...sans, fontSize: 14, color: c.sage, marginTop: 14 }}>{notice}</div>}
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
         <button onClick={save} disabled={saveContract.isPending} style={btnGhost}>
@@ -225,9 +225,9 @@ function ContractEditPage({ session, contract, onBack, onOpen }) {
 
       {confirmDelete && (
         <Modal title="Apagar rascunho" onClose={() => setConfirmDelete(false)} width={360}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 16 }}>Apagar este rascunho? Esta ação não pode ser desfeita.</div>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 16 }}>Apagar este rascunho? Esta ação não pode ser desfeita.</div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={remove} disabled={deleteContract.isPending} style={{ ...btnPrimary, background: c.rose }}>Apagar</button>
+            <button onClick={remove} disabled={deleteContract.isPending} style={{ ...btnPrimary, background: c.roseSolid }}>Apagar</button>
             <button onClick={() => setConfirmDelete(false)} style={btnGhost}>Cancelar</button>
           </div>
         </Modal>
@@ -266,7 +266,7 @@ export default function ContractsModule({ session }) {
       <div>
         <Eyebrow>Contratos</Eyebrow>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
-          <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: 0 }}>Contratos</h1>
+          <h1 style={{ ...display, fontSize: 27,  color: c.ink, margin: 0 }}>Contratos</h1>
           <button onClick={() => setView({ type: "edit", id: null })} style={btnPrimary}>
             <Plus size={14} /> Novo contrato
           </button>
@@ -278,8 +278,8 @@ export default function ContractsModule({ session }) {
               key={f.key}
               onClick={() => setFilter(f.key)}
               style={{
-                ...sans, fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 999, cursor: "pointer",
-                border: `1px solid ${filter === f.key ? c.boss : c.line}`, color: filter === f.key ? "#fff" : c.mist, background: filter === f.key ? c.boss : "#fff",
+                ...sans, fontSize: 13.5, fontWeight: 600, padding: "6px 12px", borderRadius: 999, cursor: "pointer",
+                border: `1px solid ${filter === f.key ? c.boss : c.line}`, color: filter === f.key ? "#fff" : c.mist, background: filter === f.key ? c.boss : c.folha,
               }}
             >
               {f.label}
@@ -287,10 +287,10 @@ export default function ContractsModule({ session }) {
           ))}
         </div>
 
-        {contractsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
-        {contractsQuery.isError && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>Não foi possível carregar os contratos.</div>}
+        {contractsQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A carregar…</div>}
+        {contractsQuery.isError && <div style={{ ...sans, fontSize: 14, color: c.rose }}>Não foi possível carregar os contratos.</div>}
         {contractsQuery.data && shown.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mist }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>
             {contracts.length === 0 ? "Ainda não há contratos. Cria o primeiro com “Novo contrato”." : "Nenhum contrato neste filtro."}
           </div>
         )}
@@ -300,13 +300,13 @@ export default function ContractsModule({ session }) {
             <button
               key={ct.id}
               onClick={() => setView({ type: ct.status === "draft" ? "edit" : "view", id: ct.id })}
-              style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "12px 16px", cursor: "pointer", textAlign: "left", width: "100%", flexWrap: "wrap" }}
+              style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "12px 16px", cursor: "pointer", textAlign: "left", width: "100%", flexWrap: "wrap" }}
             >
-              <FileSignature size={18} color={c.boss} style={{ flexShrink: 0 }} />
+              <FileSignature size={18} color={c.bossText} style={{ flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 180 }}>
                 <div style={{ ...serif, fontSize: 14.5, color: c.ink }}>{ct.title}</div>
-                <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>
-                  {[ct.brands?.name, ct.counterparty_name, formatDateTime(ct.updated_at || ct.created_at)].filter(Boolean).join(" · ")}
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
+                  {[ct.brands?.name, ct.counterparty_name, formatDateTime(ct.updated_at || ct.created_at)].filter(Boolean).join(", ")}
                 </div>
               </div>
               <StatusPill status={ct.status} />

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
-import { c, sans, serif, Modal, btnPrimary, btnGhost } from "../../shared/theme.jsx";
+import { c, sans, Modal, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, Download, Send, Ban, Eye } from "lucide-react";
 import ContractDocument from "./ContractDocument.jsx";
 import { CONTRACT_STATUS, downloadContractPdf, formatDateTime, renderContractHtml } from "./contractDoc.js";
@@ -10,7 +10,7 @@ import { useAgencyName, useContractSigners, invalidateContracts } from "./contra
 export function StatusPill({ status }) {
   const s = CONTRACT_STATUS[status] || CONTRACT_STATUS.draft;
   return (
-    <span style={{ ...sans, fontSize: 11, fontWeight: 700, color: s.color, background: `${s.color}1A`, borderRadius: 999, padding: "3px 10px", whiteSpace: "nowrap" }}>
+    <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: s.color, background: `color-mix(in srgb, ${s.color} 10%, transparent)`, borderRadius: 999, padding: "3px 10px", whiteSpace: "nowrap" }}>
       {s.label}
     </span>
   );
@@ -19,7 +19,7 @@ export function StatusPill({ status }) {
 function InfoRow({ label, value }) {
   if (!value) return null;
   return (
-    <div style={{ display: "flex", gap: 8, ...sans, fontSize: 12.5, color: c.ink, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", gap: 8, ...sans, fontSize: 14, color: c.ink, flexWrap: "wrap" }}>
       <span style={{ color: c.mist, minWidth: 150 }}>{label}</span>
       <span>{value}</span>
     </div>
@@ -88,25 +88,25 @@ export default function ContractViewer({ contract, canManage, onBack, onChanged 
   return (
     <div>
       {onBack && (
-        <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
+        <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
           <ArrowLeft size={14} /> Contratos
         </button>
       )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
-        <h1 style={{ ...serif, fontSize: 24, fontWeight: 500, color: c.ink, margin: 0 }}>{contract.title}</h1>
+        <h1 style={{ ...display, fontSize: 24,  color: c.ink, margin: 0 }}>{contract.title}</h1>
         <StatusPill status={contract.status} />
       </div>
 
-      <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+      <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 16, display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
         <InfoRow label="Marca" value={contract.brands?.name} />
-        <InfoRow label="Outra parte" value={[contract.counterparty_name, contract.counterparty_email].filter(Boolean).join(" · ")} />
-        <InfoRow label="Assinado pela agência" value={contract.agency_signed_at && `${agencySigner?.name ? `${agencySigner.name} · ` : ""}${formatDateTime(contract.agency_signed_at)}`} />
+        <InfoRow label="Outra parte" value={[contract.counterparty_name, contract.counterparty_email].filter(Boolean).join(", ")} />
+        <InfoRow label="Assinado pela agência" value={contract.agency_signed_at && `${agencySigner?.name ? `${agencySigner.name}, ` : ""}${formatDateTime(contract.agency_signed_at)}`} />
         <InfoRow label="Enviado por email" value={formatDateTime(contract.sent_at)} />
         {contract.status === "sent" && canManage && (
           <InfoRow label="Aberto pelo destinatário" value={counterparty?.first_viewed_at ? `Sim — ${formatDateTime(counterparty.last_viewed_at)}` : "Ainda não"} />
         )}
-        <InfoRow label="Assinado pela outra parte" value={contract.counterparty_signed_at && `${counterparty?.name ? `${counterparty.name} · ` : ""}${formatDateTime(contract.counterparty_signed_at)}`} />
+        <InfoRow label="Assinado pela outra parte" value={contract.counterparty_signed_at && `${counterparty?.name ? `${counterparty.name}, ` : ""}${formatDateTime(contract.counterparty_signed_at)}`} />
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
@@ -125,9 +125,9 @@ export default function ContractViewer({ contract, canManage, onBack, onChanged 
         )}
       </div>
 
-      {notice.text && <div style={{ ...sans, fontSize: 12.5, color: notice.ok ? c.sage : c.rose, marginBottom: 12 }}>{notice.text}</div>}
+      {notice.text && <div style={{ ...sans, fontSize: 14, color: notice.ok ? c.sage : c.rose, marginBottom: 12 }}>{notice.text}</div>}
       {contract.status === "cancelled" && (
-        <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 12 }}>
+        <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 12 }}>
           <Eye size={12} style={{ verticalAlign: -1 }} /> Contrato cancelado — a ligação enviada ao destinatário deixou de funcionar.
         </div>
       )}
@@ -136,11 +136,11 @@ export default function ContractViewer({ contract, canManage, onBack, onChanged 
 
       {confirmCancel && (
         <Modal title="Cancelar contrato" onClose={() => setConfirmCancel(false)} width={380}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, lineHeight: 1.6, marginBottom: 16 }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.6, marginBottom: 16 }}>
             A ligação enviada a {contract.counterparty_name || "o destinatário"} deixa de funcionar e o contrato não poderá ser assinado. Esta ação não pode ser desfeita.
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={cancel} disabled={busy === "cancel"} style={{ ...btnPrimary, background: c.rose }}>
+            <button onClick={cancel} disabled={busy === "cancel"} style={{ ...btnPrimary, background: c.roseSolid }}>
               {busy === "cancel" ? "A cancelar…" : "Cancelar contrato"}
             </button>
             <button onClick={() => setConfirmCancel(false)} style={btnGhost}>Voltar</button>

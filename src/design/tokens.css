@@ -1,0 +1,197 @@
+/* ---------------------------------------------------------
+   BIG BOSS by Empower Boss — TOKENS DE DESIGN
+   Conceito: "a mesa do Boss". Fundo = mesa, cada área de trabalho =
+   folha de cantos vivos, menu = régua em roxo profundo. O roxo decide
+   (aprovar, assinar, publicar); o dourado é só a estrela de "aprovado".
+   Família visual da Empower (roxo #7C52A8, roxo profundo #30154C,
+   prata #D9D9D9), com identidade própria.
+
+   Claro por omissão; escuro segue o sistema ou o interruptor
+   (data-theme="light" | "dark" no <html>).
+--------------------------------------------------------- */
+
+:root,
+.bb-force-light {
+  color-scheme: light;
+
+  /* superfícies */
+  --bb-mesa: #EBEAEE;
+  --bb-folha: #FFFFFF;
+  --bb-folha-2: #F6F5F8;
+  --bb-regua: #30154C;
+  --bb-regua-hover: rgba(255, 255, 255, 0.08);
+  --bb-regua-ativo: rgba(255, 255, 255, 0.14);
+  --bb-regua-texto: #F2EEF8;
+  --bb-regua-texto-2: #BDAED4;
+  --bb-regua-marca: #B79BE0;
+
+  /* texto */
+  --bb-tinta: #1A1223;
+  --bb-tinta-2: #5A506B;
+  --bb-tinta-3: #6C627D;
+
+  /* linhas */
+  --bb-linha: #D6D2DE;
+  --bb-linha-forte: #B4ADC2;
+  --bb-campo-borda: #8B8299;
+
+  /* marca e decisão */
+  --bb-boss: #7C52A8;
+  --bb-boss-hover: #6B4494;
+  --bb-boss-texto: #6E4699;
+  --bb-boss-suave: #F0EAF7;
+  --bb-sobre-boss: #FFFFFF;
+  --bb-foco: #7C52A8;
+
+  /* dourado: só a estrela e marcas de aprovação (nunca texto) */
+  --bb-dourado: #B0820D;
+
+  /* documento (contratos, propostas): papel branco e tinta escura em qualquer tema */
+  --bb-doc-papel: #FFFFFF;
+  --bb-doc-tinta: #1A1223;
+  --bb-doc-tinta-2: #5A506B;
+  --bb-doc-linha: #D6D2DE;
+
+  /* estados; os "sólidos" levam texto branco e são iguais nos dois temas */
+  --bb-verde-solido: #1F7A4D;
+  --bb-erro-solido: #B3261E;
+  --bb-verde: #1F7A4D;
+  --bb-verde-suave: #E4F3EA;
+  --bb-erro: #B3261E;
+  --bb-erro-suave: #FCE9E7;
+  --bb-aviso: #8A5A00;
+  --bb-aviso-suave: #FBF0DA;
+  --bb-aviso-solido: #8A5A00;
+  --bb-info: #3B5FC2;
+  --bb-info-suave: #E4EAFB;
+
+  /* tipografia (fontes livres, OFL) */
+  --bb-font-titulo: "Bodoni Moda", Didot, "Bodoni 72", Georgia, serif;
+  --bb-font-sub: "Marcellus", Georgia, "Times New Roman", serif;
+  --bb-font-corpo: "Quicksand", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Bodoni Moda: o tamanho ótico automático afina as hastes nos títulos grandes; fixamos um valor baixo para se lerem bem */
+  --bb-titulo-vs: "opsz" 12;
+  --bb-titulo-peso: 700;
+
+  /* cantos: folha viva, controlos suaves, estados redondos */
+  --bb-r-folha: 3px;
+  --bb-r-ctrl: 6px;
+  --bb-r-full: 999px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bb-mesa: #0B0B0D;
+  --bb-folha: #18181C;
+  --bb-folha-2: #212126;
+  --bb-regua: #30154C;
+  --bb-regua-hover: rgba(255, 255, 255, 0.08);
+  --bb-regua-ativo: rgba(255, 255, 255, 0.14);
+  --bb-regua-texto: #F2EEF8;
+  --bb-regua-texto-2: #BDAED4;
+  --bb-regua-marca: #B79BE0;
+  --bb-tinta: #F4F4F6;
+  --bb-tinta-2: #B6B6BF;
+  --bb-tinta-3: #97979F;
+  --bb-linha: #2C2C33;
+  --bb-linha-forte: #45454E;
+  --bb-campo-borda: #7A7A86;
+  --bb-boss: #8760B5;
+  --bb-boss-hover: #7C52A8;
+  --bb-boss-texto: #B79BE0;
+  --bb-boss-suave: #2B2038;
+  --bb-sobre-boss: #FFFFFF;
+  --bb-foco: #B79BE0;
+  --bb-dourado: #E0BB57;
+  --bb-verde: #63CE95;
+  --bb-verde-suave: #12291D;
+  --bb-erro: #F28B82;
+  --bb-erro-suave: #341A19;
+  --bb-aviso: #E8B04F;
+  --bb-aviso-suave: #33270E;
+  --bb-aviso-solido: #8A5A00;
+  --bb-info: #8FA8F0;
+  --bb-info-suave: #1A2440;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bb-mesa: #0B0B0D;
+    --bb-folha: #18181C;
+    --bb-folha-2: #212126;
+    --bb-regua: #30154C;
+    --bb-regua-hover: rgba(255, 255, 255, 0.08);
+    --bb-regua-ativo: rgba(255, 255, 255, 0.14);
+    --bb-regua-texto: #F2EEF8;
+    --bb-regua-texto-2: #BDAED4;
+    --bb-regua-marca: #B79BE0;
+    --bb-tinta: #F4F4F6;
+    --bb-tinta-2: #B6B6BF;
+    --bb-tinta-3: #97979F;
+    --bb-linha: #2C2C33;
+    --bb-linha-forte: #45454E;
+    --bb-campo-borda: #7A7A86;
+    --bb-boss: #8760B5;
+    --bb-boss-hover: #7C52A8;
+    --bb-boss-texto: #B79BE0;
+    --bb-boss-suave: #2B2038;
+    --bb-sobre-boss: #FFFFFF;
+    --bb-foco: #B79BE0;
+    --bb-dourado: #E0BB57;
+    --bb-verde: #63CE95;
+    --bb-verde-suave: #12291D;
+    --bb-erro: #F28B82;
+    --bb-erro-suave: #341A19;
+    --bb-aviso: #E8B04F;
+    --bb-aviso-suave: #33270E;
+    --bb-aviso-solido: #8A5A00;
+    --bb-info: #8FA8F0;
+    --bb-info-suave: #1A2440;
+  }
+}
+
+/* foco de teclado visível em tudo o que é interativo */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--bb-foco) !important;
+  outline-offset: 2px;
+}
+
+/* movimento só como resposta a uma ação; respeita "reduzir movimento" */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* fontes de peso único (Marcellus) não fingem negrito */
+html { font-synthesis: none; }
+
+/* realce ao passar o rato em botões (a maioria tem estilo inline, sem :hover próprio) */
+button:not(:disabled):hover { filter: brightness(0.94); }
+:root[data-theme="dark"] button:not(:disabled):hover { filter: brightness(1.14); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button:not(:disabled):hover { filter: brightness(1.14); } }
+.bb-force-light button:not(:disabled):hover { filter: brightness(0.94); }
+button:disabled { cursor: not-allowed; }
+
+/* base da aplicação */
+html { background: var(--bb-mesa); }
+body {
+  background: var(--bb-mesa);
+  color: var(--bb-tinta);
+  font-family: var(--bb-font-corpo);
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+input, select, textarea, button { font-family: inherit; }
+/* campos: fundo da folha e texto do tema (o estilo inline de cada um continua a ganhar) */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="button"]):not([type="submit"]),
+select, textarea { background-color: var(--bb-folha); color: var(--bb-tinta); }
+::placeholder { color: var(--bb-tinta-3); opacity: 1; }
+::selection { background: var(--bb-boss); color: var(--bb-sobre-boss); }
+.bb-force-light { background: var(--bb-mesa); color: var(--bb-tinta); }

@@ -91,7 +91,7 @@ export default function SignaturePad({ onChange, disabled = false }) {
           style={{ display: "block", width: "100%", aspectRatio: `${W} / ${H}`, touchAction: "none", cursor: disabled ? "not-allowed" : "crosshair" }}
         />
         {!hasInk && (
-          <div style={{ ...sans, position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: c.mistLight, fontSize: 13, pointerEvents: "none" }}>
+          <div style={{ ...sans, position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#6C627D", fontSize: 14, pointerEvents: "none" }}>
             Desenha a tua assinatura aqui
           </div>
         )}

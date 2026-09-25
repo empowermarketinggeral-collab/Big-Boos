@@ -44,10 +44,16 @@ WhatsApp via Meta direta ou Twilio (`whatsapp_accounts.provider`); o utilizador 
 - Fluxo: rascunho → "Assinar e enviar" (`contract-send`, JWT ligado: congela o texto com SHA-256, regista a assinatura da agência, cria o token do outro lado e envia o email) → o outro lado assina em `/assinar/:token` (`contract-sign`, JWT desligado) → `signed`. Contratos enviados/assinados são imutáveis por trigger; só as funções (service role) mudam o estado. O token nunca sai do servidor (coluna revogada em `contract_signers`).
 - Emails de contratos usam os segredos globais `RESEND_API_KEY` e `CONTRACTS_FROM_EMAIL` (Edge Function Secrets). É assinatura eletrónica simples, não qualificada (eIDAS).
 
-## UI
-- Estilo inline com tokens de `src/shared/theme.jsx` (`c`, `sans`, `serif`, `Modal`, `inputStyle`, `btnPrimary`, `btnGhost`). Cada módulo em `src/modules/<nome>/` com hooks `react-query` locais.
-- Mobile-first: grelhas com `var(--bb-grid-N, ...)` / `var(--bb-split, ...)` ou `repeat(auto-fit, minmax(...))`; nunca larguras fixas em colunas divididas.
+## UI e identidade visual (Big Boss by Empower Boss)
+- Conceito "a mesa do Boss": fundo = mesa, cada área = folha de cantos vivos (3px), menu = régua em roxo profundo. Claro e escuro (segue o sistema; interruptor na barra de topo; escolha em localStorage "bb-theme"; ver `src/design/theme.js`).
+- **Nunca escrevas hex nos módulos.** As cores são variáveis CSS em `src/design/tokens.css` e chegam aos módulos por `c` em `src/shared/theme.jsx`: `c.boss` = roxo para FUNDOS (texto branco por cima), `c.bossText` = roxo para texto/ícones; `c.roseSolid`/`c.sageSolid`/`c.amberSolid` = fundos cheios com texto branco, `c.rose`/`c.sage`/`c.amber` = texto e contornos; `c.folha` = conteúdo, `c.paper` = mesa; `c.lineStrong` = contorno de campos. Nada de `${cor}1A` (alfa em hex): usa `color-mix(in srgb, <cor> 14%, transparent)`.
+- Tipografia (fontes livres): `display` = títulos (Bodoni Moda, peso 700, opsz baixo), `serif` = subtítulos e títulos de cartões (Marcellus), `sans` = corpo (Quicksand, base 15px; nada abaixo de 12.5px). Sem etiquetas em maiúsculas por cima dos títulos (`Eyebrow` não desenha nada), sem pontos médios nem setas em textos, sem gradientes decorativos, sem sombras suaves.
+- Roxo só para ações que decidem (aprovar, assinar, publicar). O selo de aprovado usa o dourado (`c.gold`); logótipos em `public/brand/` via `src/design/BrandLogo.jsx` (versão sobre roxo no escuro).
+- Documentos (contratos) são SEMPRE brancos, também no escuro. Páginas públicas das marcas (formulários, agendamento, link na bio, propostas) ficam sempre claras: raiz com `className="bb-force-light"` e personalização por marca mantida.
+- Estilo inline com tokens de `src/shared/theme.jsx` (`c`, `display`, `serif`, `sans`, `Modal`, `inputStyle`, `btnPrimary`, `btnGhost`). Cada módulo em `src/modules/<nome>/` com hooks `react-query` locais.
+- Mobile-first: grelhas com `var(--bb-grid-N, ...)` / `var(--bb-split, ...)` ou `repeat(auto-fit, minmax(...))`; listas que empilham por container query; nunca larguras fixas em colunas divididas.
 - Nomes de módulos, marcas e "Big Boss" nunca se traduzem (só o texto de interface, via `t()`); `index.html` está `lang="pt"` com `translate="no"`.
+- Rever o visual sem iniciar sessão: servidor "big-boss-mock" (`VITE_MOCK=1`, ver `src/dev/mockSupabase.js`; `?login=1` mostra o ecrã de entrada) e a rota `/design` (só em desenvolvimento) com o exemplar e o contraste medido.
 
 ## Ficheiros que não são teus
 `nao esquecer.txt` (notas pessoais do utilizador) — nunca incluir em commits.

@@ -12,10 +12,10 @@ export const SIGNATURE_TOKENS = {
 };
 
 export const CONTRACT_STATUS = {
-  draft: { label: "Rascunho", color: "#6E6980" },
-  sent: { label: "Aguarda assinatura", color: "#C9821F" },
-  signed: { label: "Assinado", color: "#2F9E63" },
-  cancelled: { label: "Cancelado", color: "#D3455B" },
+  draft: { label: "Rascunho", color: "var(--bb-tinta-2)" },
+  sent: { label: "Aguarda assinatura", color: "var(--bb-aviso)" },
+  signed: { label: "Assinado", color: "var(--bb-verde)" },
+  cancelled: { label: "Cancelado", color: "var(--bb-erro)" },
 };
 
 // Largura do documento em px (180 mm = A4 menos margens de 15 mm).

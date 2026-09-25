@@ -82,17 +82,17 @@ export default function PaymentReminderBanner({ session }) {
   };
 
   return (
-    <div style={{ background: escalated ? c.rose : c.amber, color: "#fff", padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
-      <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, display: "flex", alignItems: "center", gap: 8, textAlign: "center" }}>
+    <div style={{ background: escalated ? c.roseSolid : c.amberSolid, color: "#fff", padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
+      <div style={{ ...sans, fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", gap: 8, textAlign: "center" }}>
         <AlertTriangle size={15} />
         {escalated
           ? `Pagamento em atraso — a conta pode ser desativada nos próximos ${daysLeft} dia(s). Regulariza já.`
           : `Pagamento necessário nos próximos ${daysLeft} dia(s) para manteres o acesso.`}
       </div>
-      <button onClick={goPay} disabled={portal.isPending} style={{ ...sans, fontSize: 12, fontWeight: 700, color: escalated ? c.rose : c.amber, background: "#fff", border: "none", borderRadius: 7, padding: "6px 14px", cursor: "pointer" }}>
+      <button onClick={goPay} disabled={portal.isPending} style={{ ...sans, fontSize: 13.5, fontWeight: 700, color: escalated ? c.rose : c.amber, background: c.folha, border: "none", borderRadius: 7, padding: "6px 14px", cursor: "pointer" }}>
         {portal.isPending ? "A abrir…" : "Pagar agora"}
       </button>
-      <button onClick={() => setDismissed(true)} style={{ ...sans, fontSize: 11.5, color: "rgba(255,255,255,0.85)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+      <button onClick={() => setDismissed(true)} style={{ ...sans, fontSize: 12.5, color: "rgba(255,255,255,0.85)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
         Dispensar por agora
       </button>
     </div>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
-import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
+import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, Plus, Trash2, Mail, Send } from "lucide-react";
 
 /* ---------------------------------------------------------
@@ -171,28 +171,28 @@ function ConnectEmailForm({ brandId }) {
   return (
     <div style={{ maxWidth: 480 }}>
       <Eyebrow>Email</Eyebrow>
-      <h1 style={{ ...serif, fontSize: 24, color: c.ink, marginBottom: 8 }}>Ligar o domínio desta marca</h1>
-      <p style={{ ...sans, fontSize: 13, color: c.mist, lineHeight: 1.6, marginBottom: 22 }}>
+      <h1 style={{ ...display, fontSize: 24, color: c.ink, marginBottom: 8 }}>Ligar o domínio desta marca</h1>
+      <p style={{ ...sans, fontSize: 14.5, color: c.mist, lineHeight: 1.6, marginBottom: 22 }}>
         Precisas de um domínio verificado no Resend e de uma API key. Segue <strong>docs/GUIA_EMAIL_RESEND.md</strong> se ainda não os tiveres.
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Domínio verificado</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Domínio verificado</div>
           <input style={inputStyle} value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="empowermarketing.pt" />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Nome de remetente (opcional)</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Nome de remetente (opcional)</div>
           <input style={inputStyle} value={fromName} onChange={(e) => setFromName(e.target.value)} placeholder="Empower Marketing" />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Email de envio</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Email de envio</div>
           <input style={inputStyle} value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} placeholder="contacto@empowermarketing.pt" />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>API key do Resend</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>API key do Resend</div>
           <input style={inputStyle} type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="re_…" />
         </div>
-        {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}
+        {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
         <button onClick={submit} disabled={connect.isPending} style={{ ...btnPrimary, width: "fit-content" }}>
           {connect.isPending ? "A ligar…" : "Ligar email"}
         </button>
@@ -220,10 +220,10 @@ function SendCampaignModal({ brand, campaign, recipientCount, onClose, onSent })
 
   return (
     <Modal title="Enviar campanha" onClose={onClose} width={380}>
-      <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 16, lineHeight: 1.6 }}>
+      <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 16, lineHeight: 1.6 }}>
         Vais enviar <strong>{campaign.name}</strong> a <strong>{recipientCount}</strong> contacto(s) com consentimento de email. Esta ação não pode ser desfeita.
       </div>
-      {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 12 }}>{error}</div>}
+      {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 12 }}>{error}</div>}
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={confirm} disabled={sendCampaign.isPending || recipientCount === 0} style={btnPrimary}>
           {sendCampaign.isPending ? "A enviar…" : "Confirmar envio"}
@@ -278,39 +278,39 @@ function CampaignEditor({ brand, campaign, domain, onBack }) {
 
   return (
     <div>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
         <ArrowLeft size={14} /> Email
       </button>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
-        <input value={name} onChange={(e) => setName(e.target.value)} disabled={isSent} style={{ ...serif, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none" }} />
+        <input value={name} onChange={(e) => setName(e.target.value)} disabled={isSent} style={{ ...display, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none" }} />
         {!isSent && (
           <button onClick={save} disabled={updateCampaign.isPending} style={btnPrimary}>
             {updateCampaign.isPending ? "A guardar…" : saved ? "Guardado ✓" : "Guardar"}
           </button>
         )}
       </div>
-      <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 20 }}>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 20 }}>
         Enviado de: <strong>{domain.from_name ? `${domain.from_name} <${domain.from_email}>` : domain.from_email}</strong>
       </div>
 
-      {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 16 }}>{error}</div>}
+      {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 16 }}>{error}</div>}
 
       {isSent && (
         <>
           <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
             {["sent", "opened", "clicked", "bounced", "failed"].map((k) => (
-              <span key={k} style={{ ...sans, fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: "5px 12px", background: c.paper, color: c.ink }}>
+              <span key={k} style={{ ...sans, fontSize: 12.5, fontWeight: 600, borderRadius: 999, padding: "5px 12px", background: c.paper, color: c.ink }}>
                 {statusCounts[k] || 0} {k}
               </span>
             ))}
           </div>
           {sends.some((s) => s.status === "failed") && (
-            <div style={{ background: "#FBE9EC", border: `1px solid ${c.rose}`, borderRadius: 12, padding: "12px 16px", marginBottom: 20, maxWidth: 640 }}>
-              <div style={{ ...sans, fontSize: 12, fontWeight: 700, color: c.rose, marginBottom: 8 }}>Envios falhados</div>
+            <div style={{ background: c.roseSoft, border: `1px solid ${c.rose}`, borderRadius: 3, padding: "12px 16px", marginBottom: 20, maxWidth: 640 }}>
+              <div style={{ ...sans, fontSize: 13.5, fontWeight: 700, color: c.rose, marginBottom: 8 }}>Envios falhados</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {sends.filter((s) => s.status === "failed").map((s, i) => (
-                  <div key={i} style={{ ...sans, fontSize: 12, color: c.ink }}>
+                  <div key={i} style={{ ...sans, fontSize: 13.5, color: c.ink }}>
                     <strong>{s.contacts?.name || s.contacts?.email || "Contacto"}</strong> — {s.error || "Motivo desconhecido"}
                   </div>
                 ))}
@@ -321,24 +321,24 @@ function CampaignEditor({ brand, campaign, domain, onBack }) {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 640 }}>
-        <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+        <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
           <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Mensagem</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Assunto</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Assunto</div>
               <input style={inputStyle} value={subject} onChange={(e) => setSubject(e.target.value)} disabled={isSent} placeholder="Assunto do email" />
             </div>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Corpo (aceita HTML simples)</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Corpo (aceita HTML simples)</div>
               <textarea rows={8} style={{ ...inputStyle, resize: "vertical" }} value={bodyHtml} onChange={(e) => setBodyHtml(e.target.value)} disabled={isSent} />
             </div>
           </div>
         </div>
 
         {!isSent && (
-          <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+          <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
             <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Destinatários</div>
-            <label style={{ ...sans, fontSize: 12.5, color: c.ink, display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
+            <label style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
               <input type="checkbox" checked={allOptedIn} onChange={(e) => setAllOptedIn(e.target.checked)} />
               Todos os contactos com consentimento de email
             </label>
@@ -350,8 +350,8 @@ function CampaignEditor({ brand, campaign, domain, onBack }) {
                     type="button"
                     onClick={() => toggleTag(t.id)}
                     style={{
-                      ...sans, fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 999, cursor: "pointer",
-                      color: tagIds.includes(t.id) ? "#fff" : t.color, background: tagIds.includes(t.id) ? t.color : "#fff",
+                      ...sans, fontSize: 12.5, fontWeight: 600, padding: "5px 10px", borderRadius: 999, cursor: "pointer",
+                      color: tagIds.includes(t.id) ? "#fff" : t.color, background: tagIds.includes(t.id) ? t.color : c.folha,
                       border: `1px solid ${t.color}`,
                     }}
                   >
@@ -360,7 +360,7 @@ function CampaignEditor({ brand, campaign, domain, onBack }) {
                 ))}
               </div>
             )}
-            <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 12 }}>
+            <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginTop: 12 }}>
               {recipientIds.length} contacto(s) vão receber este email.
             </div>
             <button
@@ -386,7 +386,7 @@ function CampaignEditor({ brand, campaign, domain, onBack }) {
 
       {sendResult && (
         <Modal title="Campanha enviada" onClose={() => setSendResult(null)} width={360}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, lineHeight: 1.8 }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.8 }}>
             <div>{sendResult.sent} enviados</div>
             <div>{sendResult.skipped} ignorados (sem email ou sem consentimento)</div>
             {sendResult.failed > 0 && <div style={{ color: c.rose }}>{sendResult.failed} falharam</div>}
@@ -415,13 +415,13 @@ export default function EmailModule({ brand, onBack }) {
   const open = openId ? campaigns.find((cp) => cp.id === openId) : null;
 
   if (domainQuery.isLoading) {
-    return <div style={{ ...sans, fontSize: 13, color: c.mist }}>A verificar ligação…</div>;
+    return <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A verificar ligação…</div>;
   }
 
   if (!domainQuery.data) {
     return (
       <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
-        <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
+        <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
           <ArrowLeft size={14} /> Voltar à marca
         </button>
         <ConnectEmailForm brandId={brand.id} />
@@ -439,13 +439,13 @@ export default function EmailModule({ brand, onBack }) {
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
         <ArrowLeft size={14} /> Voltar à marca
       </button>
 
       <Eyebrow>Email</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <h1 style={{ ...serif, fontSize: 24, color: c.ink, margin: 0 }}>Campanhas</h1>
+        <h1 style={{ ...display, fontSize: 24, color: c.ink, margin: 0 }}>Campanhas</h1>
         <button onClick={() => setShowNew(true)} style={btnPrimary}>
           <Plus size={14} /> Nova campanha
         </button>
@@ -453,18 +453,18 @@ export default function EmailModule({ brand, onBack }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {campaigns.map((cp) => (
-          <div key={cp.id} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px", cursor: "pointer" }} onClick={() => setOpenId(cp.id)}>
-            <div style={{ width: 34, height: 34, borderRadius: 9, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Mail size={16} color={c.boss} strokeWidth={1.8} />
+          <div key={cp.id} style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px", cursor: "pointer" }} onClick={() => setOpenId(cp.id)}>
+            <div style={{ width: 34, height: 34, borderRadius: 6, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Mail size={16} color={c.bossText} strokeWidth={1.8} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ ...serif, fontSize: 15, color: c.ink }}>{cp.name}</div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>{cp.subject || "Sem assunto ainda"}</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>{cp.subject || "Sem assunto ainda"}</div>
             </div>
             <span
               style={{
-                ...sans, fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", borderRadius: 999, padding: "4px 10px",
-                color: cp.status === "sent" ? c.sage : c.mist, background: cp.status === "sent" ? "#E7F5EC" : c.paper,
+                ...sans, fontSize: 12.5, fontWeight: 700, borderRadius: 999, padding: "4px 10px",
+                color: cp.status === "sent" ? c.sage : c.mist, background: cp.status === "sent" ? c.sageSoft : c.paper,
               }}
             >
               {cp.status === "sent" ? "Enviada" : cp.status === "sending" ? "A enviar" : "Rascunho"}
@@ -477,7 +477,7 @@ export default function EmailModule({ brand, onBack }) {
           </div>
         ))}
         {!campaignsQuery.isLoading && campaigns.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>Ainda não há campanhas.</div>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>Ainda não há campanhas.</div>
         )}
       </div>
 
@@ -501,9 +501,9 @@ export default function EmailModule({ brand, onBack }) {
 
       {confirmDelete && (
         <Modal title="Eliminar campanha" onClose={() => setConfirmDelete(null)} width={360}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 16 }}>Tens a certeza? Esta ação não pode ser desfeita.</div>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 16 }}>Tens a certeza? Esta ação não pode ser desfeita.</div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => deleteCampaign.mutate(confirmDelete.id, { onSuccess: () => setConfirmDelete(null) })} style={{ ...btnPrimary, background: c.rose }}>
+            <button onClick={() => deleteCampaign.mutate(confirmDelete.id, { onSuccess: () => setConfirmDelete(null) })} style={{ ...btnPrimary, background: c.roseSolid }}>
               Eliminar
             </button>
             <button onClick={() => setConfirmDelete(null)} style={btnGhost}>Cancelar</button>

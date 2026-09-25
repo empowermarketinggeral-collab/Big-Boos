@@ -39,7 +39,7 @@ export default function SendContractModal({ contract, onClose, onSent }) {
   if (result) {
     return (
       <Modal title="Contrato enviado" onClose={() => onSent()} width={440}>
-        <div style={{ ...sans, fontSize: 13, color: c.ink, lineHeight: 1.6, marginBottom: 16 }}>
+        <div style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.6, marginBottom: 16 }}>
           O contrato ficou assinado pela agência e bloqueado (já não se pode editar).
           {result.emailSent ? (
             <> Enviámos um email a <b>{contract.counterparty_email}</b> com a ligação para ler e assinar.</>
@@ -57,22 +57,22 @@ export default function SendContractModal({ contract, onClose, onSent }) {
   return (
     <Modal title="Assinar e enviar" onClose={busy ? () => {} : onClose} width={500}>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.6 }}>
+        <div style={{ ...sans, fontSize: 14, color: c.mist, lineHeight: 1.6 }}>
           Vais assinar <b style={{ color: c.ink }}>«{contract.title}»</b> em nome da agência e enviá-lo para <b style={{ color: c.ink }}>{contract.counterparty_name}</b> ({contract.counterparty_email}). Depois de enviado, o texto não pode ser alterado.
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>O teu nome (quem assina pela agência)</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>O teu nome (quem assina pela agência)</div>
           <input style={inputStyle} value={signerName} maxLength={120} onChange={(e) => setSignerName(e.target.value)} placeholder="Nome completo" />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Assinatura</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Assinatura</div>
           <SignaturePad onChange={setSignature} disabled={busy} />
         </div>
-        <label style={{ ...sans, fontSize: 12.5, color: c.ink, display: "flex", alignItems: "flex-start", gap: 7 }}>
+        <label style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "flex-start", gap: 7 }}>
           <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} style={{ marginTop: 2 }} />
           Li o contrato e assino-o em nome da agência.
         </label>
-        {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}
+        {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={send} disabled={busy} style={btnPrimary}>{busy ? "A enviar…" : "Assinar e enviar"}</button>
           <button onClick={onClose} disabled={busy} style={btnGhost}>Cancelar</button>

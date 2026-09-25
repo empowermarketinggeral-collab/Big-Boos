@@ -1,6 +1,7 @@
 import { StrictMode, Component } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import './design/tokens.css'
 import './index.css'
 import App from './App.jsx'
 
@@ -20,11 +21,11 @@ class ErrorBoundary extends Component {
         <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', padding: 20 }}>
           <div style={{ maxWidth: 420, textAlign: 'center' }}>
             <h1 style={{ fontSize: 18 }}>Ocorreu um erro inesperado</h1>
-            <p style={{ color: '#666', fontSize: 14 }}>
+            <p style={{ color: '#666', fontSize: 15 }}>
               Tenta recarregar a página. Se o problema persistir, contacta o suporte.
             </p>
             {import.meta.env.DEV && (
-              <pre style={{ whiteSpace: 'pre-wrap', textAlign: 'left', fontSize: 11, color: '#b00', marginTop: 16 }}>
+              <pre style={{ whiteSpace: 'pre-wrap', textAlign: 'left', fontSize: 12.5, color: '#b00', marginTop: 16 }}>
                 {String((this.state.error && this.state.error.stack) || this.state.error)}
               </pre>
             )}

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
-import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, PAGE_FONT_OPTIONS, PAGE_COLOR_SWATCHES, DEFAULT_PAGE_STYLE } from "../../shared/theme.jsx";
+import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, PAGE_FONT_OPTIONS, PAGE_COLOR_SWATCHES, DEFAULT_PAGE_STYLE, display } from "../../shared/theme.jsx";
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, FileText, Link2, CheckCircle2 } from "lucide-react";
 
 /* ---------------------------------------------------------
@@ -146,16 +146,16 @@ function NewFormModal({ brandId, onClose, onCreated }) {
     <Modal title="Novo formulário" onClose={onClose} width={380}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Nome</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Nome</div>
           <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Pedido de orçamento" />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Tipo</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Tipo</div>
           <select style={inputStyle} value={type} onChange={(e) => setType(e.target.value)}>
             {FORM_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
         </div>
-        {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}
+        {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
           <button onClick={save} disabled={createForm.isPending} style={btnPrimary}>
             {createForm.isPending ? "A criar…" : "Criar"}
@@ -178,18 +178,18 @@ function FieldRow({ field, onChange, onRemove, onMove, isFirst, isLast }) {
   const [optionsText, setOptionsText] = useState((field.options || []).join(", "));
 
   return (
-    <div style={{ background: c.paper, borderRadius: 8, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+    <div style={{ background: c.paper, borderRadius: 6, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <input
           value={field.label}
           onChange={(e) => onChange({ ...field, label: e.target.value })}
           placeholder="Pergunta / rótulo do campo"
-          style={{ ...sans, flex: 1, fontSize: 12.5, color: c.ink, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 6, padding: "6px 9px", outline: "none" }}
+          style={{ ...sans, flex: 1, fontSize: 14, color: c.ink, background: c.folha, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 9px", outline: "none" }}
         />
         <select
           value={field.type}
           onChange={(e) => onChange({ ...field, type: e.target.value })}
-          style={{ ...sans, fontSize: 11.5, border: `1px solid ${c.line}`, borderRadius: 6, padding: "6px 8px", cursor: "pointer", flexShrink: 0 }}
+          style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 8px", cursor: "pointer", flexShrink: 0 }}
         >
           {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
@@ -204,7 +204,7 @@ function FieldRow({ field, onChange, onRemove, onMove, isFirst, isLast }) {
         </button>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <label style={{ ...sans, fontSize: 11.5, color: c.mist, display: "flex", alignItems: "center", gap: 5 }}>
+        <label style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", alignItems: "center", gap: 5 }}>
           <input type="checkbox" checked={!!field.required} onChange={(e) => onChange({ ...field, required: e.target.checked })} />
           Obrigatório
         </label>
@@ -212,7 +212,7 @@ function FieldRow({ field, onChange, onRemove, onMove, isFirst, isLast }) {
           <select
             value={field.mapsTo || ""}
             onChange={(e) => onChange({ ...field, mapsTo: e.target.value || undefined })}
-            style={{ ...sans, fontSize: 11.5, border: `1px solid ${c.line}`, borderRadius: 6, padding: "5px 7px", cursor: "pointer" }}
+            style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "5px 7px", cursor: "pointer" }}
           >
             {MAPS_TO_OPTIONS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
@@ -226,7 +226,7 @@ function FieldRow({ field, onChange, onRemove, onMove, isFirst, isLast }) {
             onChange({ ...field, options: e.target.value.split(",").map((o) => o.trim()).filter(Boolean) });
           }}
           placeholder="Opções separadas por vírgula"
-          style={{ ...sans, fontSize: 11.5, color: c.ink, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 6, padding: "6px 9px", outline: "none" }}
+          style={{ ...sans, fontSize: 12.5, color: c.ink, background: c.folha, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 9px", outline: "none" }}
         />
       )}
     </div>
@@ -298,12 +298,12 @@ function FormEditor({ brand, form, onBack }) {
 
   return (
     <div>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
         <ArrowLeft size={14} /> Formulários
       </button>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
-        <input value={name} onChange={(e) => setName(e.target.value)} style={{ ...serif, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none" }} />
+        <input value={name} onChange={(e) => setName(e.target.value)} style={{ ...display, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none" }} />
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={save} disabled={updateForm.isPending} style={btnPrimary}>
             {updateForm.isPending ? "A guardar…" : saved ? "Guardado ✓" : "Guardar"}
@@ -312,7 +312,7 @@ function FormEditor({ brand, form, onBack }) {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...sans, fontSize: 12, border: `1px solid ${c.line}`, borderRadius: 7, padding: "6px 9px", cursor: "pointer" }}>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 7, padding: "6px 9px", cursor: "pointer" }}>
           <option value="draft">Rascunho</option>
           <option value="published">Publicado</option>
         </select>
@@ -321,30 +321,30 @@ function FormEditor({ brand, form, onBack }) {
         </button>
       </div>
 
-      {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 16 }}>{error}</div>}
+      {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 16 }}>{error}</div>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 640 }}>
-        <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+        <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
           <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Configuração</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Tipo</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Tipo</div>
               <select style={inputStyle} value={type} onChange={(e) => setType(e.target.value)}>
                 {FORM_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
             {type === "lead_magnet" && (
               <div>
-                <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Link do ficheiro a entregar (PDF, guia, etc.)</div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Link do ficheiro a entregar (PDF, guia, etc.)</div>
                 <input style={inputStyle} value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="https://…" />
               </div>
             )}
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Mensagem de agradecimento</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Mensagem de agradecimento</div>
               <textarea rows={2} style={{ ...inputStyle, resize: "vertical" }} value={thankYou} onChange={(e) => setThankYou(e.target.value)} placeholder="Obrigado! Entraremos em contacto brevemente." />
             </div>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Tags a aplicar ao contacto</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Tags a aplicar ao contacto</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {(tagsQuery.data || []).map((t) => (
                   <button
@@ -352,25 +352,25 @@ function FormEditor({ brand, form, onBack }) {
                     type="button"
                     onClick={() => toggleTag(t.id)}
                     style={{
-                      ...sans, fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 999, cursor: "pointer",
-                      color: tagIds.includes(t.id) ? "#fff" : t.color, background: tagIds.includes(t.id) ? t.color : "#fff",
+                      ...sans, fontSize: 12.5, fontWeight: 600, padding: "5px 10px", borderRadius: 999, cursor: "pointer",
+                      color: tagIds.includes(t.id) ? "#fff" : t.color, background: tagIds.includes(t.id) ? t.color : c.folha,
                       border: `1px solid ${t.color}`,
                     }}
                   >
                     {t.name}
                   </button>
                 ))}
-                {!tagsQuery.data?.length && <div style={{ ...sans, fontSize: 11.5, color: c.mistLight }}>Sem tags ainda — cria no CRM.</div>}
+                {!tagsQuery.data?.length && <div style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>Sem tags ainda — cria no CRM.</div>}
               </div>
             </div>
           </div>
         </div>
 
-        <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+        <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
           <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Aparência</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Cor de destaque (botão e realces)</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Cor de destaque (botão e realces)</div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 {PAGE_COLOR_SWATCHES.map((hex) => (
                   <button
@@ -387,27 +387,27 @@ function FormEditor({ brand, form, onBack }) {
                   type="color"
                   value={style.accentColor}
                   onChange={(e) => setStyle((s) => ({ ...s, accentColor: e.target.value }))}
-                  style={{ width: 30, height: 26, border: `1px solid ${c.line}`, borderRadius: 6, cursor: "pointer", padding: 0, flexShrink: 0 }}
+                  style={{ width: 30, height: 26, border: `1px solid ${c.lineStrong}`, borderRadius: 6, cursor: "pointer", padding: 0, flexShrink: 0 }}
                 />
               </div>
             </div>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Tipo de letra</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Tipo de letra</div>
               <select style={inputStyle} value={style.font} onChange={(e) => setStyle((s) => ({ ...s, font: e.target.value }))}>
                 {PAGE_FONT_OPTIONS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
               </select>
             </div>
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Logótipo (link da imagem, opcional)</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Logótipo (link da imagem, opcional)</div>
               <input style={inputStyle} value={style.logoUrl} onChange={(e) => setStyle((s) => ({ ...s, logoUrl: e.target.value }))} placeholder="https://…" />
             </div>
           </div>
         </div>
 
-        <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+        <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <div style={{ ...serif, fontSize: 15.5, color: c.ink }}>Campos</div>
-            <button onClick={addField} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
+            <button onClick={addField} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 13.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
               <Plus size={13} /> Campo
             </button>
           </div>
@@ -423,26 +423,26 @@ function FormEditor({ brand, form, onBack }) {
                 isLast={i === fields.length - 1}
               />
             ))}
-            {fields.length === 0 && <div style={{ ...sans, fontSize: 12, color: c.mistLight, textAlign: "center", padding: "16px 0" }}>Ainda sem campos.</div>}
+            {fields.length === 0 && <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "16px 0" }}>Ainda sem campos.</div>}
           </div>
         </div>
 
-        <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+        <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
           <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Respostas ({submissionsQuery.data?.length || 0})</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {(submissionsQuery.data || []).map((s) => (
-              <div key={s.id} style={{ background: c.paper, borderRadius: 8, padding: "10px 12px" }}>
-                <div style={{ ...sans, fontSize: 10.5, color: c.mistLight, marginBottom: 5 }}>{new Date(s.submitted_at).toLocaleString("pt-PT")}</div>
+              <div key={s.id} style={{ background: c.paper, borderRadius: 6, padding: "10px 12px" }}>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mistLight, marginBottom: 5 }}>{new Date(s.submitted_at).toLocaleString("pt-PT")}</div>
                 {fields.map((f) => (
                   s.answers?.[f.id] ? (
-                    <div key={f.id} style={{ ...sans, fontSize: 12, color: c.ink, marginBottom: 2 }}>
+                    <div key={f.id} style={{ ...sans, fontSize: 13.5, color: c.ink, marginBottom: 2 }}>
                       <strong>{f.label}:</strong> {String(s.answers[f.id])}
                     </div>
                   ) : null
                 ))}
               </div>
             ))}
-            {!submissionsQuery.data?.length && <div style={{ ...sans, fontSize: 12, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>Ainda sem respostas.</div>}
+            {!submissionsQuery.data?.length && <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>Ainda sem respostas.</div>}
           </div>
         </div>
       </div>
@@ -469,13 +469,13 @@ export default function FormsModule({ brand, onBack }) {
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
         <ArrowLeft size={14} /> Voltar à marca
       </button>
 
       <Eyebrow>Formulários</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <h1 style={{ ...serif, fontSize: 24, color: c.ink, margin: 0 }}>Formulários</h1>
+        <h1 style={{ ...display, fontSize: 24, color: c.ink, margin: 0 }}>Formulários</h1>
         <button onClick={() => setShowNew(true)} style={btnPrimary}>
           <Plus size={14} /> Novo formulário
         </button>
@@ -483,18 +483,18 @@ export default function FormsModule({ brand, onBack }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {forms.map((f) => (
-          <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px", cursor: "pointer" }} onClick={() => setOpenId(f.id)}>
-            <div style={{ width: 34, height: 34, borderRadius: 9, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <FileText size={16} color={c.boss} strokeWidth={1.8} />
+          <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px", cursor: "pointer" }} onClick={() => setOpenId(f.id)}>
+            <div style={{ width: 34, height: 34, borderRadius: 6, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <FileText size={16} color={c.bossText} strokeWidth={1.8} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ ...serif, fontSize: 15, color: c.ink }}>{f.name}</div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>{FORM_TYPES.find((t) => t.value === f.type)?.label}</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>{FORM_TYPES.find((t) => t.value === f.type)?.label}</div>
             </div>
             <span
               style={{
-                ...sans, fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", borderRadius: 999, padding: "4px 10px",
-                color: f.status === "published" ? c.sage : c.mist, background: f.status === "published" ? "#E7F5EC" : c.paper,
+                ...sans, fontSize: 12.5, fontWeight: 700, borderRadius: 999, padding: "4px 10px",
+                color: f.status === "published" ? c.sage : c.mist, background: f.status === "published" ? c.sageSoft : c.paper,
               }}
             >
               {f.status === "published" ? "Publicado" : "Rascunho"}
@@ -505,7 +505,7 @@ export default function FormsModule({ brand, onBack }) {
           </div>
         ))}
         {!formsQuery.isLoading && forms.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>Ainda não há formulários.</div>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>Ainda não há formulários.</div>
         )}
       </div>
 
@@ -513,11 +513,11 @@ export default function FormsModule({ brand, onBack }) {
 
       {confirmDelete && (
         <Modal title="Eliminar formulário" onClose={() => setConfirmDelete(null)} width={380}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 16 }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 16 }}>
             Vais eliminar <strong>{confirmDelete.name}</strong> e todas as respostas recebidas. Esta ação não pode ser desfeita.
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => deleteForm.mutate(confirmDelete.id, { onSuccess: () => setConfirmDelete(null) })} style={{ ...btnPrimary, background: c.rose }}>
+            <button onClick={() => deleteForm.mutate(confirmDelete.id, { onSuccess: () => setConfirmDelete(null) })} style={{ ...btnPrimary, background: c.roseSolid }}>
               Eliminar
             </button>
             <button onClick={() => setConfirmDelete(null)} style={btnGhost}>Cancelar</button>
@@ -534,11 +534,11 @@ export default function FormsModule({ brand, onBack }) {
 function PublicField({ field, value, onChange, font }) {
   const fontFamily = `'${font || "Inter"}', sans-serif`;
   const label = (
-    <div style={{ ...sans, fontFamily, fontSize: 13, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>
+    <div style={{ ...sans, fontFamily, fontSize: 14.5, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>
       {field.label}{field.required && <span style={{ color: "#D3455B" }}> *</span>}
     </div>
   );
-  const inputStyleLocal = { ...sans, fontFamily, width: "100%", fontSize: 14, border: "1px solid #E0DAEC", borderRadius: 9, padding: "10px 12px", outline: "none", boxSizing: "border-box" };
+  const inputStyleLocal = { ...sans, fontFamily, width: "100%", fontSize: 15, border: "1px solid #E0DAEC", borderRadius: 6, padding: "10px 12px", outline: "none", boxSizing: "border-box" };
 
   if (field.type === "textarea") {
     return <div>{label}<textarea rows={3} required={field.required} value={value || ""} onChange={(e) => onChange(e.target.value)} style={{ ...inputStyleLocal, resize: "vertical" }} /></div>;
@@ -602,8 +602,8 @@ export function PublicFormPage() {
     setSubmitted(true);
   };
 
-  if (state.loading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", ...sans, color: c.mist }}>A carregar…</div>;
-  if (state.error) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", ...sans, color: c.mist }}>{state.error}</div>;
+  if (state.loading) return <div className="bb-force-light" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", ...sans, color: c.mist }}>A carregar…</div>;
+  if (state.error) return <div className="bb-force-light" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", ...sans, color: c.mist }}>{state.error}</div>;
 
   const { form } = state;
   const formStyle = { ...DEFAULT_PAGE_STYLE, ...(form.style || {}) };
@@ -611,9 +611,9 @@ export function PublicFormPage() {
   const bodyFont = { fontFamily: `'${formStyle.font}', sans-serif` };
 
   return (
-    <div style={{ minHeight: "100vh", background: c.paper, display: "flex", justifyContent: "center", padding: "60px 20px", boxSizing: "border-box" }}>
+    <div className="bb-force-light" style={{ minHeight: "100vh", background: c.paper, display: "flex", justifyContent: "center", padding: "60px 20px", boxSizing: "border-box" }}>
       <div style={{ width: "100%", maxWidth: 480 }}>
-        <div style={{ background: "#fff", borderRadius: 20, padding: "32px 28px", boxShadow: "0 12px 30px rgba(30,20,50,0.1)" }}>
+        <div style={{ background: c.folha, borderRadius: 3, padding: "32px 28px", }}>
           {formStyle.logoUrl && (
             <img src={formStyle.logoUrl} alt="" style={{ maxHeight: 48, maxWidth: "60%", display: "block", marginBottom: 18 }} />
           )}
@@ -621,9 +621,9 @@ export function PublicFormPage() {
             <div style={{ textAlign: "center", padding: "20px 0" }}>
               <CheckCircle2 size={32} color={formStyle.accentColor} style={{ marginBottom: 12 }} />
               <div style={{ ...serif, ...titleFont, fontSize: 19, color: c.ink, marginBottom: 8 }}>Obrigado!</div>
-              <div style={{ ...sans, ...bodyFont, fontSize: 13.5, color: c.mist, lineHeight: 1.6 }}>{form.thank_you_message || "A tua resposta foi recebida."}</div>
+              <div style={{ ...sans, ...bodyFont, fontSize: 15, color: c.mist, lineHeight: 1.6 }}>{form.thank_you_message || "A tua resposta foi recebida."}</div>
               {form.type === "lead_magnet" && form.file_delivery_url && (
-                <a href={form.file_delivery_url} target="_blank" rel="noopener noreferrer" style={{ ...sans, ...bodyFont, display: "inline-block", marginTop: 16, fontSize: 13, fontWeight: 600, color: "#fff", background: formStyle.accentColor, borderRadius: 9, padding: "10px 20px", textDecoration: "none" }}>
+                <a href={form.file_delivery_url} target="_blank" rel="noopener noreferrer" style={{ ...sans, ...bodyFont, display: "inline-block", marginTop: 16, fontSize: 14.5, fontWeight: 600, color: "#fff", background: formStyle.accentColor, borderRadius: 6, padding: "10px 20px", textDecoration: "none" }}>
                   Descarregar
                 </a>
               )}
@@ -636,11 +636,11 @@ export function PublicFormPage() {
                   <PublicField key={f.id} field={f} value={answers[f.id]} onChange={(v) => setAnswers((a) => ({ ...a, [f.id]: v }))} font={formStyle.font} />
                 ))}
               </div>
-              {error && <div style={{ ...sans, ...bodyFont, fontSize: 12.5, color: c.rose, marginTop: 14 }}>{error}</div>}
+              {error && <div style={{ ...sans, ...bodyFont, fontSize: 14, color: c.rose, marginTop: 14 }}>{error}</div>}
               <button
                 type="submit"
                 disabled={submitting}
-                style={{ ...sans, ...bodyFont, width: "100%", marginTop: 22, fontSize: 14, fontWeight: 600, color: "#fff", background: formStyle.accentColor, border: "none", borderRadius: 9, padding: "12px", cursor: "pointer" }}
+                style={{ ...sans, ...bodyFont, width: "100%", marginTop: 22, fontSize: 15, fontWeight: 600, color: "#fff", background: formStyle.accentColor, border: "none", borderRadius: 6, padding: "12px", cursor: "pointer" }}
               >
                 {submitting ? "A enviar…" : "Enviar"}
               </button>

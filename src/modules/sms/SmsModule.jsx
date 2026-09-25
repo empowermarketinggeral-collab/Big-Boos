@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
-import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
+import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, MessageSquare, AlertCircle, CheckCircle2, Plus, Trash2, Send } from "lucide-react";
 
 /* ---------------------------------------------------------
@@ -202,24 +202,24 @@ function ConnectSmsForm({ brandId }) {
   return (
     <div style={{ maxWidth: 480 }}>
       <Eyebrow>SMS</Eyebrow>
-      <h1 style={{ ...serif, fontSize: 24, color: c.ink, marginBottom: 8 }}>Ligar a conta desta marca</h1>
-      <p style={{ ...sans, fontSize: 13, color: c.mist, lineHeight: 1.6, marginBottom: 22 }}>
+      <h1 style={{ ...display, fontSize: 24, color: c.ink, marginBottom: 8 }}>Ligar a conta desta marca</h1>
+      <p style={{ ...sans, fontSize: 14.5, color: c.mist, lineHeight: 1.6, marginBottom: 22 }}>
         Via Twilio — sem verificação de negócio bloqueante, funciona em minutos. Segue <strong>docs/GUIA_TWILIO.md</strong> se ainda não tiveres estes valores.
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Account SID</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Account SID</div>
           <input style={inputStyle} value={accountSid} onChange={(e) => setAccountSid(e.target.value)} placeholder="AC…" />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Número Twilio (de envio)</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Número Twilio (de envio)</div>
           <input style={inputStyle} value={fromNumber} onChange={(e) => setFromNumber(e.target.value)} placeholder="+351…" />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Auth Token</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Auth Token</div>
           <input style={inputStyle} type="password" value={authToken} onChange={(e) => setAuthToken(e.target.value)} />
         </div>
-        {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}
+        {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
         <button onClick={submit} disabled={connect.isPending} style={{ ...btnPrimary, width: "fit-content" }}>
           {connect.isPending ? "A ligar…" : "Ligar SMS"}
         </button>
@@ -261,21 +261,21 @@ function SendSmsModal({ brandId, onClose }) {
     <Modal title="Enviar SMS" onClose={onClose} width={420}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Contacto (opcional)</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Contacto (opcional)</div>
           <select style={inputStyle} value={contactId} onChange={(e) => pickContact(e.target.value)}>
             <option value="">— número avulso —</option>
             {(contactsQuery.data || []).filter((ct) => ct.phone).map((ct) => <option key={ct.id} value={ct.id}>{ct.name}</option>)}
           </select>
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Número de telefone</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Número de telefone</div>
           <input style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+351…" />
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Mensagem</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Mensagem</div>
           <textarea rows={3} style={{ ...inputStyle, resize: "vertical" }} value={text} onChange={(e) => setText(e.target.value)} />
         </div>
-        {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}
+        {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
         <button onClick={submit} disabled={sendSms.isPending} style={{ ...btnPrimary, width: "fit-content" }}>
           {sendSms.isPending ? "A enviar…" : "Enviar"}
         </button>
@@ -303,10 +303,10 @@ function SendSmsCampaignModal({ brandId, campaign, recipientCount, onClose, onSe
 
   return (
     <Modal title="Enviar campanha" onClose={onClose} width={380}>
-      <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 16, lineHeight: 1.6 }}>
+      <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 16, lineHeight: 1.6 }}>
         Vais enviar <strong>{campaign.name}</strong> a <strong>{recipientCount}</strong> contacto(s) com consentimento de SMS. Esta ação não pode ser desfeita.
       </div>
-      {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 12 }}>{error}</div>}
+      {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 12 }}>{error}</div>}
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={confirm} disabled={sendCampaign.isPending || recipientCount === 0} style={btnPrimary}>
           {sendCampaign.isPending ? "A enviar…" : "Confirmar envio"}
@@ -360,12 +360,12 @@ function SmsCampaignEditor({ brandId, campaign, onBack }) {
 
   return (
     <div>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
         <ArrowLeft size={14} /> Campanhas
       </button>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-        <input value={name} onChange={(e) => setName(e.target.value)} disabled={isSent} style={{ ...serif, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none" }} />
+        <input value={name} onChange={(e) => setName(e.target.value)} disabled={isSent} style={{ ...display, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none" }} />
         {!isSent && (
           <button onClick={save} disabled={updateCampaign.isPending} style={btnPrimary}>
             {updateCampaign.isPending ? "A guardar…" : saved ? "Guardado ✓" : "Guardar"}
@@ -373,12 +373,12 @@ function SmsCampaignEditor({ brandId, campaign, onBack }) {
         )}
       </div>
 
-      {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 16 }}>{error}</div>}
+      {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 16 }}>{error}</div>}
 
       {isSent && (
         <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
           {["sent", "delivered", "failed"].map((k) => (
-            <span key={k} style={{ ...sans, fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: "5px 12px", background: c.paper, color: c.ink }}>
+            <span key={k} style={{ ...sans, fontSize: 12.5, fontWeight: 600, borderRadius: 999, padding: "5px 12px", background: c.paper, color: c.ink }}>
               {statusCounts[k] || 0} {k}
             </span>
           ))}
@@ -386,15 +386,15 @@ function SmsCampaignEditor({ brandId, campaign, onBack }) {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 640 }}>
-        <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+        <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
           <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Mensagem</div>
           <textarea rows={4} style={{ ...inputStyle, resize: "vertical" }} value={body} onChange={(e) => setBody(e.target.value)} disabled={isSent} placeholder="Texto do SMS…" />
         </div>
 
         {!isSent && (
-          <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+          <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
             <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Destinatários</div>
-            <label style={{ ...sans, fontSize: 12.5, color: c.ink, display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
+            <label style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
               <input type="checkbox" checked={allOptedIn} onChange={(e) => setAllOptedIn(e.target.checked)} />
               Todos os contactos com consentimento de SMS
             </label>
@@ -406,8 +406,8 @@ function SmsCampaignEditor({ brandId, campaign, onBack }) {
                     type="button"
                     onClick={() => toggleTag(t.id)}
                     style={{
-                      ...sans, fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 999, cursor: "pointer",
-                      color: tagIds.includes(t.id) ? "#fff" : t.color, background: tagIds.includes(t.id) ? t.color : "#fff",
+                      ...sans, fontSize: 12.5, fontWeight: 600, padding: "5px 10px", borderRadius: 999, cursor: "pointer",
+                      color: tagIds.includes(t.id) ? "#fff" : t.color, background: tagIds.includes(t.id) ? t.color : c.folha,
                       border: `1px solid ${t.color}`,
                     }}
                   >
@@ -416,7 +416,7 @@ function SmsCampaignEditor({ brandId, campaign, onBack }) {
                 ))}
               </div>
             )}
-            <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 12 }}>{recipientIds.length} contacto(s) vão receber este SMS.</div>
+            <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginTop: 12 }}>{recipientIds.length} contacto(s) vão receber este SMS.</div>
             <button onClick={() => setShowSend(true)} disabled={!body.trim() || recipientIds.length === 0} style={{ ...btnPrimary, marginTop: 14, display: "flex", alignItems: "center", gap: 6 }}>
               <Send size={13} /> Enviar campanha
             </button>
@@ -436,7 +436,7 @@ function SmsCampaignEditor({ brandId, campaign, onBack }) {
 
       {sendResult && (
         <Modal title="Campanha enviada" onClose={() => setSendResult(null)} width={360}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, lineHeight: 1.8 }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.8 }}>
             <div>{sendResult.sent} enviados</div>
             <div>{sendResult.skipped} ignorados (sem telefone ou sem consentimento)</div>
             {sendResult.failed > 0 && <div style={{ color: c.rose }}>{sendResult.failed} falharam</div>}
@@ -472,12 +472,12 @@ function CampaignsPanel({ brandId }) {
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {campaigns.map((cp) => (
-          <div key={cp.id} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px", cursor: "pointer" }} onClick={() => setOpenId(cp.id)}>
+          <div key={cp.id} style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px", cursor: "pointer" }} onClick={() => setOpenId(cp.id)}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ ...serif, fontSize: 15, color: c.ink }}>{cp.name}</div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>{cp.body || "Sem texto ainda"}</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>{cp.body || "Sem texto ainda"}</div>
             </div>
-            <span style={{ ...sans, fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", borderRadius: 999, padding: "4px 10px", color: cp.status === "sent" ? c.sage : c.mist, background: cp.status === "sent" ? "#E7F5EC" : c.paper }}>
+            <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, borderRadius: 999, padding: "4px 10px", color: cp.status === "sent" ? c.sage : c.mist, background: cp.status === "sent" ? c.sageSoft : c.paper }}>
               {cp.status === "sent" ? "Enviada" : cp.status === "sending" ? "A enviar" : "Rascunho"}
             </span>
             {cp.status === "draft" && (
@@ -488,7 +488,7 @@ function CampaignsPanel({ brandId }) {
           </div>
         ))}
         {!campaignsQuery.isLoading && campaigns.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>Ainda não há campanhas.</div>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>Ainda não há campanhas.</div>
         )}
       </div>
 
@@ -512,9 +512,9 @@ function CampaignsPanel({ brandId }) {
 
       {confirmDelete && (
         <Modal title="Eliminar campanha" onClose={() => setConfirmDelete(null)} width={360}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 16 }}>Tens a certeza? Esta ação não pode ser desfeita.</div>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 16 }}>Tens a certeza? Esta ação não pode ser desfeita.</div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => deleteCampaign.mutate(confirmDelete.id, { onSuccess: () => setConfirmDelete(null) })} style={{ ...btnPrimary, background: c.rose }}>Eliminar</button>
+            <button onClick={() => deleteCampaign.mutate(confirmDelete.id, { onSuccess: () => setConfirmDelete(null) })} style={{ ...btnPrimary, background: c.roseSolid }}>Eliminar</button>
             <button onClick={() => setConfirmDelete(null)} style={btnGhost}>Cancelar</button>
           </div>
         </Modal>
@@ -537,23 +537,23 @@ export default function SmsModule({ brand, onBack }) {
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
         <ArrowLeft size={14} /> Voltar à marca
       </button>
 
       {accountQuery.isLoading ? (
-        <div style={{ ...sans, fontSize: 13, color: c.mist }}>A verificar ligação…</div>
+        <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A verificar ligação…</div>
       ) : accountQuery.data ? (
         <>
           <Eyebrow>SMS</Eyebrow>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
-            <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 8, padding: 3 }}>
+            <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 6, padding: 3 }}>
               {TABS.map((t) => (
                 <button
                   key={t.k}
                   onClick={() => setTab(t.k)}
                   style={{
-                    ...sans, fontSize: 12.5, fontWeight: 600, padding: "7px 14px", borderRadius: 6, border: "none", cursor: "pointer",
+                    ...sans, fontSize: 14, fontWeight: 600, padding: "7px 14px", borderRadius: 6, border: "none", cursor: "pointer",
                     color: tab === t.k ? "#fff" : c.mist, background: tab === t.k ? c.boss : "transparent",
                   }}
                 >
@@ -562,10 +562,10 @@ export default function SmsModule({ brand, onBack }) {
               ))}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist }}>{accountQuery.data.from_number}</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>{accountQuery.data.from_number}</div>
               {usageQuery.data && usageQuery.data.numMessages > 0 && (
-                <div style={{ ...sans, fontSize: 11, color: c.mist, background: c.paper, borderRadius: 999, padding: "4px 10px" }}>
-                  {usageQuery.data.numMessages} SMS · {usageQuery.data.cost.toFixed(2)} {usageQuery.data.currency} (30 dias)
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, background: c.paper, borderRadius: 999, padding: "4px 10px" }}>
+                  {usageQuery.data.numMessages} SMS, {usageQuery.data.cost.toFixed(2)} {usageQuery.data.currency} (30 dias)
                 </div>
               )}
               {tab === "envios" && (
@@ -578,21 +578,21 @@ export default function SmsModule({ brand, onBack }) {
 
           {tab === "envios" && (
             <>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 16 }}>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 16 }}>
                 Inclui envios manuais, de automações e de lembretes de Agendamento.
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {(messagesQuery.data || []).map((m) => (
-                  <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 10, padding: "10px 14px" }}>
-                    <MessageSquare size={14} color={c.boss} style={{ flexShrink: 0 }} />
+                  <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 12, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 6, padding: "10px 14px" }}>
+                    <MessageSquare size={14} color={c.bossText} style={{ flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ ...sans, fontSize: 12.5, color: c.ink }}>{m.body}</div>
-                      <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>{m.to_number} · {new Date(m.created_at).toLocaleString("pt-PT")}</div>
+                      <div style={{ ...sans, fontSize: 14, color: c.ink }}>{m.body}</div>
+                      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>{m.to_number}, {new Date(m.created_at).toLocaleString("pt-PT")}</div>
                     </div>
                     {m.status === "failed" ? <AlertCircle size={14} color={c.rose} /> : <CheckCircle2 size={14} color={c.sage} />}
                   </div>
                 ))}
-                {!messagesQuery.data?.length && <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>Ainda sem envios.</div>}
+                {!messagesQuery.data?.length && <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>Ainda sem envios.</div>}
               </div>
             </>
           )}

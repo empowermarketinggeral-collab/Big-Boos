@@ -8,7 +8,7 @@ import {
   Clock, ChevronRight, ChevronLeft, BookMarked, ClipboardList, Layers, Video,
   Link2, Calculator, Sparkles, Eye, Zap, Target, TrendingUp,
   Trash2, Pencil, ChevronUp, ChevronDown, Image as ImageIcon,
-  Instagram, Facebook, Youtube, MessageCircle, Music2, Palette, Handshake, Kanban, Mail, MessageSquare, Inbox, CreditCard, FileSignature,
+  Instagram, Facebook, Youtube, MessageCircle, Music2, Palette, Handshake, Kanban, Mail, MessageSquare, Inbox, CreditCard, FileSignature, LogOut
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -28,7 +28,9 @@ import AgencyBillingModule from "./modules/billing/AgencyBillingModule.jsx";
 import ContractsModule from "./modules/contracts/ContractsModule.jsx";
 import BrandContractsModule from "./modules/contracts/BrandContractsModule.jsx";
 import PaymentReminderBanner from "./modules/billing/PaymentReminderBanner.jsx";
-import { c, sans, serif, StatusDot, Eyebrow, ChartCard, CAN_MANAGE_ROLES, Modal, btnPrimary, btnGhost } from "./shared/theme.jsx";
+import ThemeToggle from "./design/ThemeToggle.jsx";
+import BrandLogo from "./design/BrandLogo.jsx";
+import { c, sans, serif, StatusDot, Eyebrow, ChartCard, CAN_MANAGE_ROLES, Modal, btnPrimary, btnGhost, display } from "./shared/theme.jsx";
 
 /* ---------------------------------------------------------
    TOKENS — versão leve
@@ -244,7 +246,7 @@ function LangProvider({ children }) {
 function LangToggle({ compact }) {
   const { lang, setLang } = useT();
   return (
-    <div style={{ display: "flex", border: `1px solid ${c.line}`, borderRadius: 999, padding: 2, background: "#fff", flexShrink: 0 }}>
+    <div style={{ display: "flex", border: `1px solid ${c.line}`, borderRadius: 999, padding: 2, background: c.folha, flexShrink: 0 }}>
       {["pt", "en"].map((l) => (
         <button
           key={l}
@@ -264,11 +266,23 @@ function LangToggle({ compact }) {
 }
 
 const FONTS = `
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap');
-
 * { box-sizing: border-box; }
 
 .bb-page { padding: 8px 40px 60px; max-width: 1040px; }
+
+/* menu lateral: a régua em roxo profundo */
+.bb-sidebar { background: var(--bb-regua); color: var(--bb-regua-texto); }
+.bb-sidebar .bb-nav-item {
+  position: relative; width: 100%; display: flex; align-items: center; gap: 12px;
+  padding: 9px 12px; margin-bottom: 2px; border: 0; border-radius: 6px; background: transparent;
+  color: var(--bb-regua-texto-2); font: 700 14.5px var(--bb-font-corpo); text-align: left; cursor: pointer;
+}
+.bb-sidebar .bb-nav-item:hover { background: var(--bb-regua-hover); color: var(--bb-regua-texto); filter: none; }
+.bb-sidebar .bb-nav-item[aria-current="page"] { background: var(--bb-regua-ativo); color: var(--bb-regua-texto); }
+.bb-sidebar .bb-nav-item[aria-current="page"]::before {
+  content: ""; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px;
+  background: var(--bb-regua-marca); border-radius: 0 2px 2px 0;
+}
 
 @media (max-width: 860px) {
   .bb-app { flex-direction: column; }
@@ -280,11 +294,10 @@ const FONTS = `
     position: sticky;
     top: 0;
     z-index: 30;
-    border-right: none !important;
-    border-bottom: 1px solid ${c.line};
     overflow-x: auto;
   }
-  .bb-sidebar-logo { padding: 10px 12px !important; flex-shrink: 0; border-bottom: none !important; }
+  .bb-sidebar-logo { padding: 10px 12px !important; flex-shrink: 0; }
+  .bb-sidebar-logo img { height: 22px !important; }
   .bb-sidebar-nav {
     flex: none !important;
     display: flex !important;
@@ -293,14 +306,11 @@ const FONTS = `
     overflow-x: auto;
     gap: 2px;
   }
-  .bb-sidebar-nav-item {
-    flex-direction: column !important;
-    gap: 3px !important;
-    font-size: 9.5px !important;
-    padding: 6px 8px !important;
-    white-space: nowrap;
-    border-left: none !important;
-    border-bottom: 2px solid transparent;
+  .bb-sidebar .bb-nav-item {
+    flex-direction: column; gap: 3px; width: auto; font-size: 12.5px; padding: 6px 10px; white-space: nowrap; margin-bottom: 0;
+  }
+  .bb-sidebar .bb-nav-item[aria-current="page"]::before {
+    left: 8px; right: 8px; top: auto; bottom: 0; width: auto; height: 3px; border-radius: 2px 2px 0 0;
   }
   .bb-sidebar-footer { display: none !important; }
   .bb-topbar-logout { display: flex !important; }
@@ -322,7 +332,7 @@ const FONTS = `
     --bb-grid-4: 1fr;
   }
 }
-`;
+`
 
 
 /* ---------------------------------------------------------
@@ -1129,10 +1139,10 @@ function useDeleteProposal() {
    instantânea, tudo editável.
 --------------------------------------------------------- */
 const GROWTH_MAP_STATUS = {
-  draft: { label: "Rascunho", bg: "#F0EFF4", color: c.mist },
-  sent: { label: "Enviado", bg: "#F5EFDF", color: c.amber },
-  accepted: { label: "Aceite", bg: "#E7F5EC", color: c.sage },
-  rejected: { label: "Recusado", bg: "#FBE9EC", color: c.rose },
+  draft: { label: "Rascunho", bg: c.folha2, color: c.mist },
+  sent: { label: "Enviado", bg: c.amberSoft, color: c.amber },
+  accepted: { label: "Aceite", bg: c.sageSoft, color: c.sage },
+  rejected: { label: "Recusado", bg: c.roseSoft, color: c.rose },
 };
 
 function mapGrowthMapRow(row) {
@@ -1226,7 +1236,7 @@ function useDeleteGrowthMap() {
    (personal_tasks, só admin_geral)
 --------------------------------------------------------- */
 const COLOR_TAG_SWATCHES = [
-  { key: "purple", hex: "#7C4DE0" },
+  { key: "purple", hex: "#7C52A8" },
   { key: "blue", hex: "#3B5FC2" },
   { key: "green", hex: "#2F9E63" },
   { key: "yellow", hex: "#C9821F" },
@@ -1235,10 +1245,10 @@ const COLOR_TAG_SWATCHES = [
   { key: "pink", hex: "#C23B85" },
   { key: "teal", hex: "#2E9E9E" },
 ];
-const COLOR_TAG_BG = {
-  purple: "#F1ECFC", blue: "#E4EAFB", green: "#DFF5EA", yellow: "#FBF3D6",
-  orange: "#FBE7D6", red: "#FBE0E4", pink: "#FCE4F0", teal: "#DDF3F1",
-};
+// fundo suave = a própria cor a 16% sobre a folha (funciona em claro e escuro)
+const COLOR_TAG_BG = Object.fromEntries(
+  COLOR_TAG_SWATCHES.map(({ key, hex }) => [key, `color-mix(in srgb, ${hex} 16%, transparent)`])
+);
 const WEEKDAYS = [
   { key: "segunda", label: "Segunda-feira" },
   { key: "terca", label: "Terça-feira" },
@@ -1498,7 +1508,7 @@ function ReuniaoDetail({ meeting: initial, onBack }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <button
           onClick={onBack}
-          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
         >
           <ArrowLeft size={14} /> Reuniões
         </button>
@@ -1506,13 +1516,13 @@ function ReuniaoDetail({ meeting: initial, onBack }) {
           <button
             onClick={save}
             disabled={saveMeeting.isPending}
-            style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}
+            style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer" }}
           >
             {saveMeeting.isPending ? "A guardar…" : "Guardar"}
           </button>
           <button
             onClick={() => deleteMeeting.mutate(meeting.id, { onSuccess: onBack })}
-            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 6, padding: "7px 12px", cursor: "pointer" }}
           >
             <Trash2 size={13} /> Eliminar
           </button>
@@ -1523,18 +1533,18 @@ function ReuniaoDetail({ meeting: initial, onBack }) {
         value={meeting.personName}
         onChange={(e) => updateField("personName", e.target.value)}
         placeholder="Nome da pessoa"
-        style={{ ...serif, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", marginBottom: 18 }}
+        style={{ ...display, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", marginBottom: 18 }}
       />
 
-      {error && <div style={{ ...sans, fontSize: 12, color: c.rose, marginBottom: 14 }}>{error}</div>}
-      {saved && <div style={{ ...sans, fontSize: 12, color: c.sage, marginBottom: 14 }}>Alterações guardadas.</div>}
+      {error && <div style={{ ...sans, fontSize: 13.5, color: c.rose, marginBottom: 14 }}>{error}</div>}
+      {saved && <div style={{ ...sans, fontSize: 13.5, color: c.sage, marginBottom: 14 }}>Alterações guardadas.</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-2, 1fr 1fr)", gap: 14, marginBottom: 14 }}>
         <ChartCard title="Setor de atividade" sub="">
           <input
             value={meeting.sector}
             onChange={(e) => updateField("sector", e.target.value)}
-            style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink }}
+            style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink }}
           />
         </ChartCard>
         <ChartCard title="Data da reunião" sub="">
@@ -1542,7 +1552,7 @@ function ReuniaoDetail({ meeting: initial, onBack }) {
             type="date"
             value={meeting.date}
             onChange={(e) => updateField("date", e.target.value)}
-            style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink }}
+            style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink }}
           />
         </ChartCard>
       </div>
@@ -1553,7 +1563,7 @@ function ReuniaoDetail({ meeting: initial, onBack }) {
             value={meeting.howArrived}
             onChange={(e) => updateField("howArrived", e.target.value)}
             rows={2}
-            style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
+            style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
           />
         </ChartCard>
       </div>
@@ -1564,7 +1574,7 @@ function ReuniaoDetail({ meeting: initial, onBack }) {
             value={meeting.relevantData}
             onChange={(e) => updateField("relevantData", e.target.value)}
             rows={3}
-            style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
+            style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
           />
         </ChartCard>
       </div>
@@ -1574,17 +1584,17 @@ function ReuniaoDetail({ meeting: initial, onBack }) {
           <label
             style={{
               display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-              border: `1.5px dashed ${c.line}`, borderRadius: 10, padding: "12px 14px",
+              border: `1.5px dashed ${c.line}`, borderRadius: 6, padding: "12px 14px",
             }}
           >
             <input type="file" accept="application/pdf" onChange={onPdfSelected} style={{ display: "none" }} />
-            <FileText size={16} color={c.boss} />
-            <span style={{ ...sans, fontSize: 12.5, color: c.ink }}>
+            <FileText size={16} color={c.bossText} />
+            <span style={{ ...sans, fontSize: 14, color: c.ink }}>
               {uploading ? "A carregar…" : meeting.pdfName ? meeting.pdfName : "Carregar PDF"}
             </span>
           </label>
           {meeting.pdfUrl && (
-            <a href={meeting.pdfUrl} target="_blank" rel="noreferrer" style={{ ...sans, fontSize: 11.5, color: c.boss, marginTop: 8, display: "inline-block" }}>
+            <a href={meeting.pdfUrl} target="_blank" rel="noreferrer" style={{ ...sans, fontSize: 12.5, color: c.bossText, marginTop: 8, display: "inline-block" }}>
               Abrir ficheiro atual ↗
             </a>
           )}
@@ -1605,7 +1615,7 @@ function ReuniaoDetail({ meeting: initial, onBack }) {
                   ) : (
                     <span style={{ width: 16, height: 16, borderRadius: 999, border: `1.5px solid ${c.line}`, flexShrink: 0 }} />
                   )}
-                  <span style={{ ...sans, fontSize: 13, color: s.done ? c.mist : c.ink, textDecoration: s.done ? "line-through" : "none" }}>
+                  <span style={{ ...sans, fontSize: 14.5, color: s.done ? c.mist : c.ink, textDecoration: s.done ? "line-through" : "none" }}>
                     {s.text}
                   </span>
                 </button>
@@ -1621,7 +1631,7 @@ function ReuniaoDetail({ meeting: initial, onBack }) {
               </div>
             ))}
             {meeting.structure.length === 0 && (
-              <div style={{ ...sans, fontSize: 12.5, color: c.mistLight, padding: "6px 4px" }}>Ainda sem pontos.</div>
+              <div style={{ ...sans, fontSize: 14, color: c.mistLight, padding: "6px 4px" }}>Ainda sem pontos.</div>
             )}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -1630,11 +1640,11 @@ function ReuniaoDetail({ meeting: initial, onBack }) {
               onChange={(e) => setNewPoint(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addPoint()}
               placeholder="Novo ponto/pergunta..."
-              style={{ ...sans, flex: 1, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", color: c.ink }}
+              style={{ ...sans, flex: 1, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none", color: c.ink }}
             />
             <button
               onClick={addPoint}
-              style={{ width: 34, height: 34, borderRadius: 8, background: c.boss, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+              style={{ width: 34, height: 34, borderRadius: 6, background: c.boss, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
             >
               <Plus size={15} color="#fff" />
             </button>
@@ -1647,7 +1657,7 @@ function ReuniaoDetail({ meeting: initial, onBack }) {
           value={meeting.proposalNotes}
           onChange={(e) => updateField("proposalNotes", e.target.value)}
           rows={4}
-          style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
+          style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
         />
       </ChartCard>
     </div>
@@ -1674,23 +1684,23 @@ function ReunioesModule({ session }) {
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <Eyebrow>Reuniões</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>Preparação de reuniões</h1>
+        <h1 style={{ ...display, fontSize: 30,  color: c.ink, margin: 0 }}>Preparação de reuniões</h1>
         <button
           onClick={createMeeting}
           disabled={addMeeting.isPending}
           style={{
-            ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff",
-            background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer",
+            ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff",
+            background: c.boss, border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer",
           }}
         >
           <Plus size={14} /> {addMeeting.isPending ? "A criar…" : "Nova reunião"}
         </button>
       </div>
-      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 20, maxWidth: 600, lineHeight: 1.6 }}>
+      <div style={{ ...sans, fontSize: 14, color: c.mist, marginBottom: 20, maxWidth: 600, lineHeight: 1.6 }}>
         Ferramenta interna — prepara aqui uma ficha por reunião com um prospect ou cliente, consulta durante a chamada, e apaga depois se não precisares de guardar.
       </div>
 
-      {meetingsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
+      {meetingsQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A carregar…</div>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {meetings.map((m) => {
@@ -1699,16 +1709,16 @@ function ReunioesModule({ session }) {
             <div
               key={m.id}
               onClick={() => setOpenId(m.id)}
-              style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px", cursor: "pointer" }}
+              style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px", cursor: "pointer" }}
             >
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Handshake size={16} color={c.boss} strokeWidth={1.8} />
+              <div style={{ width: 34, height: 34, borderRadius: 6, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Handshake size={16} color={c.bossText} strokeWidth={1.8} />
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ ...serif, fontSize: 15, color: c.ink, fontWeight: 500 }}>{m.personName || "Sem nome"}</div>
-                <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>
-                  {[m.sector, m.date].filter(Boolean).join(" · ") || "Sem detalhes"}
-                  {m.structure.length > 0 && ` · ${doneCount}/${m.structure.length} pontos`}
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
+                  {[m.sector, m.date].filter(Boolean).join(", ") || "Sem detalhes"}
+                  {m.structure.length > 0 && `, ${doneCount}/${m.structure.length} pontos`}
                 </div>
               </div>
               <ChevronRight size={16} color={c.mist} />
@@ -1716,7 +1726,7 @@ function ReunioesModule({ session }) {
           );
         })}
         {!meetingsQuery.isLoading && meetings.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
             Ainda sem reuniões — cria a primeira acima.
           </div>
         )}
@@ -1939,10 +1949,10 @@ function pillCssFromStyle(pillStyle) {
   const ps = pillStyle || DEFAULT_PILL_STYLE;
   const shadowOpt = PILL_SHADOW_OPTIONS.find((s) => s.key === (ps.shadow || "none")) || PILL_SHADOW_OPTIONS[0];
   return {
+    boxShadow: shadowOpt.value,
     background: ps.color || "rgba(255,255,255,0.18)",
     color: ps.textColor || "#ffffff",
-    borderRadius: ps.radius ?? 10,
-    boxShadow: shadowOpt.value,
+    borderRadius: ps.radius ?? 10, 
     titleFont: ps.pillTitleFont || "Inter",
     titleWeight: ps.pillTitleBold === false ? 400 : 700,
     captionFont: ps.pillCaptionFont || "Inter",
@@ -2363,113 +2373,62 @@ function visibleNav(role) {
 function Sidebar({ active, onNavigate, session, roleInfo, onLogout }) {
   const { t } = useT();
   return (
-    <div
+    <aside
       className="bb-sidebar"
-      style={{
-        width: 240,
-        minHeight: "100vh",
-        background: c.sidebarBg,
-        borderRight: `1px solid ${c.line}`,
-        display: "flex",
-        flexDirection: "column",
-        flexShrink: 0,
-      }}
+      style={{ width: 240, minHeight: "100vh", display: "flex", flexDirection: "column", flexShrink: 0 }}
     >
-      <div className="bb-sidebar-logo" style={{ padding: "26px 22px 18px", display: "flex", alignItems: "center", gap: 9 }}>
-        <div
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 9,
-            background: `linear-gradient(135deg, ${c.boss}, ${c.bossDeep})`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          <Sparkles size={15} color="#fff" strokeWidth={2} />
-        </div>
-        <div>
-          <div style={{ ...serif, color: c.ink, fontSize: 17, fontWeight: 600, lineHeight: 1.1 }}>
-            Big Boss
-          </div>
-          <div style={{ ...sans, color: c.mistLight, fontSize: 10, letterSpacing: "0.1em", marginTop: 1 }}>
-            BIAMELO
-          </div>
-        </div>
+      <div className="bb-sidebar-logo" style={{ padding: "26px 22px 20px", display: "flex", alignItems: "center" }}>
+        <img
+          src="/brand/compacto/bigboss-compacto-sobre-roxo.svg"
+          alt="Big Boss by Empower Boss"
+          style={{ display: "block", height: 28, width: "auto", maxWidth: "100%" }}
+        />
       </div>
-      <div className="bb-sidebar-nav" style={{ flex: 1, padding: "8px 12px", overflowY: "auto" }}>
+      <nav className="bb-sidebar-nav" aria-label="Principal" style={{ flex: 1, padding: "8px 12px", overflowY: "auto" }}>
         {visibleNav(session.role).map((item) => {
-          const isActive = active === item.key;
           const Icon = item.icon;
           return (
             <button
               key={item.key}
-              className="bb-sidebar-nav-item"
+              className="bb-nav-item"
               onClick={() => onNavigate(item.key)}
-              style={{
-                ...sans,
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "8px 12px",
-                marginBottom: 2,
-                borderRadius: 8,
-                border: "none",
-                cursor: "pointer",
-                fontSize: 13.5,
-                fontWeight: 500,
-                textAlign: "left",
-                color: isActive ? c.boss : c.mist,
-                background: isActive ? c.bossSoft : "transparent",
-              }}
+              aria-current={active === item.key ? "page" : undefined}
             >
-              <Icon size={16} strokeWidth={1.8} />
+              <Icon size={17} strokeWidth={1.8} />
               {t(`nav.${item.key}`, item.label)}
             </button>
           );
         })}
-      </div>
-      <div className="bb-sidebar-footer" style={{ padding: 16, borderTop: `1px solid ${c.line}` }}>
+      </nav>
+      <div className="bb-sidebar-footer" style={{ padding: 16, borderTop: "1px solid var(--bb-regua-hover)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div
             style={{
-              width: 30,
-              height: 30,
-              borderRadius: 999,
-              background: c.bossSoft,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: c.boss,
-              fontSize: 12,
-              fontWeight: 600,
-              ...sans,
-              flexShrink: 0,
+              width: 34, height: 34, borderRadius: 999, background: c.boss, color: c.onBoss, ...sans,
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, flexShrink: 0,
             }}
           >
             {(session.email || "?").charAt(0).toUpperCase()}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ ...sans, color: c.ink, fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <div style={{ ...sans, color: "var(--bb-regua-texto)", fontSize: 14, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {t(`role.${roleInfo.key}`, roleInfo.label)}
             </div>
-            <div style={{ ...sans, color: c.mistLight, fontSize: 10.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <div style={{ ...sans, color: "var(--bb-regua-texto-2)", fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {session.email}
             </div>
           </div>
           <button
             onClick={onLogout}
             title={t("common.logout")}
-            style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, flexShrink: 0, padding: 4 }}
+            aria-label={t("common.logout")}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--bb-regua-texto-2)", flexShrink: 0, padding: 6 }}
           >
-            <XCircle size={16} />
+            <LogOut size={17} />
           </button>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
 
@@ -2526,13 +2485,14 @@ function TopBar({ onLogout, session }) {
   const notifications = notificationsQuery.data || [];
   return (
     <div className="bb-topbar" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, padding: "18px 40px 0", position: "relative" }}>
+      <ThemeToggle compact />
       <LangToggle />
       <button
         onClick={onLogout}
         title={t("common.logout")}
         className="bb-topbar-logout"
         style={{
-          width: 34, height: 34, borderRadius: 999, border: `1px solid ${c.line}`, background: "#fff",
+          width: 34, height: 34, borderRadius: 999, border: `1px solid ${c.line}`, background: c.folha,
           display: "none", alignItems: "center", justifyContent: "center", cursor: "pointer",
         }}
       >
@@ -2541,13 +2501,13 @@ function TopBar({ onLogout, session }) {
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
-          width: 34, height: 34, borderRadius: 999, border: `1px solid ${c.line}`, background: "#fff",
+          width: 34, height: 34, borderRadius: 999, border: `1px solid ${c.line}`, background: c.folha,
           display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative",
         }}
       >
         <Bell size={15} color={c.mist} strokeWidth={1.8} />
         {notifications.length > 0 && (
-          <span style={{ position: "absolute", top: 6, right: 7, width: 6, height: 6, borderRadius: 999, background: c.rose }} />
+          <span style={{ position: "absolute", top: 6, right: 7, width: 6, height: 6, borderRadius: 999, background: c.roseSolid }} />
         )}
       </button>
       {open && (
@@ -2555,25 +2515,25 @@ function TopBar({ onLogout, session }) {
           <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
           <div
             style={{
-              position: "absolute", top: 44, right: 0, width: 300, maxWidth: "calc(100vw - 32px)", background: "#fff", border: `1px solid ${c.line}`,
-              borderRadius: 14, boxShadow: "0 12px 30px rgba(23,21,31,0.14)", zIndex: 41, overflow: "hidden",
+              position: "absolute", top: 44, right: 0, width: 300, maxWidth: "calc(100vw - 32px)", background: c.folha, border: `1px solid ${c.line}`,
+              borderRadius: 3,  zIndex: 41, overflow: "hidden",
             }}
           >
-            <div style={{ ...sans, fontSize: 11.5, fontWeight: 700, color: c.ink, padding: "12px 16px", borderBottom: `1px solid ${c.line}` }}>
+            <div style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: c.ink, padding: "12px 16px", borderBottom: `1px solid ${c.line}` }}>
               {t("topbar.notifications")}
             </div>
             {notificationsQuery.isLoading && (
-              <div style={{ ...sans, fontSize: 12, color: c.mist, padding: "12px 16px" }}>{t("common.loading")}</div>
+              <div style={{ ...sans, fontSize: 13.5, color: c.mist, padding: "12px 16px" }}>{t("common.loading")}</div>
             )}
             {!notificationsQuery.isLoading && notifications.length === 0 && (
-              <div style={{ ...sans, fontSize: 12, color: c.mistLight, padding: "12px 16px" }}>{t("topbar.noNotifications")}</div>
+              <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, padding: "12px 16px" }}>{t("topbar.noNotifications")}</div>
             )}
             {notifications.map((n) => (
               <div key={n.id} style={{ padding: "12px 16px", borderBottom: `1px solid ${c.line}` }}>
-                <div style={{ ...sans, fontSize: 12.5, color: c.ink, lineHeight: 1.5 }}>
+                <div style={{ ...sans, fontSize: 14, color: c.ink, lineHeight: 1.5 }}>
                   {n.brandName ? `${n.brandName} — ` : ""}{t(`notif.${n.kind}`)}
                 </div>
-                <div style={{ ...sans, fontSize: 10.5, color: c.mistLight, marginTop: 3 }}>{relativeTime(n.createdAt, lang)}</div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mistLight, marginTop: 3 }}>{relativeTime(n.createdAt, lang)}</div>
               </div>
             ))}
           </div>
@@ -2601,7 +2561,7 @@ function PainelGlobal({ brands, onOpenBrand, onNavigate, session }) {
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <Eyebrow>{t("painel.eyebrow")}</Eyebrow>
-      <h1 style={{ ...serif, fontSize: 34, fontWeight: 500, color: c.ink, margin: "0 0 32px" }}>
+      <h1 style={{ ...display, fontSize: 34,  color: c.ink, margin: "0 0 32px" }}>
         {greeting}
       </h1>
 
@@ -2610,14 +2570,14 @@ function PainelGlobal({ brands, onOpenBrand, onNavigate, session }) {
           <div
             key={s.label}
             style={{
-              background: "#fff",
+              background: c.folha,
               border: `1px solid ${c.line}`,
-              borderRadius: 14,
+              borderRadius: 3,
               padding: "20px 22px",
             }}
           >
-            <div style={{ ...serif, fontSize: 30, color: c.ink, fontWeight: 500 }}>{s.value}</div>
-            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 4 }}>{s.label}</div>
+            <div style={{ ...display, fontSize: 30, color: c.ink, }}>{s.value}</div>
+            <div style={{ ...sans, fontSize: 14, color: c.mist, marginTop: 4 }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -2631,9 +2591,9 @@ function PainelGlobal({ brands, onOpenBrand, onNavigate, session }) {
             display: "flex",
             alignItems: "center",
             gap: 6,
-            fontSize: 12.5,
+            fontSize: 14,
             fontWeight: 600,
-            color: c.boss,
+            color: c.bossText,
             background: "none",
             border: "none",
             cursor: "pointer",
@@ -2650,9 +2610,9 @@ function PainelGlobal({ brands, onOpenBrand, onNavigate, session }) {
             onClick={() => onOpenBrand(b.id)}
             style={{
               textAlign: "left",
-              background: "#fff",
+              background: c.folha,
               border: `1px solid ${c.line}`,
-              borderRadius: 14,
+              borderRadius: 3,
               padding: 20,
               cursor: "pointer",
             }}
@@ -2661,8 +2621,8 @@ function PainelGlobal({ brands, onOpenBrand, onNavigate, session }) {
               style={{
                 width: 38,
                 height: 38,
-                borderRadius: 10,
-                background: `linear-gradient(135deg, ${c.boss}, ${c.bossDeep})`,
+                borderRadius: 6,
+                background: c.boss,
                 color: "#fff",
                 display: "flex",
                 alignItems: "center",
@@ -2675,7 +2635,7 @@ function PainelGlobal({ brands, onOpenBrand, onNavigate, session }) {
               {b.initial}
             </div>
             <div style={{ ...serif, fontSize: 16, color: c.ink, fontWeight: 500 }}>{b.name}</div>
-            <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 4, display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginTop: 4, display: "flex", alignItems: "center", gap: 6 }}>
               <StatusDot status={b.status} /> {t(`category.${b.categoryKey}`, b.category)}
             </div>
           </button>
@@ -2694,7 +2654,7 @@ function MarcasList({ brands, onOpenBrand, onAddBrand, addBrandError, addingBran
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <Eyebrow>{t("marcas.eyebrow")}</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>{t("marcas.allBrands")}</h1>
+        <h1 style={{ ...display, fontSize: 30,  color: c.ink, margin: 0 }}>{t("marcas.allBrands")}</h1>
         {canManage && (
         <button
           onClick={onAddBrand}
@@ -2704,12 +2664,12 @@ function MarcasList({ brands, onOpenBrand, onAddBrand, addBrandError, addingBran
             display: "flex",
             alignItems: "center",
             gap: 6,
-            fontSize: 13,
+            fontSize: 14.5,
             fontWeight: 600,
             color: "#fff",
             background: c.boss,
             border: "none",
-            borderRadius: 8,
+            borderRadius: 6,
             padding: "9px 16px",
             cursor: addingBrand ? "default" : "pointer",
             opacity: addingBrand ? 0.7 : 1,
@@ -2720,7 +2680,7 @@ function MarcasList({ brands, onOpenBrand, onAddBrand, addBrandError, addingBran
         )}
       </div>
       {addBrandError && (
-        <div style={{ ...sans, fontSize: 12.5, color: c.rose, background: "#FBE9EC", borderRadius: 8, padding: "10px 14px", marginBottom: 18 }}>
+        <div style={{ ...sans, fontSize: 14, color: c.rose, background: c.roseSoft, borderRadius: 6, padding: "10px 14px", marginBottom: 18 }}>
           {addBrandError}
         </div>
       )}
@@ -2734,9 +2694,9 @@ function MarcasList({ brands, onOpenBrand, onAddBrand, addBrandError, addingBran
               alignItems: "center",
               gap: 16,
               textAlign: "left",
-              background: "#fff",
+              background: c.folha,
               border: `1px solid ${c.line}`,
-              borderRadius: 12,
+              borderRadius: 3,
               padding: "14px 18px",
               cursor: "pointer",
             }}
@@ -2745,8 +2705,8 @@ function MarcasList({ brands, onOpenBrand, onAddBrand, addBrandError, addingBran
               style={{
                 width: 40,
                 height: 40,
-                borderRadius: 10,
-                background: `linear-gradient(135deg, ${c.boss}, ${c.bossDeep})`,
+                borderRadius: 6,
+                background: c.boss,
                 color: "#fff",
                 display: "flex",
                 alignItems: "center",
@@ -2760,9 +2720,9 @@ function MarcasList({ brands, onOpenBrand, onAddBrand, addBrandError, addingBran
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ ...serif, fontSize: 15.5, color: c.ink, fontWeight: 500 }}>{b.name}</div>
-              <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 2 }}>{t(`category.${b.categoryKey}`, b.category)}</div>
+              <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginTop: 2 }}>{t(`category.${b.categoryKey}`, b.category)}</div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, ...sans, fontSize: 12, color: c.mist }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, ...sans, fontSize: 13.5, color: c.mist }}>
               <StatusDot status={b.status} />
               {t(`status.${b.status}`, b.status)}
             </div>
@@ -2805,18 +2765,18 @@ function ModuleVisibilityModal({ brand, onClose }) {
 
   return (
     <Modal title="O que este cliente vê" onClose={onClose} width={480}>
-      <div style={{ ...sans, fontSize: 12, color: c.mist, marginBottom: 16, lineHeight: 1.5 }}>
+      <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginBottom: 16, lineHeight: 1.5 }}>
         Só afeta o que o cliente (perfil aprovador) vê ao entrar nesta marca — a equipa continua sempre a ver tudo.
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 16, maxHeight: "55vh", overflowY: "auto" }}>
         {MODULE_GROUPS.map((group) => (
           <div key={group.key}>
-            <div style={{ ...sans, fontSize: 11, fontWeight: 700, color: c.mist, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+            <div style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: c.mist, marginBottom: 8 }}>
               {group.label}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {group.modules.map((m) => (
-                <label key={m.key} style={{ ...sans, fontSize: 13, color: c.ink, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <label key={m.key} style={{ ...sans, fontSize: 14.5, color: c.ink, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
                   <input type="checkbox" checked={selected.has(m.key)} onChange={() => toggle(m.key)} />
                   {m.label}
                 </label>
@@ -2825,7 +2785,7 @@ function ModuleVisibilityModal({ brand, onClose }) {
           </div>
         ))}
       </div>
-      {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginTop: 12 }}>{error}</div>}
+      {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginTop: 12 }}>{error}</div>}
       <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
         <button onClick={save} disabled={updateEnabledModules.isPending} style={btnPrimary}>
           {updateEnabledModules.isPending ? "A guardar…" : "Guardar"}
@@ -2924,7 +2884,7 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
           display: "flex",
           alignItems: "center",
           gap: 6,
-          fontSize: 12.5,
+          fontSize: 14,
           color: c.mist,
           background: "none",
           border: "none",
@@ -2941,8 +2901,8 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
             style={{
               width: 48,
               height: 48,
-              borderRadius: 12,
-              background: `linear-gradient(135deg, ${c.boss}, ${c.bossDeep})`,
+              borderRadius: 3,
+              background: c.boss,
               color: "#fff",
               display: "flex",
               alignItems: "center",
@@ -2959,20 +2919,20 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
               <input
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                style={{ ...serif, fontSize: 20, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "6px 10px", outline: "none" }}
+                style={{ ...serif, fontSize: 20, color: c.ink, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 10px", outline: "none" }}
               />
               <div style={{ display: "flex", gap: 8 }}>
                 <select
                   value={editCategory}
                   onChange={(e) => setEditCategory(e.target.value)}
-                  style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "6px 9px", cursor: "pointer" }}
+                  style={{ ...sans, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 9px", cursor: "pointer" }}
                 >
                   {Object.keys(CATEGORY_LABELS).map((k) => <option key={k} value={k}>{t(`category.${k}`, CATEGORY_LABELS[k])}</option>)}
                 </select>
                 <select
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value)}
-                  style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "6px 9px", cursor: "pointer" }}
+                  style={{ ...sans, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 9px", cursor: "pointer" }}
                 >
                   <option value="green">{t("status.green")}</option>
                   <option value="yellow">{t("status.yellow")}</option>
@@ -2982,8 +2942,8 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
             </div>
           ) : (
             <div style={{ minWidth: 0 }}>
-              <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: 0 }}>{brand.name}</h1>
-              <div style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+              <h1 style={{ ...display, fontSize: 27,  color: c.ink, margin: 0 }}>{brand.name}</h1>
+              <div style={{ ...sans, fontSize: 14, color: c.mist, display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
                 <StatusDot status={brand.status} /> {t(`category.${brand.categoryKey}`, brand.category)}
               </div>
             </div>
@@ -2996,13 +2956,13 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
                 <button
                   onClick={saveBrandEdit}
                   disabled={updateBrand.isPending}
-                  style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
+                  style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "8px 14px", cursor: "pointer" }}
                 >
                   {updateBrand.isPending ? t("common.saving") : t("common.save")}
                 </button>
                 <button
                   onClick={() => setEditing(false)}
-                  style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+                  style={{ ...sans, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
                 >
                   {t("common.cancel")}
                 </button>
@@ -3010,7 +2970,7 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
             ) : (
               <button
                 onClick={() => setEditing(true)}
-                style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.ink, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
+                style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.ink, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 6, padding: "8px 14px", cursor: "pointer" }}
               >
                 <Pencil size={13} /> {t("common.edit")}
               </button>
@@ -3018,7 +2978,7 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
             {canDelete && !editing && (
               <button
                 onClick={() => setConfirmingDelete(true)}
-                style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
+                style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 6, padding: "8px 14px", cursor: "pointer" }}
               >
                 <Trash2 size={13} /> {t("common.delete")}
               </button>
@@ -3028,21 +2988,21 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
       </div>
 
       {confirmingDelete && (
-        <div style={{ background: "#FBE9EC", border: `1px solid ${c.rose}`, borderRadius: 12, padding: "16px 18px", marginBottom: 24 }}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 10, lineHeight: 1.5 }}>
+        <div style={{ background: c.roseSoft, border: `1px solid ${c.rose}`, borderRadius: 3, padding: "16px 18px", marginBottom: 24 }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 10, lineHeight: 1.5 }}>
             {t("common.delete")} <strong>{brand.name}</strong> {t("brand.confirmDelete")}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => deleteBrand.mutate(brand.id, { onSuccess: onBack })}
               disabled={deleteBrand.isPending}
-              style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.rose, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}
+              style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.roseSolid, border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer" }}
             >
               {deleteBrand.isPending ? t("brand.deleting") : t("brand.confirmDeleteYes")}
             </button>
             <button
               onClick={() => setConfirmingDelete(false)}
-              style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+              style={{ ...sans, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
             >
               {t("common.cancel")}
             </button>
@@ -3053,9 +3013,9 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
       {/* SIGNATURE: Objetivo em destaque */}
       <div
         style={{
-          background: `linear-gradient(135deg, ${c.bossSoft} 0%, #FFFFFF 65%)`,
+          background: c.bossSoft,
           border: `1px solid ${c.line}`,
-          borderRadius: 16,
+          borderRadius: 3,
           padding: "28px 32px",
           marginBottom: 32,
           position: "relative",
@@ -3069,10 +3029,10 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
             left: 0,
             bottom: 0,
             width: 3,
-            background: `linear-gradient(180deg, ${c.boss}, ${c.bossDeep})`,
+            background: c.boss,
           }}
         />
-        <div style={{ ...sans, fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: c.boss, marginBottom: 12 }}>
+        <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.bossText, marginBottom: 12 }}>
           {t("brand.goal")}
         </div>
         {editing ? (
@@ -3080,10 +3040,10 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
             value={editGoal}
             onChange={(e) => setEditGoal(e.target.value)}
             rows={2}
-            style={{ ...serif, fontSize: 18, lineHeight: 1.45, color: c.ink, fontWeight: 400, maxWidth: 620, width: "100%", border: `1px solid ${c.line}`, borderRadius: 8, padding: "10px 12px", outline: "none", resize: "vertical", background: "#fff" }}
+            style={{ ...serif, fontSize: 18, lineHeight: 1.45, color: c.ink, fontWeight: 400, maxWidth: 620, width: "100%", border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "10px 12px", outline: "none", resize: "vertical", background: c.folha }}
           />
         ) : (
-          <div style={{ ...serif, fontSize: 22, lineHeight: 1.45, color: c.ink, fontWeight: 400, maxWidth: 620 }}>
+          <div style={{ ...display, fontSize: 22, lineHeight: 1.45, color: c.ink,  maxWidth: 620 }}>
             "{brand.goal}"
           </div>
         )}
@@ -3096,7 +3056,7 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
         {canManage && (
           <button
             onClick={() => setShowVisibility(true)}
-            style={{ ...sans, fontSize: 12, color: c.mist, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}
+            style={{ ...sans, fontSize: 13.5, color: c.mist, background: "none", border: `1px solid ${c.line}`, borderRadius: 6, padding: "7px 12px", cursor: "pointer" }}
           >
             O que este cliente vê
           </button>
@@ -3104,14 +3064,14 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
       </div>
 
       {isApproverRole && brand.enabledModules.length === 0 && (
-        <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 16 }}>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 16 }}>
           Ainda não foi escolhido o que mostrar a este cliente — por agora vê tudo.
         </div>
       )}
 
       {visibleGroups.map((group) => (
         <div key={group.key} style={{ marginBottom: 28 }}>
-          <div style={{ ...sans, fontSize: 11, fontWeight: 700, color: c.mist, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+          <div style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: c.mist, marginBottom: 10 }}>
             {group.label}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-3, repeat(3, 1fr))", gap: 14 }}>
@@ -3123,19 +3083,19 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
                   onClick={() => onOpenSub(m.key)}
                   style={{
                     textAlign: "left",
-                    background: "#fff",
+                    background: c.folha,
                     border: `1px solid ${c.line}`,
-                    borderRadius: 14,
+                    borderRadius: 3,
                     padding: 20,
                     cursor: "pointer",
                   }}
                 >
-                  <Icon size={19} color={c.boss} strokeWidth={1.7} />
+                  <Icon size={19} color={c.bossText} strokeWidth={1.7} />
                   {/* Nomes de módulos nunca traduzem — são nome de produto, não texto de interface. */}
                   <div style={{ ...serif, fontSize: 15.5, color: c.ink, fontWeight: 500, marginTop: 14 }}>
                     {m.label}
                   </div>
-                  <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 3 }}>{m.sub}</div>
+                  <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginTop: 3 }}>{m.sub}</div>
                 </button>
               );
             })}
@@ -3154,11 +3114,11 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
 function StatusPill({ status }) {
   const { t } = useT();
   const map = {
-    approved: { label: t("content.status.approved"), bg: "#E7F5EC", color: c.sage, Icon: CheckCircle2 },
-    pending: { label: t("content.status.pending"), bg: "#F5EFDF", color: c.amber, Icon: Clock },
-    rejected: { label: t("content.status.rejected"), bg: "#FBE9EC", color: c.rose, Icon: XCircle },
-    scheduled: { label: t("content.status.scheduled"), bg: "#E4EAFB", color: "#3B5FC2", Icon: Calendar },
-    published: { label: t("content.status.published"), bg: c.bossSoft, color: c.boss, Icon: Eye },
+    approved: { label: t("content.status.approved"), bg: c.sageSoft, color: c.sage, Icon: CheckCircle2 },
+    pending: { label: t("content.status.pending"), bg: c.amberSoft, color: c.amber, Icon: Clock },
+    rejected: { label: t("content.status.rejected"), bg: c.roseSoft, color: c.rose, Icon: XCircle },
+    scheduled: { label: t("content.status.scheduled"), bg: c.infoSoft, color: c.info, Icon: Calendar },
+    published: { label: t("content.status.published"), bg: c.bossSoft, color: c.bossText, Icon: Eye },
   };
   const { label, bg, color, Icon } = map[status];
   return (
@@ -3168,7 +3128,7 @@ function StatusPill({ status }) {
         display: "inline-flex",
         alignItems: "center",
         gap: 5,
-        fontSize: 11.5,
+        fontSize: 12.5,
         fontWeight: 600,
         color,
         background: bg,
@@ -3182,9 +3142,9 @@ function StatusPill({ status }) {
 }
 
 const PLATFORM_STYLE = {
-  Instagram: { bg: "#FCE8F0", color: "#C23B85" },
-  Facebook: { bg: "#E7EEFC", color: "#3B5FC2" },
-  TikTok: { bg: "#EDEAF5", color: "#2E2A45" },
+  Instagram: { bg: "color-mix(in srgb, #C23B85 16%, transparent)", color: c.ink },
+  Facebook: { bg: "color-mix(in srgb, #3B5FC2 16%, transparent)", color: c.ink },
+  TikTok: { bg: "color-mix(in srgb, #6E6980 18%, transparent)", color: c.ink },
 };
 
 function MediaPreview({ item, onView, onRemove, canManage }) {
@@ -3197,7 +3157,7 @@ function MediaPreview({ item, onView, onRemove, canManage }) {
             type="button"
             onClick={() => onView(i)}
             style={{
-              width: 64, height: 64, borderRadius: 8, overflow: "hidden", border: `1px solid ${c.line}`,
+              width: 64, height: 64, borderRadius: 6, overflow: "hidden", border: `1px solid ${c.line}`,
               padding: 0, cursor: "pointer", background: c.paper, display: "block",
             }}
           >
@@ -3211,7 +3171,7 @@ function MediaPreview({ item, onView, onRemove, canManage }) {
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onRemove(i); }}
-              style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: 999, background: c.rose, border: "2px solid #fff", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
+              style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: 999, background: c.roseSolid, border: "2px solid #fff", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
             >
               <XCircle size={11} />
             </button>
@@ -3255,9 +3215,9 @@ function MediaLightbox({ item, index, onClose }) {
         </div>
         <div style={{ position: "relative" }}>
           {kind === "video" ? (
-            <video key={url} src={url} controls autoPlay style={{ width: "100%", maxHeight: "75vh", borderRadius: 12, background: "#000" }} />
+            <video key={url} src={url} controls autoPlay style={{ width: "100%", maxHeight: "75vh", borderRadius: 3, background: "#000" }} />
           ) : (
-            <img key={url} src={url} alt="" style={{ width: "100%", maxHeight: "75vh", objectFit: "contain", borderRadius: 12 }} />
+            <img key={url} src={url} alt="" style={{ width: "100%", maxHeight: "75vh", objectFit: "contain", borderRadius: 3 }} />
           )}
           {total > 1 && (
             <>
@@ -3271,7 +3231,7 @@ function MediaLightbox({ item, index, onClose }) {
           )}
         </div>
         {total > 1 && (
-          <div style={{ ...sans, fontSize: 12, color: "#fff", textAlign: "center", marginTop: 8 }}>
+          <div style={{ ...sans, fontSize: 13.5, color: "#fff", textAlign: "center", marginTop: 8 }}>
             {pos + 1} / {total}
           </div>
         )}
@@ -3304,11 +3264,11 @@ function AttachMoreMedia({ item, brandId, updateContentMedia }) {
 
   return (
     <div style={{ marginBottom: 14 }}>
-      <label style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: c.boss, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}>
+      <label style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.bossText, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}>
         <Plus size={12} /> {uploading ? t("common.loading") : t("content.attachMore")}
         <input type="file" multiple accept="image/*,video/*" onChange={onChange} disabled={uploading} style={{ display: "none" }} />
       </label>
-      {error && <div style={{ ...sans, fontSize: 11.5, color: c.rose, marginTop: 4 }}>{error}</div>}
+      {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginTop: 4 }}>{error}</div>}
     </div>
   );
 }
@@ -3317,7 +3277,7 @@ const WEEKDAY_SHORT_PT = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const WEEKDAY_SHORT_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_LABELS_PT = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const MONTH_LABELS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const CONTENT_STATUS_DOT = { pending: c.amber, approved: c.sage, rejected: c.rose, scheduled: "#3B5FC2", published: c.boss };
+const CONTENT_STATUS_DOT = { pending: c.amber, approved: c.sage, rejected: c.rose, scheduled: c.info, published: c.boss };
 const CONTENT_STATUS_OPTIONS = [
   { key: "pending" },
   { key: "approved" },
@@ -3354,7 +3314,7 @@ function ContentCalendar({ content, onDayClick, onItemClick }) {
     if (!item.dateIso) return;
     (byDate[item.dateIso] = byDate[item.dateIso] || []).push(item);
   });
-  const navBtn = { width: 30, height: 30, borderRadius: 999, border: `1px solid ${c.line}`, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 };
+  const navBtn = { width: 30, height: 30, borderRadius: 999, border: `1px solid ${c.line}`, background: c.folha, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 };
 
   return (
     <div>
@@ -3373,7 +3333,7 @@ function ContentCalendar({ content, onDayClick, onItemClick }) {
         <div style={{ minWidth: 560 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, marginBottom: 6 }}>
             {weekdayShort.map((d) => (
-              <div key={d} style={{ ...sans, fontSize: 10.5, fontWeight: 700, color: c.mist, textAlign: "center", padding: "4px 0" }}>{d}</div>
+              <div key={d} style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: c.mist, textAlign: "center", padding: "4px 0" }}>{d}</div>
             ))}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
@@ -3387,19 +3347,19 @@ function ContentCalendar({ content, onDayClick, onItemClick }) {
                   key={i}
                   onClick={() => onDayClick(iso)}
                   style={{
-                    minHeight: 86, border: `1px solid ${isToday ? c.boss : c.line}`, borderRadius: 8,
-                    padding: 6, cursor: "pointer", background: "#fff", display: "flex", flexDirection: "column", gap: 3,
+                    minHeight: 86, border: `1px solid ${isToday ? c.boss : c.line}`, borderRadius: 6,
+                    padding: 6, cursor: "pointer", background: c.folha, display: "flex", flexDirection: "column", gap: 3,
                   }}
                 >
-                  <span style={{ ...sans, fontSize: 11, fontWeight: isToday ? 700 : 600, color: isToday ? c.boss : c.ink }}>{date.getDate()}</span>
+                  <span style={{ ...sans, fontSize: 12.5, fontWeight: isToday ? 700 : 600, color: isToday ? c.bossText : c.ink }}>{date.getDate()}</span>
                   {items.slice(0, 3).map((it) => (
                     <button
                       type="button"
                       key={it.id}
                       onClick={(e) => { e.stopPropagation(); onItemClick(it.id); }}
                       style={{
-                        ...sans, fontSize: 9.5, fontWeight: 600, textAlign: "left", padding: "2px 5px 2px 7px", borderRadius: 5, border: "none", cursor: "pointer",
-                        background: c.bossSoft, color: c.boss, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        ...sans, fontSize: 12.5, fontWeight: 600, textAlign: "left", padding: "2px 5px 2px 7px", borderRadius: 5, border: "none", cursor: "pointer",
+                        background: c.bossSoft, color: c.bossText, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                         borderLeft: `2px solid ${CONTENT_STATUS_DOT[it.status] || c.boss}`,
                       }}
                     >
@@ -3486,20 +3446,20 @@ function ContentForm({ brandId, session, onDone, initialDate, mode = "create", i
   };
 
   return (
-    <form onSubmit={submit} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: 18, marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+    <form onSubmit={submit} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 18, marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <select value={type} onChange={(e) => setType(e.target.value)} style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px" }}>
+        <select value={type} onChange={(e) => setType(e.target.value)} style={{ ...sans, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 10px" }}>
           {Object.keys(CONTENT_TYPE_KEY_BY_LABEL).map((l) => <option key={l} value={l}>{l}</option>)}
         </select>
-        <input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px" }} />
+        <input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} style={{ ...sans, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 10px" }} />
         {isEdit && (
-          <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px" }}>
+          <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...sans, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 10px" }}>
             {CONTENT_STATUS_OPTIONS.map((s) => <option key={s.key} value={s.key}>{t(`content.status.${s.key}`)}</option>)}
           </select>
         )}
       </div>
       <div>
-        <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 6 }}>{t("content.form.socialLabel")}</div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>{t("content.form.socialLabel")}</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {Object.entries(PLATFORM_LABELS).map(([key, label]) => {
             const active = platformKeys.includes(key);
@@ -3509,10 +3469,10 @@ function ContentForm({ brandId, session, onDone, initialDate, mode = "create", i
                 type="button"
                 onClick={() => togglePlatform(key)}
                 style={{
-                  ...sans, fontSize: 12, fontWeight: 600, borderRadius: 999, padding: "6px 12px", cursor: "pointer",
+                  ...sans, fontSize: 13.5, fontWeight: 600, borderRadius: 999, padding: "6px 12px", cursor: "pointer",
                   border: `1px solid ${active ? c.boss : c.line}`,
-                  color: active ? c.boss : c.mist,
-                  background: active ? c.bossSoft : "#fff",
+                  color: active ? c.bossText : c.mist,
+                  background: active ? c.bossSoft : c.folha,
                 }}
               >
                 {label}
@@ -3525,17 +3485,17 @@ function ContentForm({ brandId, session, onDone, initialDate, mode = "create", i
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder={t("content.form.titlePlaceholder")}
-        style={{ ...sans, fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px" }}
+        style={{ ...sans, fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px" }}
       />
       <textarea
         value={copy}
         onChange={(e) => setCopy(e.target.value)}
         placeholder={t("content.form.copyPlaceholder")}
         rows={3}
-        style={{ ...sans, fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", resize: "vertical" }}
+        style={{ ...sans, fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", resize: "vertical" }}
       />
       <div>
-        <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 6 }}>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>
           {t("content.form.mediaLabel")}
         </div>
         {mediaUrls.length > 0 && (
@@ -3550,7 +3510,7 @@ function ContentForm({ brandId, session, onDone, initialDate, mode = "create", i
                 <button
                   type="button"
                   onClick={() => removeMediaUrl(i)}
-                  style={{ position: "absolute", top: -6, right: -6, width: 16, height: 16, borderRadius: 999, background: c.rose, border: "2px solid #fff", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
+                  style={{ position: "absolute", top: -6, right: -6, width: 16, height: 16, borderRadius: 999, background: c.roseSolid, border: "2px solid #fff", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
                 >
                   <XCircle size={9} />
                 </button>
@@ -3563,10 +3523,10 @@ function ContentForm({ brandId, session, onDone, initialDate, mode = "create", i
           multiple
           accept="image/*,video/*"
           onChange={onFilesSelected}
-          style={{ ...sans, fontSize: 12, width: "100%" }}
+          style={{ ...sans, fontSize: 13.5, width: "100%" }}
         />
         {files.length > 0 && (
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 4 }}>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 4 }}>
             {files.length} {t("content.filesSelected")}
           </div>
         )}
@@ -3575,24 +3535,24 @@ function ContentForm({ brandId, session, onDone, initialDate, mode = "create", i
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
             placeholder={t("content.form.urlPlaceholder")}
-            style={{ ...sans, flex: 1, fontSize: 11.5, border: `1px solid ${c.line}`, borderRadius: 6, padding: "6px 9px", outline: "none" }}
+            style={{ ...sans, flex: 1, fontSize: 12.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 9px", outline: "none" }}
           />
           <button
             type="button"
             onClick={addUrlMedia}
             disabled={!urlInput.trim()}
-            style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 6, padding: "6px 11px", cursor: urlInput.trim() ? "pointer" : "default" }}
+            style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.bossText, background: c.bossSoft, border: "none", borderRadius: 6, padding: "6px 11px", cursor: urlInput.trim() ? "pointer" : "default" }}
           >
             {t("common.add")}
           </button>
         </div>
       </div>
-      {error && <div style={{ ...sans, fontSize: 12, color: c.rose }}>{error}</div>}
+      {error && <div style={{ ...sans, fontSize: 13.5, color: c.rose }}>{error}</div>}
       <div style={{ display: "flex", gap: 8 }}>
-        <button type="submit" disabled={isPending || uploading} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}>
+        <button type="submit" disabled={isPending || uploading} style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer" }}>
           {uploading ? t("content.form.uploading") : isPending ? t("common.saving") : isEdit ? t("content.form.saveEdit") : t("common.create")}
         </button>
-        <button type="button" onClick={onDone} style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
+        <button type="button" onClick={onDone} style={{ ...sans, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
           {t("common.cancel")}
         </button>
       </div>
@@ -3658,7 +3618,7 @@ function ConteudosView({ brand, onBack, session }) {
           display: "flex",
           alignItems: "center",
           gap: 6,
-          fontSize: 12.5,
+          fontSize: 14,
           color: c.mist,
           background: "none",
           border: "none",
@@ -3671,14 +3631,14 @@ function ConteudosView({ brand, onBack, session }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 10 }}>
         <div>
           <Eyebrow>{t("content.eyebrow")}</Eyebrow>
-          <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: "0 0 20px" }}>
+          <h1 style={{ ...display, fontSize: 27,  color: c.ink, margin: "0 0 20px" }}>
             {t("content.title")}
           </h1>
         </div>
         {canManage && !showForm && (
           <button
             onClick={() => openNewForm(null)}
-            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 14px", cursor: "pointer" }}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "9px 14px", cursor: "pointer" }}
           >
             <Plus size={14} /> {t("content.new")}
           </button>
@@ -3691,10 +3651,10 @@ function ConteudosView({ brand, onBack, session }) {
             key={vt.key}
             onClick={() => setView(vt.key)}
             style={{
-              ...sans, fontSize: 12.5, fontWeight: 600, borderRadius: 8, padding: "7px 14px", cursor: "pointer",
+              ...sans, fontSize: 14, fontWeight: 600, borderRadius: 6, padding: "7px 14px", cursor: "pointer",
               border: `1px solid ${view === vt.key ? c.boss : c.line}`,
-              color: view === vt.key ? c.boss : c.mist,
-              background: view === vt.key ? c.bossSoft : "#fff",
+              color: view === vt.key ? c.bossText : c.mist,
+              background: view === vt.key ? c.bossSoft : c.folha,
             }}
           >
             {vt.label}
@@ -3704,10 +3664,10 @@ function ConteudosView({ brand, onBack, session }) {
 
       {showForm && <ContentForm brandId={brand.id} session={session} onDone={closeForm} initialDate={formInitialDate} mode="create" />}
 
-      {contentsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>{t("common.loading")}</div>}
-      {contentsQuery.error && <div style={{ ...sans, fontSize: 13, color: c.rose }}>{contentsQuery.error.message}</div>}
+      {contentsQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>{t("common.loading")}</div>}
+      {contentsQuery.error && <div style={{ ...sans, fontSize: 14.5, color: c.rose }}>{contentsQuery.error.message}</div>}
       {!contentsQuery.isLoading && content.length === 0 && view === "lista" && (
-        <div style={{ ...sans, fontSize: 13, color: c.mist }}>{t("content.empty")}</div>
+        <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>{t("content.empty")}</div>
       )}
 
       {view === "calendario" && !contentsQuery.isLoading && (
@@ -3726,9 +3686,9 @@ function ConteudosView({ brand, onBack, session }) {
             <div
               key={item.id}
               style={{
-                background: "#fff",
+                background: c.folha,
                 border: `1px solid ${c.line}`,
-                borderRadius: 12,
+                borderRadius: 3,
                 overflow: "hidden",
               }}
             >
@@ -3749,19 +3709,19 @@ function ConteudosView({ brand, onBack, session }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <span
                     style={{
-                      ...sans, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em",
-                      color: c.boss, background: c.bossSoft, borderRadius: 6, padding: "3px 7px",
+                      ...sans, fontSize: 12.5, fontWeight: 700, letterSpacing: "0.06em",
+                      color: c.bossText, background: c.bossSoft, borderRadius: 6, padding: "3px 7px",
                     }}
                   >
                     {item.type.toUpperCase()}
                   </span>
                   {item.platforms.map((label) => {
-                    const pf = PLATFORM_STYLE[label] || { bg: c.bossSoft, color: c.boss };
+                    const pf = PLATFORM_STYLE[label] || { bg: c.bossSoft, color: c.bossText };
                     return (
                       <span
                         key={label}
                         style={{
-                          ...sans, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.04em",
+                          ...sans, fontSize: 12.5, fontWeight: 700, letterSpacing: "0.04em",
                           color: pf.color, background: pf.bg, borderRadius: 6, padding: "3px 7px",
                         }}
                       >
@@ -3772,7 +3732,7 @@ function ConteudosView({ brand, onBack, session }) {
                   <div style={{ ...serif, fontSize: 15, color: c.ink }}>{item.title}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
-                  <span style={{ ...sans, fontSize: 12, color: c.mist }}>{item.date}</span>
+                  <span style={{ ...sans, fontSize: 13.5, color: c.mist }}>{item.date}</span>
                   <StatusPill status={item.status} />
                 </div>
               </button>
@@ -3788,19 +3748,19 @@ function ConteudosView({ brand, onBack, session }) {
                   {canManage && (
                     <div style={{ marginBottom: 14 }}>
                       {deletingId === item.id ? (
-                        <div style={{ background: "#FBE9EC", border: `1px solid ${c.rose}`, borderRadius: 10, padding: "10px 12px" }}>
-                          <div style={{ ...sans, fontSize: 12, color: c.ink, marginBottom: 8 }}>{t("content.confirmDelete")}</div>
+                        <div style={{ background: c.roseSoft, border: `1px solid ${c.rose}`, borderRadius: 6, padding: "10px 12px" }}>
+                          <div style={{ ...sans, fontSize: 13.5, color: c.ink, marginBottom: 8 }}>{t("content.confirmDelete")}</div>
                           <div style={{ display: "flex", gap: 8 }}>
                             <button
                               onClick={() => confirmDelete(item.id)}
                               disabled={deleteContent.isPending}
-                              style={{ ...sans, fontSize: 12, fontWeight: 600, color: "#fff", background: c.rose, border: "none", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}
+                              style={{ ...sans, fontSize: 13.5, fontWeight: 600, color: "#fff", background: c.roseSolid, border: "none", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}
                             >
                               {t("common.delete")}
                             </button>
                             <button
                               onClick={() => setDeletingId(null)}
-                              style={{ ...sans, fontSize: 12, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+                              style={{ ...sans, fontSize: 13.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
                             >
                               {t("common.cancel")}
                             </button>
@@ -3810,13 +3770,13 @@ function ConteudosView({ brand, onBack, session }) {
                         <div style={{ display: "flex", gap: 8 }}>
                           <button
                             onClick={() => setEditingId(item.id)}
-                            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: c.ink, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}
+                            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, fontWeight: 600, color: c.ink, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}
                           >
                             <Pencil size={12} /> {t("common.edit")}
                           </button>
                           <button
                             onClick={() => setDeletingId(item.id)}
-                            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: c.rose, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}
+                            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, fontWeight: 600, color: c.rose, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}
                           >
                             <Trash2 size={12} /> {t("common.delete")}
                           </button>
@@ -3834,16 +3794,16 @@ function ConteudosView({ brand, onBack, session }) {
                   {canManage && <AttachMoreMedia item={item} brandId={brand.id} updateContentMedia={updateContentMedia} />}
 
                   <div style={{ marginBottom: 14 }}>
-                    <div style={{ ...sans, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: c.mist, marginBottom: 6 }}>
+                    <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.mist, marginBottom: 6 }}>
                       {t("content.copy")}
                     </div>
-                    <div style={{ ...sans, fontSize: 13, color: c.ink, lineHeight: 1.6, background: c.paper, borderRadius: 10, padding: "12px 14px" }}>
+                    <div style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.6, background: c.paper, borderRadius: 6, padding: "12px 14px" }}>
                       {item.copy || "—"}
                     </div>
                   </div>
 
                   {item.note && (
-                    <div style={{ ...sans, fontSize: 12.5, color: c.mist, fontStyle: "italic", marginBottom: 14 }}>
+                    <div style={{ ...sans, fontSize: 14, color: c.mist, fontStyle: "italic", marginBottom: 14 }}>
                       {t("content.clientNote")} "{item.note}"
                     </div>
                   )}
@@ -3854,8 +3814,8 @@ function ConteudosView({ brand, onBack, session }) {
                         onClick={() => approve(item.id)}
                         disabled={approveContent.isPending}
                         style={{
-                          ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.sage,
-                          border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer",
+                          ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.sageSolid,
+                          border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer",
                           display: "flex", alignItems: "center", gap: 6,
                         }}
                       >
@@ -3864,8 +3824,8 @@ function ConteudosView({ brand, onBack, session }) {
                       <button
                         onClick={() => { setRejectingId(item.id); setRejectNote(""); }}
                         style={{
-                          ...sans, fontSize: 12.5, fontWeight: 600, color: c.rose, background: "#fff",
-                          border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 16px", cursor: "pointer",
+                          ...sans, fontSize: 14, fontWeight: 600, color: c.rose, background: c.folha,
+                          border: `1px solid ${c.line}`, borderRadius: 6, padding: "8px 16px", cursor: "pointer",
                           display: "flex", alignItems: "center", gap: 6,
                         }}
                       >
@@ -3881,19 +3841,19 @@ function ConteudosView({ brand, onBack, session }) {
                         onChange={(e) => setRejectNote(e.target.value)}
                         placeholder={t("content.rejectPlaceholder")}
                         rows={2}
-                        style={{ ...sans, width: "100%", fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px", marginBottom: 8, resize: "vertical" }}
+                        style={{ ...sans, width: "100%", fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 10px", marginBottom: 8, resize: "vertical" }}
                       />
                       <div style={{ display: "flex", gap: 8 }}>
                         <button
                           onClick={() => confirmReject(item.id)}
                           disabled={approveContent.isPending}
-                          style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.rose, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}
+                          style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.roseSolid, border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer" }}
                         >
                           {t("content.confirmReject")}
                         </button>
                         <button
                           onClick={() => setRejectingId(null)}
-                          style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+                          style={{ ...sans, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
                         >
                           {t("common.cancel")}
                         </button>
@@ -3938,26 +3898,26 @@ function NewScriptForm({ brandId, onDone }) {
   };
 
   return (
-    <form onSubmit={submit} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: 18, marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+    <form onSubmit={submit} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 18, marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder={t("scripts.titlePlaceholder")}
-        style={{ ...sans, fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px" }}
+        style={{ ...sans, fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px" }}
       />
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder={t("scripts.textPlaceholder")}
         rows={5}
-        style={{ ...sans, fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", resize: "vertical" }}
+        style={{ ...sans, fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", resize: "vertical" }}
       />
-      {error && <div style={{ ...sans, fontSize: 12, color: c.rose }}>{error}</div>}
+      {error && <div style={{ ...sans, fontSize: 13.5, color: c.rose }}>{error}</div>}
       <div style={{ display: "flex", gap: 8 }}>
-        <button type="submit" disabled={addScript.isPending} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}>
+        <button type="submit" disabled={addScript.isPending} style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer" }}>
           {addScript.isPending ? t("common.saving") : t("common.create")}
         </button>
-        <button type="button" onClick={onDone} style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
+        <button type="button" onClick={onDone} style={{ ...sans, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
           {t("common.cancel")}
         </button>
       </div>
@@ -3988,21 +3948,21 @@ function RoteirosView({ brand, onBack, session }) {
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <button
         onClick={onBack}
-        style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}
+        style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}
       >
         <ArrowLeft size={14} /> {brand.name}
       </button>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <div>
           <Eyebrow>{t("scripts.eyebrow")}</Eyebrow>
-          <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: "0 0 20px" }}>
+          <h1 style={{ ...display, fontSize: 27,  color: c.ink, margin: "0 0 20px" }}>
             {t("scripts.title")}
           </h1>
         </div>
         {canManage && !showForm && (
           <button
             onClick={() => setShowForm(true)}
-            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 14px", cursor: "pointer" }}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "9px 14px", cursor: "pointer" }}
           >
             <Plus size={14} /> {t("scripts.new")}
           </button>
@@ -4011,17 +3971,17 @@ function RoteirosView({ brand, onBack, session }) {
 
       {showForm && <NewScriptForm brandId={brand.id} onDone={() => setShowForm(false)} />}
 
-      {scriptsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>{t("common.loading")}</div>}
-      {scriptsQuery.error && <div style={{ ...sans, fontSize: 13, color: c.rose }}>{scriptsQuery.error.message}</div>}
+      {scriptsQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>{t("common.loading")}</div>}
+      {scriptsQuery.error && <div style={{ ...sans, fontSize: 14.5, color: c.rose }}>{scriptsQuery.error.message}</div>}
       {!scriptsQuery.isLoading && scripts.length === 0 && (
-        <div style={{ ...sans, fontSize: 13, color: c.mist }}>{t("scripts.empty")}</div>
+        <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>{t("scripts.empty")}</div>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {scripts.map((s) => {
           const isOpen = openId === s.id;
           return (
-            <div key={s.id} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, overflow: "hidden" }}>
+            <div key={s.id} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, overflow: "hidden" }}>
               <button
                 onClick={() => setOpenId(isOpen ? null : s.id)}
                 style={{
@@ -4044,12 +4004,12 @@ function RoteirosView({ brand, onBack, session }) {
                   <div
                     style={{
                       ...sans,
-                      fontSize: 13,
+                      fontSize: 14.5,
                       color: c.ink,
                       lineHeight: 1.7,
                       whiteSpace: "pre-line",
                       background: c.paper,
-                      borderRadius: 10,
+                      borderRadius: 6,
                       padding: "14px 16px",
                       marginBottom: 14,
                     }}
@@ -4057,7 +4017,7 @@ function RoteirosView({ brand, onBack, session }) {
                     {s.text}
                   </div>
                   {s.note && (
-                    <div style={{ ...sans, fontSize: 12.5, color: c.mist, fontStyle: "italic", marginBottom: 14 }}>
+                    <div style={{ ...sans, fontSize: 14, color: c.mist, fontStyle: "italic", marginBottom: 14 }}>
                       {t("content.clientNote")} "{s.note}"
                     </div>
                   )}
@@ -4067,8 +4027,8 @@ function RoteirosView({ brand, onBack, session }) {
                         onClick={() => approve(s.id)}
                         disabled={approveScript.isPending}
                         style={{
-                          ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.sage,
-                          border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer",
+                          ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.sageSolid,
+                          border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer",
                           display: "flex", alignItems: "center", gap: 6,
                         }}
                       >
@@ -4077,8 +4037,8 @@ function RoteirosView({ brand, onBack, session }) {
                       <button
                         onClick={() => { setRejectingId(s.id); setRejectNote(""); }}
                         style={{
-                          ...sans, fontSize: 12.5, fontWeight: 600, color: c.rose, background: "#fff",
-                          border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 16px", cursor: "pointer",
+                          ...sans, fontSize: 14, fontWeight: 600, color: c.rose, background: c.folha,
+                          border: `1px solid ${c.line}`, borderRadius: 6, padding: "8px 16px", cursor: "pointer",
                           display: "flex", alignItems: "center", gap: 6,
                         }}
                       >
@@ -4094,19 +4054,19 @@ function RoteirosView({ brand, onBack, session }) {
                         onChange={(e) => setRejectNote(e.target.value)}
                         placeholder={t("content.rejectPlaceholder")}
                         rows={2}
-                        style={{ ...sans, width: "100%", fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px", marginBottom: 8, resize: "vertical" }}
+                        style={{ ...sans, width: "100%", fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 10px", marginBottom: 8, resize: "vertical" }}
                       />
                       <div style={{ display: "flex", gap: 8 }}>
                         <button
                           onClick={() => confirmReject(s.id)}
                           disabled={approveScript.isPending}
-                          style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.rose, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}
+                          style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.roseSolid, border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer" }}
                         >
                           {t("content.confirmReject")}
                         </button>
                         <button
                           onClick={() => setRejectingId(null)}
-                          style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+                          style={{ ...sans, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
                         >
                           {t("common.cancel")}
                         </button>
@@ -4149,15 +4109,15 @@ function NewPhaseForm({ brandId, onDone }) {
   };
 
   return (
-    <form onSubmit={submit} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: 18, marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+    <form onSubmit={submit} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 18, marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Título da fase (ex: Fase 1 — Fundação Digital)"
-          style={{ ...sans, flex: 1, minWidth: 220, fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px" }}
+          style={{ ...sans, flex: 1, minWidth: 220, fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px" }}
         />
-        <select value={reviewFrequency} onChange={(e) => setReviewFrequency(e.target.value)} style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px" }}>
+        <select value={reviewFrequency} onChange={(e) => setReviewFrequency(e.target.value)} style={{ ...sans, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 10px" }}>
           {Object.entries(REVIEW_FREQ_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
       </div>
@@ -4166,14 +4126,14 @@ function NewPhaseForm({ brandId, onDone }) {
         onChange={(e) => setDescription(e.target.value)}
         placeholder="Descrição (opcional)"
         rows={2}
-        style={{ ...sans, fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", resize: "vertical" }}
+        style={{ ...sans, fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", resize: "vertical" }}
       />
-      {error && <div style={{ ...sans, fontSize: 12, color: c.rose }}>{error}</div>}
+      {error && <div style={{ ...sans, fontSize: 13.5, color: c.rose }}>{error}</div>}
       <div style={{ display: "flex", gap: 8 }}>
-        <button type="submit" disabled={addPlan.isPending} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}>
+        <button type="submit" disabled={addPlan.isPending} style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer" }}>
           {addPlan.isPending ? "A guardar…" : "Criar fase"}
         </button>
-        <button type="button" onClick={onDone} style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
+        <button type="button" onClick={onDone} style={{ ...sans, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
           Cancelar
         </button>
       </div>
@@ -4196,16 +4156,16 @@ function PhaseCard({ phase, canManage, saveGoals }) {
 
   const pct = phase.total ? Math.round((phase.done / phase.total) * 100) : 0;
   return (
-    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: "20px 22px" }}>
+    <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "20px 22px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
         <div style={{ ...serif, fontSize: 16.5, color: c.ink, fontWeight: 500 }}>{phase.title}</div>
-        <span style={{ ...sans, fontSize: 11, color: c.mist }}>{phase.freq}</span>
+        <span style={{ ...sans, fontSize: 12.5, color: c.mist }}>{phase.freq}</span>
       </div>
-      <div style={{ ...sans, fontSize: 12, color: c.mist, marginBottom: 10 }}>
+      <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginBottom: 10 }}>
         Metas: {phase.done}/{phase.total}
       </div>
       <div style={{ height: 6, background: c.paper, borderRadius: 999, marginBottom: 16, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, ${c.boss}, ${c.bossDeep})`, borderRadius: 999, transition: "width 0.25s ease" }} />
+        <div style={{ height: "100%", width: `${pct}%`, background: c.boss, borderRadius: 999, transition: "width 0.25s ease" }} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: canManage ? 12 : 0 }}>
         {phase.goals.map((g, i) => (
@@ -4224,7 +4184,7 @@ function PhaseCard({ phase, canManage, saveGoals }) {
             )}
             <span
               style={{
-                ...sans, fontSize: 13, color: g.done ? c.mist : c.ink,
+                ...sans, fontSize: 14.5, color: g.done ? c.mist : c.ink,
                 textDecoration: g.done ? "line-through" : "none",
               }}
             >
@@ -4232,7 +4192,7 @@ function PhaseCard({ phase, canManage, saveGoals }) {
             </span>
           </button>
         ))}
-        {phase.goals.length === 0 && <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>Ainda sem metas.</div>}
+        {phase.goals.length === 0 && <div style={{ ...sans, fontSize: 14, color: c.mist }}>Ainda sem metas.</div>}
       </div>
       {canManage && (
         <div style={{ display: "flex", gap: 8 }}>
@@ -4240,9 +4200,9 @@ function PhaseCard({ phase, canManage, saveGoals }) {
             value={newGoal}
             onChange={(e) => setNewGoal(e.target.value)}
             placeholder="Nova meta"
-            style={{ ...sans, flex: 1, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 10px" }}
+            style={{ ...sans, flex: 1, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "7px 10px" }}
           />
-          <button onClick={addGoal} type="button" style={{ ...sans, fontSize: 12, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}>
+          <button onClick={addGoal} type="button" style={{ ...sans, fontSize: 13.5, fontWeight: 600, color: c.bossText, background: c.bossSoft, border: "none", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}>
             Adicionar
           </button>
         </div>
@@ -4262,21 +4222,21 @@ function PlanoEstrategicoView({ brand, onBack, session }) {
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <button
         onClick={onBack}
-        style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}
+        style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}
       >
         <ArrowLeft size={14} /> {brand.name}
       </button>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <div>
           <Eyebrow>Plano Estratégico</Eyebrow>
-          <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: "0 0 20px" }}>
+          <h1 style={{ ...display, fontSize: 27,  color: c.ink, margin: "0 0 20px" }}>
             Fases e tarefas
           </h1>
         </div>
         {canManage && !showForm && (
           <button
             onClick={() => setShowForm(true)}
-            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 14px", cursor: "pointer" }}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "9px 14px", cursor: "pointer" }}
           >
             <Plus size={14} /> Nova fase
           </button>
@@ -4285,9 +4245,9 @@ function PlanoEstrategicoView({ brand, onBack, session }) {
 
       {showForm && <NewPhaseForm brandId={brand.id} onDone={() => setShowForm(false)} />}
 
-      {plansQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
+      {plansQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A carregar…</div>}
       {!plansQuery.isLoading && phases.length === 0 && (
-        <div style={{ ...sans, fontSize: 13, color: c.mist }}>Ainda não há fases definidas para esta marca.</div>
+        <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>Ainda não há fases definidas para esta marca.</div>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -4328,13 +4288,13 @@ function DashboardsView({ brand, onBack, session }) {
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <button
         onClick={onBack}
-        style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}
+        style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}
       >
         <ArrowLeft size={14} /> {brand.name}
       </button>
       <Eyebrow>Dashboards</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-        <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: 0 }}>
+        <h1 style={{ ...display, fontSize: 27,  color: c.ink, margin: 0 }}>
           Performance da marca
         </h1>
         {canManage && (
@@ -4342,8 +4302,8 @@ function DashboardsView({ brand, onBack, session }) {
             onClick={createReport}
             disabled={addReport.isPending}
             style={{
-              ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600,
-              color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer",
+              ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600,
+              color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer",
             }}
           >
             <Plus size={14} /> {addReport.isPending ? "A criar…" : "Criar novo"}
@@ -4351,36 +4311,36 @@ function DashboardsView({ brand, onBack, session }) {
         )}
       </div>
 
-      {reportsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
+      {reportsQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A carregar…</div>}
       {!reportsQuery.isLoading && reports.length === 0 && (
-        <div style={{ ...sans, fontSize: 13, color: c.mist }}>Ainda não há relatórios para esta marca.</div>
+        <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>Ainda não há relatórios para esta marca.</div>
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-2, repeat(2, 1fr))", gap: 14 }}>
         {reports.map((r) => (
           deletingId === r.id ? (
-            <div key={r.id} style={{ background: "#FBE9EC", border: `1px solid ${c.rose}`, borderRadius: 14, padding: 22 }}>
-              <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 12 }}>
+            <div key={r.id} style={{ background: c.roseSoft, border: `1px solid ${c.rose}`, borderRadius: 3, padding: 22 }}>
+              <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 12 }}>
                 Eliminar <strong>{r.title}</strong>? Não é possível desfazer.
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button
                   onClick={() => deleteReport.mutate(r.id, { onSuccess: () => setDeletingId(null) })}
                   disabled={deleteReport.isPending}
-                  style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.rose, border: "none", borderRadius: 7, padding: "7px 14px", cursor: "pointer" }}
+                  style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.roseSolid, border: "none", borderRadius: 7, padding: "7px 14px", cursor: "pointer" }}
                 >
                   Eliminar
                 </button>
                 <button
                   onClick={() => setDeletingId(null)}
-                  style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+                  style={{ ...sans, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
                 >
                   Cancelar
                 </button>
               </div>
             </div>
           ) : (
-          <div key={r.id} style={{ position: "relative", background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14 }}>
+          <div key={r.id} style={{ position: "relative", background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3 }}>
             {canManage && (
               <button
                 onClick={(e) => { e.stopPropagation(); setDeletingId(r.id); }}
@@ -4391,11 +4351,11 @@ function DashboardsView({ brand, onBack, session }) {
             )}
             <button
               onClick={() => setOpenReportId(r.id)}
-              style={{ width: "100%", textAlign: "left", background: "none", border: "none", borderRadius: 14, padding: 22, cursor: "pointer" }}
+              style={{ width: "100%", textAlign: "left", background: "none", border: "none", borderRadius: 3, padding: 22, cursor: "pointer" }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <BarChart3 size={16} color={c.boss} strokeWidth={1.8} />
+                  <BarChart3 size={16} color={c.bossText} strokeWidth={1.8} />
                   <div style={{ ...serif, fontSize: 16, color: c.ink, fontWeight: 500 }}>{r.title}</div>
                 </div>
                 <ChevronRight size={16} color={c.mist} />
@@ -4403,15 +4363,15 @@ function DashboardsView({ brand, onBack, session }) {
               <div style={{ display: "flex", gap: 22 }}>
                 <div>
                   <div style={{ ...serif, fontSize: 19, color: c.ink }}>{r.reach}</div>
-                  <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>Contas Alcançadas</div>
+                  <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>Contas Alcançadas</div>
                 </div>
                 <div>
                   <div style={{ ...serif, fontSize: 19, color: c.ink }}>{computeEngagementPct(r.totalInteractions, r.reach)}</div>
-                  <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>Engajamento</div>
+                  <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>Engajamento</div>
                 </div>
                 <div>
                   <div style={{ ...serif, fontSize: 19, color: c.sage }}>{computeOverallRoi(r.campaigns)}</div>
-                  <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>ROI</div>
+                  <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>ROI</div>
                 </div>
               </div>
             </button>
@@ -4426,24 +4386,24 @@ function DashboardsView({ brand, onBack, session }) {
 /* ---------------------------------------------------------
    DETALHE DO RELATÓRIO
 --------------------------------------------------------- */
-const PIE_COLORS = ["#4C2889", "#7C4DE0", "#9B72E8", "#B794F0", "#DCCBFA"];
+const PIE_COLORS = ["#7C52A8", "#9B72E8", "#B794F0", "#5E35C4", "#DCCBFA"];
 const METRIC_ICONS = { reach: Eye, engagement: Zap, roi: TrendingUp, custom: Target };
 
 function MetricCard({ metricKey, label, value, editable, onValue, calculated }) {
   const Icon = METRIC_ICONS[metricKey];
   return (
-    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: "18px 20px" }}>
+    <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "18px 20px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 10, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Icon size={15} color={c.boss} strokeWidth={2} />
+        <div style={{ width: 32, height: 32, borderRadius: 6, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Icon size={15} color={c.bossText} strokeWidth={2} />
         </div>
         {calculated && (
-          <span style={{ ...sans, fontSize: 9.5, fontWeight: 600, color: c.mist, background: c.paper, borderRadius: 999, padding: "2px 7px" }}>
+          <span style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.mist, background: c.paper, borderRadius: 999, padding: "2px 7px" }}>
             calculado
           </span>
         )}
       </div>
-      <div style={{ ...sans, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: c.mist, marginBottom: 4 }}>
+      <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.mist, marginBottom: 4 }}>
         {label}
       </div>
       {editable && !calculated ? (
@@ -4451,10 +4411,10 @@ function MetricCard({ metricKey, label, value, editable, onValue, calculated }) 
           value={value}
           onChange={(e) => onValue(e.target.value)}
           type="number"
-          style={{ ...serif, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", padding: 0 }}
+          style={{ ...display, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", padding: 0 }}
         />
       ) : (
-        <div style={{ ...serif, fontSize: 24, color: calculated ? c.sage : c.ink }}>{value}</div>
+        <div style={{ ...display, fontSize: 24, color: calculated ? c.sage : c.ink }}>{value}</div>
       )}
     </div>
   );
@@ -4462,28 +4422,28 @@ function MetricCard({ metricKey, label, value, editable, onValue, calculated }) 
 
 function CustomMetricCard({ label, value, editable, onLabel, onValue }) {
   return (
-    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: "18px 20px" }}>
-      <div style={{ width: 32, height: 32, borderRadius: 10, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
-        <Target size={15} color={c.boss} strokeWidth={2} />
+    <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "18px 20px" }}>
+      <div style={{ width: 32, height: 32, borderRadius: 6, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+        <Target size={15} color={c.bossText} strokeWidth={2} />
       </div>
       {editable ? (
         <input
           value={label}
           onChange={(e) => onLabel(e.target.value)}
           placeholder="Nome da métrica"
-          style={{ ...sans, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: c.mist, border: "none", outline: "none", background: "none", width: "100%", padding: 0, marginBottom: 4 }}
+          style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.mist, border: "none", outline: "none", background: "none", width: "100%", padding: 0, marginBottom: 4 }}
         />
       ) : (
-        <div style={{ ...sans, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: c.mist, marginBottom: 4 }}>{label}</div>
+        <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.mist, marginBottom: 4 }}>{label}</div>
       )}
       {editable ? (
         <input
           value={value}
           onChange={(e) => onValue(e.target.value)}
-          style={{ ...serif, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", padding: 0 }}
+          style={{ ...display, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", padding: 0 }}
         />
       ) : (
-        <div style={{ ...serif, fontSize: 24, color: c.ink }}>{value}</div>
+        <div style={{ ...display, fontSize: 24, color: c.ink }}>{value}</div>
       )}
     </div>
   );
@@ -4492,9 +4452,9 @@ function CustomMetricCard({ label, value, editable, onLabel, onValue }) {
 function StatField({ label, value, editable, onChange }) {
   return (
     <div>
-      <div style={{ ...sans, fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: c.mist, marginBottom: 4 }}>{label}</div>
+      <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.mist, marginBottom: 4 }}>{label}</div>
       {editable ? (
-        <input value={value} onChange={(e) => onChange(e.target.value)} type="number" style={{ ...serif, fontSize: 18, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 7, padding: "5px 8px", outline: "none", width: "100%", boxSizing: "border-box" }} />
+        <input value={value} onChange={(e) => onChange(e.target.value)} type="number" style={{ ...serif, fontSize: 18, color: c.ink, border: `1px solid ${c.lineStrong}`, borderRadius: 7, padding: "5px 8px", outline: "none", width: "100%", boxSizing: "border-box" }} />
       ) : (
         <div style={{ ...serif, fontSize: 18, color: c.ink }}>{value}</div>
       )}
@@ -4590,8 +4550,8 @@ function ReportDetail({ report, brand, onBack, session }) {
     setSaved(true);
   };
 
-  const rowInput = { ...sans, fontSize: 11.5, border: `1px solid ${c.line}`, borderRadius: 6, padding: "5px 7px", outline: "none", color: c.ink };
-  const addLink = { ...sans, fontSize: 11.5, color: c.boss, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, padding: 0 };
+  const rowInput = { ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 6, padding: "5px 7px", outline: "none", color: c.ink };
+  const addLink = { ...sans, fontSize: 12.5, color: c.bossText, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, padding: 0 };
   const statGrid4 = { display: "grid", gridTemplateColumns: "var(--bb-grid-4, repeat(4, 1fr))", gap: 12, marginBottom: 16 };
   const statGrid3 = { display: "grid", gridTemplateColumns: "var(--bb-grid-3, repeat(3, 1fr))", gap: 12, marginBottom: 16 };
 
@@ -4599,21 +4559,21 @@ function ReportDetail({ report, brand, onBack, session }) {
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1080 }}>
       <button
         onClick={onBack}
-        style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}
+        style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}
       >
         <ArrowLeft size={14} /> Dashboards
       </button>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, marginBottom: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <Eyebrow>Relatório · {brand.name}</Eyebrow>
+          <Eyebrow>Relatório, {brand.name}</Eyebrow>
           {canManage ? (
             <input
               value={draft.title}
               onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
-              style={{ ...serif, fontSize: 24, fontWeight: 500, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "6px 10px", outline: "none", width: "100%", maxWidth: 380, display: "block" }}
+              style={{ ...display, fontSize: 24,  color: c.ink, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 10px", outline: "none", width: "100%", maxWidth: 380, display: "block" }}
             />
           ) : (
-            <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: 0 }}>{report.title}</h1>
+            <h1 style={{ ...display, fontSize: 27,  color: c.ink, margin: 0 }}>{report.title}</h1>
           )}
         </div>
         {canManage && (
@@ -4621,34 +4581,34 @@ function ReportDetail({ report, brand, onBack, session }) {
             <button
               onClick={save}
               disabled={updateReport.isPending}
-              style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
+              style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "8px 14px", cursor: "pointer" }}
             >
               {updateReport.isPending ? "A guardar…" : "Guardar"}
             </button>
             <button
               onClick={() => setConfirmingDelete(true)}
-              style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
+              style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 6, padding: "8px 14px", cursor: "pointer" }}
             >
               <Trash2 size={13} /> Eliminar
             </button>
           </div>
         )}
       </div>
-      {saved && <div style={{ ...sans, fontSize: 12, color: c.sage, marginBottom: 14 }}>Alterações guardadas.</div>}
+      {saved && <div style={{ ...sans, fontSize: 13.5, color: c.sage, marginBottom: 14 }}>Alterações guardadas.</div>}
       {confirmingDelete && (
-        <div style={{ background: "#FBE9EC", border: `1px solid ${c.rose}`, borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 10 }}>Eliminar este relatório? Não é possível desfazer.</div>
+        <div style={{ background: c.roseSoft, border: `1px solid ${c.rose}`, borderRadius: 3, padding: "14px 16px", marginBottom: 20 }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 10 }}>Eliminar este relatório? Não é possível desfazer.</div>
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => deleteReport.mutate(report.id, { onSuccess: onBack })}
               disabled={deleteReport.isPending}
-              style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.rose, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}
+              style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.roseSolid, border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer" }}
             >
               {deleteReport.isPending ? "A eliminar…" : "Eliminar"}
             </button>
             <button
               onClick={() => setConfirmingDelete(false)}
-              style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+              style={{ ...sans, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
             >
               Cancelar
             </button>
@@ -4681,7 +4641,7 @@ function ReportDetail({ report, brand, onBack, session }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-2, 1fr 1fr)", gap: 20 }}>
             <div>
-              <div style={{ ...sans, fontSize: 11, fontWeight: 600, color: c.mist, marginBottom: 8 }}>Visualizações por Tipo de Conteúdo</div>
+              <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.mist, marginBottom: 8 }}>Visualizações por Tipo de Conteúdo</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {draft.viewsByType.map((it, i) => (
                   <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -4695,8 +4655,8 @@ function ReportDetail({ report, brand, onBack, session }) {
                       </>
                     ) : (
                       <>
-                        <span style={{ flex: 1, ...sans, fontSize: 12, color: c.ink }}>{it.type}</span>
-                        <span style={{ ...sans, fontSize: 12, color: c.mist }}>{it.value}</span>
+                        <span style={{ flex: 1, ...sans, fontSize: 13.5, color: c.ink }}>{it.type}</span>
+                        <span style={{ ...sans, fontSize: 13.5, color: c.mist }}>{it.value}</span>
                       </>
                     )}
                   </div>
@@ -4705,7 +4665,7 @@ function ReportDetail({ report, brand, onBack, session }) {
               </div>
             </div>
             <div>
-              <div style={{ ...sans, fontSize: 11, fontWeight: 600, color: c.mist, marginBottom: 8 }}>Interações por Tipo de Conteúdo</div>
+              <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.mist, marginBottom: 8 }}>Interações por Tipo de Conteúdo</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {draft.interactionsByType.map((it, i) => (
                   <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -4719,8 +4679,8 @@ function ReportDetail({ report, brand, onBack, session }) {
                       </>
                     ) : (
                       <>
-                        <span style={{ flex: 1, ...sans, fontSize: 12, color: c.ink }}>{it.type}</span>
-                        <span style={{ ...sans, fontSize: 12, color: c.mist }}>{it.value}</span>
+                        <span style={{ flex: 1, ...sans, fontSize: 13.5, color: c.ink }}>{it.type}</span>
+                        <span style={{ ...sans, fontSize: 13.5, color: c.mist }}>{it.value}</span>
                       </>
                     )}
                   </div>
@@ -4740,7 +4700,7 @@ function ReportDetail({ report, brand, onBack, session }) {
             <StatField label="Toques no link da bio" value={draft.bioLinkTaps} editable={canManage} onChange={(v) => updateField("bioLinkTaps", v)} />
             <StatField label="Toques na morada" value={draft.addressTaps} editable={canManage} onChange={(v) => updateField("addressTaps", v)} />
           </div>
-          <div style={{ ...sans, fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: c.mist, marginBottom: 6 }}>
+          <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.mist, marginBottom: 6 }}>
             Conteúdo que mais funcionou
           </div>
           {canManage ? (
@@ -4749,10 +4709,10 @@ function ReportDetail({ report, brand, onBack, session }) {
               onChange={(e) => updateField("topContent", e.target.value)}
               rows={2}
               placeholder="Ex: Reel sobre X — 5.2K visualizações"
-              style={{ ...sans, width: "100%", fontSize: 13, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", resize: "vertical", boxSizing: "border-box" }}
+              style={{ ...sans, width: "100%", fontSize: 14.5, color: c.ink, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", resize: "vertical", boxSizing: "border-box" }}
             />
           ) : (
-            <div style={{ ...sans, fontSize: 13, color: c.ink, lineHeight: 1.6 }}>{draft.topContent || "—"}</div>
+            <div style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.6 }}>{draft.topContent || "—"}</div>
           )}
         </ChartCard>
       </div>
@@ -4763,13 +4723,13 @@ function ReportDetail({ report, brand, onBack, session }) {
           title="Público"
           sub="Seguidores e distribuição do público"
           right={
-            <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 8, padding: 3 }}>
+            <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 6, padding: 3 }}>
               {["idade", "genero", "local"].map((tb) => (
                 <button
                   key={tb}
                   onClick={() => setDemoTab(tb)}
                   style={{
-                    ...sans, fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, border: "none", cursor: "pointer",
+                    ...sans, fontSize: 12.5, fontWeight: 600, padding: "5px 10px", borderRadius: 6, border: "none", cursor: "pointer",
                     color: demoTab === tb ? "#fff" : c.mist,
                     background: demoTab === tb ? c.boss : "transparent",
                   }}
@@ -4792,13 +4752,13 @@ function ReportDetail({ report, brand, onBack, session }) {
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v) => `${v}%`} contentStyle={{ ...sans, fontSize: 12, borderRadius: 8, border: `1px solid ${c.line}` }} />
+                  <Tooltip formatter={(v) => `${v}%`} contentStyle={{ ...sans, fontSize: 13.5, borderRadius: 6, border: `1px solid ${c.line}` }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 7, justifyContent: "center" }}>
               {demoData.map((d, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, ...sans, fontSize: 12 }}>
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, ...sans, fontSize: 13.5 }}>
                   <span style={{ width: 8, height: 8, borderRadius: 3, background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }} />
                   {canManage ? (
                     <>
@@ -4829,11 +4789,11 @@ function ReportDetail({ report, brand, onBack, session }) {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={draft.campaigns} barGap={4}>
                 <CartesianGrid strokeDasharray="3 3" stroke={c.line} vertical={false} />
-                <XAxis dataKey="name" tick={{ ...sans, fontSize: 10.5, fill: c.mist }} axisLine={{ stroke: c.line }} tickLine={false} />
-                <YAxis tick={{ ...sans, fontSize: 10.5, fill: c.mist }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ ...sans, fontSize: 12, borderRadius: 8, border: `1px solid ${c.line}` }} />
+                <XAxis dataKey="name" tick={{ ...sans, fontSize: 12.5, fill: c.mist }} axisLine={{ stroke: c.line }} tickLine={false} />
+                <YAxis tick={{ ...sans, fontSize: 12.5, fill: c.mist }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ ...sans, fontSize: 13.5, borderRadius: 6, border: `1px solid ${c.line}` }} />
                 <Bar dataKey="invest" name="Invest." fill="#D6C7F5" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="revenue" name="Receita" fill={c.boss} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="revenue" name="Receita" fill={c.bossText} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -4844,7 +4804,7 @@ function ReportDetail({ report, brand, onBack, session }) {
                   <input value={cp.name} onChange={(e) => updateCampaign(i, "name", e.target.value)} placeholder="Nome" style={{ ...rowInput, flex: 1, minWidth: 0 }} />
                   <input value={cp.invest} onChange={(e) => updateCampaign(i, "invest", e.target.value)} type="number" placeholder="Invest." style={{ ...rowInput, width: 70 }} />
                   <input value={cp.revenue} onChange={(e) => updateCampaign(i, "revenue", e.target.value)} type="number" placeholder="Receita" style={{ ...rowInput, width: 70 }} />
-                  <span style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: c.sage, width: 44, textAlign: "right", flexShrink: 0 }}>{computeCampaignRoi(cp.invest, cp.revenue)}</span>
+                  <span style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.sage, width: 44, textAlign: "right", flexShrink: 0 }}>{computeCampaignRoi(cp.invest, cp.revenue)}</span>
                   <button onClick={() => removeCampaign(i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mistLight, padding: 0, flexShrink: 0 }}>
                     <XCircle size={13} />
                   </button>
@@ -4855,10 +4815,10 @@ function ReportDetail({ report, brand, onBack, session }) {
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: `var(--bb-grid-2, repeat(${Math.min(draft.campaigns.length, 4)}, 1fr))`, gap: 8 }}>
               {draft.campaigns.map((cp, i) => (
-                <div key={i} style={{ background: c.paper, borderRadius: 10, padding: "8px 10px" }}>
-                  <div style={{ ...sans, fontSize: 9.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: c.mist }}>ROI</div>
+                <div key={i} style={{ background: c.paper, borderRadius: 6, padding: "8px 10px" }}>
+                  <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.mist }}>ROI</div>
                   <div style={{ ...serif, fontSize: 16, color: c.sage }}>{computeCampaignRoi(cp.invest, cp.revenue)}</div>
-                  <div style={{ ...sans, fontSize: 10, color: c.mist, marginTop: 1 }}>{cp.name}</div>
+                  <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 1 }}>{cp.name}</div>
                 </div>
               ))}
             </div>
@@ -4867,7 +4827,7 @@ function ReportDetail({ report, brand, onBack, session }) {
       </div>
 
       {/* Histórico vs Projeção */}
-      <ChartCard title="Histórico vs Projeção" sub="Alcance mensal · dados reais e previsão">
+      <ChartCard title="Histórico vs Projeção" sub="Alcance mensal, dados reais e previsão">
         <div style={{ height: 200, marginBottom: canManage ? 14 : 0 }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={draft.history}>
@@ -4878,11 +4838,11 @@ function ReportDetail({ report, brand, onBack, session }) {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={c.line} vertical={false} />
-              <XAxis dataKey="month" tick={{ ...sans, fontSize: 10.5, fill: c.mist }} axisLine={{ stroke: c.line }} tickLine={false} />
-              <YAxis tick={{ ...sans, fontSize: 10.5, fill: c.mist }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ ...sans, fontSize: 12, borderRadius: 8, border: `1px solid ${c.line}` }} />
-              <Area type="monotone" dataKey="real" name="Real" stroke={c.boss} strokeWidth={2} fill="url(#realFill)" connectNulls={false} />
-              <Line type="monotone" dataKey="proj" name="Projeção" stroke={c.boss} strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
+              <XAxis dataKey="month" tick={{ ...sans, fontSize: 12.5, fill: c.mist }} axisLine={{ stroke: c.line }} tickLine={false} />
+              <YAxis tick={{ ...sans, fontSize: 12.5, fill: c.mist }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ ...sans, fontSize: 13.5, borderRadius: 6, border: `1px solid ${c.line}` }} />
+              <Area type="monotone" dataKey="real" name="Real" stroke={c.bossText} strokeWidth={2} fill="url(#realFill)" connectNulls={false} />
+              <Line type="monotone" dataKey="proj" name="Projeção" stroke={c.bossText} strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -4907,8 +4867,8 @@ function ReportDetail({ report, brand, onBack, session }) {
         <ChartCard title="Horas de Atividade dos Seguidores" sub="Quando o público está mais online">
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {draft.activeHours.map((h, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: c.paper, borderRadius: 10, padding: "8px 10px" }}>
-                <span style={{ ...sans, fontSize: 11, fontWeight: 700, color: c.boss, background: c.bossSoft, borderRadius: 6, padding: "2px 7px", flexShrink: 0 }}>
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: c.paper, borderRadius: 6, padding: "8px 10px" }}>
+                <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: c.bossText, background: c.bossSoft, borderRadius: 6, padding: "2px 7px", flexShrink: 0 }}>
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 {canManage ? (
@@ -4921,8 +4881,8 @@ function ReportDetail({ report, brand, onBack, session }) {
                   </>
                 ) : (
                   <>
-                    <div style={{ flex: 1, ...sans, fontSize: 12.5, color: c.ink, fontWeight: 500 }}>{h.hour}</div>
-                    <span style={{ ...serif, fontSize: 14, color: c.sage }}>{h.pct}%</span>
+                    <div style={{ flex: 1, ...sans, fontSize: 14, color: c.ink, fontWeight: 500 }}>{h.hour}</div>
+                    <span style={{ ...serif, fontSize: 15, color: c.sage }}>{h.pct}%</span>
                   </>
                 )}
               </div>
@@ -4935,7 +4895,7 @@ function ReportDetail({ report, brand, onBack, session }) {
           title="Próximos Passos"
           sub="Ações estratégicas recomendadas"
           right={
-            <span style={{ ...sans, fontSize: 11, fontWeight: 600, color: c.mist, background: c.paper, borderRadius: 999, padding: "3px 9px" }}>
+            <span style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.mist, background: c.paper, borderRadius: 999, padding: "3px 9px" }}>
               {doneCount}/{steps.length}
             </span>
           }
@@ -4953,7 +4913,7 @@ function ReportDetail({ report, brand, onBack, session }) {
                 ) : (
                   <span style={{ width: 16, height: 16, borderRadius: 999, border: `1.5px solid ${c.line}`, flexShrink: 0 }} />
                 )}
-                <span style={{ ...sans, fontSize: 13, color: s.done ? c.mist : c.ink, textDecoration: s.done ? "line-through" : "none" }}>
+                <span style={{ ...sans, fontSize: 14.5, color: s.done ? c.mist : c.ink, textDecoration: s.done ? "line-through" : "none" }}>
                   {s.text}
                 </span>
               </button>
@@ -4966,11 +4926,11 @@ function ReportDetail({ report, brand, onBack, session }) {
                 onChange={(e) => setNewStep(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addStep()}
                 placeholder="Adicionar próximo passo..."
-                style={{ ...sans, flex: 1, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", color: c.ink }}
+                style={{ ...sans, flex: 1, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none", color: c.ink }}
               />
               <button
                 onClick={addStep}
-                style={{ width: 34, height: 34, borderRadius: 8, background: c.boss, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+                style={{ width: 34, height: 34, borderRadius: 6, background: c.boss, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
               >
                 <Plus size={15} color="#fff" />
               </button>
@@ -4989,7 +4949,7 @@ function BrandBookView({ brand, onBack, session }) {
   const canManage = CAN_MANAGE_ROLES.includes(session.role);
   const [logoUrl, setLogoUrl] = useState(brand.logoUrl);
   const [colors, setColors] = useState(brand.brandBook.colors);
-  const [newColor, setNewColor] = useState("#7C4DE0");
+  const [newColor, setNewColor] = useState("#7C52A8");
   const [heading, setHeading] = useState(brand.brandBook.typography.heading);
   const [body, setBody] = useState(brand.brandBook.typography.body);
   const [textures, setTextures] = useState(brand.brandBook.textures);
@@ -5049,14 +5009,14 @@ function BrandBookView({ brand, onBack, session }) {
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <button
         onClick={onBack}
-        style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}
+        style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}
       >
         <ArrowLeft size={14} /> {brand.name}
       </button>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <div>
           <Eyebrow>Brand Book</Eyebrow>
-          <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: "0 0 20px" }}>
+          <h1 style={{ ...display, fontSize: 27,  color: c.ink, margin: "0 0 20px" }}>
             Identidade visual e diretrizes
           </h1>
         </div>
@@ -5064,20 +5024,20 @@ function BrandBookView({ brand, onBack, session }) {
           <button
             onClick={save}
             disabled={updateBrandBook.isPending}
-            style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer" }}
+            style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer" }}
           >
             {updateBrandBook.isPending ? "A guardar…" : "Guardar alterações"}
           </button>
         )}
       </div>
-      {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 14 }}>{error}</div>}
-      {saved && <div style={{ ...sans, fontSize: 12.5, color: c.sage, marginBottom: 14 }}>Alterações guardadas.</div>}
+      {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 14 }}>{error}</div>}
+      {saved && <div style={{ ...sans, fontSize: 14, color: c.sage, marginBottom: 14 }}>Alterações guardadas.</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-2, 1fr 1fr)", gap: 14, marginBottom: 14 }}>
         <ChartCard title="Logótipo" sub="Ficheiro oficial da marca">
           <label
             style={{
-              height: 90, borderRadius: 12, cursor: canManage ? "pointer" : "default",
+              height: 90, borderRadius: 3, cursor: canManage ? "pointer" : "default",
               border: logoUrl ? "none" : `1.5px dashed ${c.line}`,
               background: logoUrl ? `url(${logoUrl}) center/contain no-repeat ${c.paper}` : c.paper,
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
@@ -5087,7 +5047,7 @@ function BrandBookView({ brand, onBack, session }) {
             {!logoUrl && (
               <>
                 <Plus size={16} color={c.mist} />
-                <span style={{ ...sans, fontSize: 11.5, color: c.mist }}>{uploading ? "A carregar…" : canManage ? "Carregar logótipo" : "Sem logótipo"}</span>
+                <span style={{ ...sans, fontSize: 12.5, color: c.mist }}>{uploading ? "A carregar…" : canManage ? "Carregar logótipo" : "Sem logótipo"}</span>
               </>
             )}
           </label>
@@ -5098,24 +5058,24 @@ function BrandBookView({ brand, onBack, session }) {
             {colors.map((hex) => (
               <div key={hex} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative" }}>
                 <div style={{ width: 44, height: 44, borderRadius: 999, background: hex, border: `1px solid ${c.line}` }} />
-                <div style={{ ...sans, fontSize: 10, color: c.mist }}>{hex}</div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>{hex}</div>
                 {canManage && (
                   <button
                     onClick={() => removeColor(hex)}
                     title="Remover"
-                    style={{ position: "absolute", top: -4, right: -4, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 999, width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
+                    style={{ position: "absolute", top: -4, right: -4, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 999, width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
                   >
                     <XCircle size={11} color={c.rose} />
                   </button>
                 )}
               </div>
             ))}
-            {colors.length === 0 && <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>Sem cores definidas.</div>}
+            {colors.length === 0 && <div style={{ ...sans, fontSize: 14, color: c.mist }}>Sem cores definidas.</div>}
           </div>
           {canManage && (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input type="color" value={newColor} onChange={(e) => setNewColor(e.target.value)} style={{ width: 34, height: 30, border: `1px solid ${c.line}`, borderRadius: 6, padding: 2, cursor: "pointer" }} />
-              <button onClick={addColor} type="button" style={{ ...sans, fontSize: 12, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}>
+              <input type="color" value={newColor} onChange={(e) => setNewColor(e.target.value)} style={{ width: 34, height: 30, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: 2, cursor: "pointer" }} />
+              <button onClick={addColor} type="button" style={{ ...sans, fontSize: 13.5, fontWeight: 600, color: c.bossText, background: c.bossSoft, border: "none", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}>
                 Adicionar cor
               </button>
             </div>
@@ -5127,17 +5087,17 @@ function BrandBookView({ brand, onBack, session }) {
         <ChartCard title="Tipografia" sub="Fontes de referência">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
-              <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 4 }}>Títulos</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 4 }}>Títulos</div>
               {canManage ? (
-                <input value={heading} onChange={(e) => setHeading(e.target.value)} style={{ ...serif, fontSize: 16, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px", width: "100%" }} />
+                <input value={heading} onChange={(e) => setHeading(e.target.value)} style={{ ...serif, fontSize: 16, color: c.ink, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 10px", width: "100%" }} />
               ) : (
                 <div style={{ ...serif, fontSize: 20, color: c.ink }}>{heading || "—"}</div>
               )}
             </div>
             <div>
-              <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 4 }}>Texto corrido</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 4 }}>Texto corrido</div>
               {canManage ? (
-                <input value={body} onChange={(e) => setBody(e.target.value)} style={{ ...sans, fontSize: 13, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px", width: "100%" }} />
+                <input value={body} onChange={(e) => setBody(e.target.value)} style={{ ...sans, fontSize: 14.5, color: c.ink, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 10px", width: "100%" }} />
               ) : (
                 <div style={{ ...sans, fontSize: 16, color: c.ink }}>{body || "—"}</div>
               )}
@@ -5148,9 +5108,9 @@ function BrandBookView({ brand, onBack, session }) {
         <ChartCard title="Texturas" sub="Elementos visuais de apoio">
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: canManage ? 12 : 0 }}>
             {textures.map((t) => (
-              <div key={t} style={{ display: "flex", alignItems: "center", gap: 10, background: c.paper, borderRadius: 8, padding: "8px 10px" }}>
-                <div style={{ width: 26, height: 26, borderRadius: 7, background: `linear-gradient(135deg, ${c.boss}, ${c.bossDeep})`, opacity: 0.35, flexShrink: 0 }} />
-                <span style={{ ...sans, fontSize: 12.5, color: c.ink, flex: 1 }}>{t}</span>
+              <div key={t} style={{ display: "flex", alignItems: "center", gap: 10, background: c.paper, borderRadius: 6, padding: "8px 10px" }}>
+                <div style={{ width: 26, height: 26, borderRadius: 7, background: c.boss, opacity: 0.35, flexShrink: 0 }} />
+                <span style={{ ...sans, fontSize: 14, color: c.ink, flex: 1 }}>{t}</span>
                 {canManage && (
                   <button onClick={() => removeTexture(t)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                     <Trash2 size={13} color={c.mist} />
@@ -5158,7 +5118,7 @@ function BrandBookView({ brand, onBack, session }) {
                 )}
               </div>
             ))}
-            {textures.length === 0 && <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>Sem texturas definidas.</div>}
+            {textures.length === 0 && <div style={{ ...sans, fontSize: 14, color: c.mist }}>Sem texturas definidas.</div>}
           </div>
           {canManage && (
             <div style={{ display: "flex", gap: 8 }}>
@@ -5166,9 +5126,9 @@ function BrandBookView({ brand, onBack, session }) {
                 value={newTexture}
                 onChange={(e) => setNewTexture(e.target.value)}
                 placeholder="Nova textura ou elemento visual"
-                style={{ ...sans, flex: 1, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 10px" }}
+                style={{ ...sans, flex: 1, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "7px 10px" }}
               />
-              <button onClick={addTexture} type="button" style={{ ...sans, fontSize: 12, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}>
+              <button onClick={addTexture} type="button" style={{ ...sans, fontSize: 13.5, fontWeight: 600, color: c.bossText, background: c.bossSoft, border: "none", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}>
                 Adicionar
               </button>
             </div>
@@ -5183,10 +5143,10 @@ function BrandBookView({ brand, onBack, session }) {
               value={guidelines}
               onChange={(e) => setGuidelines(e.target.value)}
               rows={4}
-              style={{ ...sans, width: "100%", fontSize: 13, color: c.ink, lineHeight: 1.7, border: `1px solid ${c.line}`, borderRadius: 8, padding: "10px 12px", resize: "vertical" }}
+              style={{ ...sans, width: "100%", fontSize: 14.5, color: c.ink, lineHeight: 1.7, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "10px 12px", resize: "vertical" }}
             />
           ) : (
-            <div style={{ ...sans, fontSize: 13, color: c.ink, lineHeight: 1.7 }}>{guidelines || "—"}</div>
+            <div style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.7 }}>{guidelines || "—"}</div>
           )}
         </ChartCard>
       </div>
@@ -5197,10 +5157,10 @@ function BrandBookView({ brand, onBack, session }) {
             value={contractScope}
             onChange={(e) => setContractScope(e.target.value)}
             rows={3}
-            style={{ ...sans, width: "100%", fontSize: 13, color: c.mist, lineHeight: 1.7, border: `1px solid ${c.line}`, borderRadius: 8, padding: "10px 12px", resize: "vertical" }}
+            style={{ ...sans, width: "100%", fontSize: 14.5, color: c.mist, lineHeight: 1.7, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "10px 12px", resize: "vertical" }}
           />
         ) : (
-          <div style={{ ...sans, fontSize: 13, color: c.mist, lineHeight: 1.7 }}>{contractScope || "—"}</div>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mist, lineHeight: 1.7 }}>{contractScope || "—"}</div>
         )}
       </ChartCard>
     </div>
@@ -5221,10 +5181,10 @@ function StoryDetailModal({ story, onClose }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ background: "#fff", borderRadius: 16, padding: 26, maxWidth: 440, width: "100%", maxHeight: "80vh", overflowY: "auto" }}
+        style={{ background: c.folha, borderRadius: 3, padding: 26, maxWidth: 440, width: "100%", maxHeight: "80vh", overflowY: "auto" }}
       >
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 4 }}>
-          <div style={{ ...sans, fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: c.boss }}>
+          <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.bossText }}>
             Como criar
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 0 }}>
@@ -5237,13 +5197,13 @@ function StoryDetailModal({ story, onClose }) {
             <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
               <span
                 style={{
-                  ...sans, fontSize: 11, fontWeight: 700, color: c.boss, background: c.bossSoft,
+                  ...sans, fontSize: 12.5, fontWeight: 700, color: c.bossText, background: c.bossSoft,
                   borderRadius: 999, width: 20, height: 20, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
                 }}
               >
                 {i + 1}
               </span>
-              <span style={{ ...sans, fontSize: 13, color: c.ink, lineHeight: 1.55, paddingTop: 1 }}>{s}</span>
+              <span style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.55, paddingTop: 1 }}>{s}</span>
             </div>
           ))}
         </div>
@@ -5274,15 +5234,15 @@ function StoryDayColumn({ label, ideas, canManage, onSelect, onAdd }) {
   };
 
   return (
-    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: 14 }}>
-      <div style={{ ...sans, fontSize: 11, fontWeight: 600, color: c.boss, marginBottom: 10 }}>{label}</div>
+    <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 14 }}>
+      <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.bossText, marginBottom: 10 }}>{label}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: canManage ? 8 : 0 }}>
         {ideas.map((s, i) => (
           <button
             key={i}
             onClick={() => onSelect(s)}
             style={{
-              ...sans, fontSize: 11.5, color: c.ink, background: c.paper, borderRadius: 6, padding: "6px 8px",
+              ...sans, fontSize: 12.5, color: c.ink, background: c.paper, borderRadius: 6, padding: "6px 8px",
               border: "none", cursor: "pointer", textAlign: "left", width: "100%",
               display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4,
             }}
@@ -5298,22 +5258,22 @@ function StoryDayColumn({ label, ideas, canManage, onSelect, onAdd }) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Título"
-            style={{ ...sans, fontSize: 11.5, border: `1px solid ${c.line}`, borderRadius: 6, padding: "6px 8px" }}
+            style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 8px" }}
           />
           <textarea
             value={steps}
             onChange={(e) => setSteps(e.target.value)}
             placeholder="Passos (um por linha)"
             rows={2}
-            style={{ ...sans, fontSize: 11.5, border: `1px solid ${c.line}`, borderRadius: 6, padding: "6px 8px", resize: "vertical" }}
+            style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 8px", resize: "vertical" }}
           />
           <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={submit} type="button" style={{ ...sans, fontSize: 11, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "5px 9px", cursor: "pointer" }}>Guardar</button>
-            <button onClick={() => setAdding(false)} type="button" style={{ ...sans, fontSize: 11, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>Cancelar</button>
+            <button onClick={submit} type="button" style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "5px 9px", cursor: "pointer" }}>Guardar</button>
+            <button onClick={() => setAdding(false)} type="button" style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>Cancelar</button>
           </div>
         </div>
       ) : (
-        <button onClick={() => setAdding(true)} type="button" style={{ ...sans, fontSize: 11, color: c.boss, background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
+        <button onClick={() => setAdding(true)} type="button" style={{ ...sans, fontSize: 12.5, color: c.bossText, background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
           <Plus size={12} /> Adicionar
         </button>
       ))}
@@ -5344,26 +5304,26 @@ function StoriesView({ brand, onBack, session }) {
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <button
         onClick={onBack}
-        style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}
+        style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}
       >
         <ArrowLeft size={14} /> {brand.name}
       </button>
       <Eyebrow>Cronograma de Stories</Eyebrow>
-      <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: "0 0 8px" }}>
+      <h1 style={{ ...display, fontSize: 27,  color: c.ink, margin: "0 0 8px" }}>
         Planeamento semanal
       </h1>
-      <div style={{ ...sans, fontSize: 13, color: c.mist, marginBottom: 20, maxWidth: 560, lineHeight: 1.6 }}>
+      <div style={{ ...sans, fontSize: 14.5, color: c.mist, marginBottom: 20, maxWidth: 560, lineHeight: 1.6 }}>
         O caminho para se manter conectado com a audiência e conversando com ela.
       </div>
 
       <div
         style={{
-          background: `linear-gradient(135deg, ${c.bossSoft} 0%, #FFFFFF 65%)`,
-          border: `1px solid ${c.line}`, borderRadius: 14, padding: "18px 22px", marginBottom: 24, position: "relative", overflow: "hidden",
+          background: c.bossSoft,
+          border: `1px solid ${c.line}`, borderRadius: 3, padding: "18px 22px", marginBottom: 24, position: "relative", overflow: "hidden",
         }}
       >
-        <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 3, background: `linear-gradient(180deg, ${c.boss}, ${c.bossDeep})` }} />
-        <div style={{ ...sans, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: c.boss, marginBottom: 8 }}>
+        <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 3, background: c.boss }} />
+        <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.bossText, marginBottom: 8 }}>
           Objetivo deste cronograma
         </div>
         <textarea
@@ -5372,15 +5332,15 @@ function StoriesView({ brand, onBack, session }) {
           onBlur={() => canManage && objective !== null && saveObjective()}
           readOnly={!canManage}
           rows={2}
-          style={{ ...sans, width: "100%", fontSize: 13.5, color: c.ink, lineHeight: 1.55, border: "none", outline: "none", background: "none", resize: "vertical" }}
+          style={{ ...sans, width: "100%", fontSize: 15, color: c.ink, lineHeight: 1.55, border: "none", outline: "none", background: "none", resize: "vertical" }}
         />
       </div>
 
-      <div style={{ ...sans, fontSize: 12, color: c.mistLight, marginBottom: 24, display: "flex", alignItems: "center", gap: 6 }}>
-        <Sparkles size={12} color={c.boss} /> Carrega num story para veres o passo a passo de como o criar.
+      <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, marginBottom: 24, display: "flex", alignItems: "center", gap: 6 }}>
+        <Sparkles size={12} color={c.bossText} /> Carrega num story para veres o passo a passo de como o criar.
       </div>
 
-      {planQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist, marginBottom: 24 }}>A carregar…</div>}
+      {planQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist, marginBottom: 24 }}>A carregar…</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-5, repeat(5, 1fr))", gap: 12, marginBottom: 24 }}>
         {STORY_DAYS.map((d) => (
@@ -5395,9 +5355,9 @@ function StoriesView({ brand, onBack, session }) {
         ))}
       </div>
 
-      <div style={{ background: c.bossSoft, borderRadius: 12, padding: "14px 18px", marginBottom: 24, display: "flex", gap: 10, alignItems: "flex-start" }}>
-        <Sparkles size={16} color={c.boss} style={{ flexShrink: 0, marginTop: 1 }} />
-        <div style={{ ...sans, fontSize: 12.5, color: c.ink, lineHeight: 1.6 }}>
+      <div style={{ background: c.bossSoft, borderRadius: 3, padding: "14px 18px", marginBottom: 24, display: "flex", gap: 10, alignItems: "flex-start" }}>
+        <Sparkles size={16} color={c.bossText} style={{ flexShrink: 0, marginTop: 1 }} />
+        <div style={{ ...sans, fontSize: 14, color: c.ink, lineHeight: 1.6 }}>
           <strong>Dica de ouro:</strong> pensa em story como uma conversa contínua — a repetição inteligente gera clareza de mensagem.
         </div>
       </div>
@@ -5407,11 +5367,11 @@ function StoriesView({ brand, onBack, session }) {
       </h2>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {STORY_CHECKLIST.map((group) => (
-          <div key={group.group} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "16px 18px" }}>
+          <div key={group.group} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "16px 18px" }}>
             <div style={{ ...serif, fontSize: 14.5, color: c.ink, marginBottom: 10 }}>{group.group}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {group.items.map((item, i) => (
-                <div key={i} style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", alignItems: "center", gap: 8 }}>
+                <div key={i} style={{ ...sans, fontSize: 14, color: c.mist, display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ width: 4, height: 4, borderRadius: 999, background: c.boss, flexShrink: 0 }} />
                   {item}
                 </div>
@@ -5430,10 +5390,10 @@ function StoriesView({ brand, onBack, session }) {
    PROPOSTAS — várias fases, mesmo esqueleto visual, branding próprio
 --------------------------------------------------------- */
 const PROPOSAL_STATUS = {
-  draft: { label: "Rascunho", bg: "#F0EFF4", color: c.mist },
-  sent: { label: "Enviada", bg: "#F5EFDF", color: c.amber },
-  accepted: { label: "Aceite", bg: "#E7F5EC", color: c.sage },
-  rejected: { label: "Recusada", bg: "#FBE9EC", color: c.rose },
+  draft: { label: "Rascunho", bg: c.folha2, color: c.mist },
+  sent: { label: "Enviada", bg: c.amberSoft, color: c.amber },
+  accepted: { label: "Aceite", bg: c.sageSoft, color: c.sage },
+  rejected: { label: "Recusada", bg: c.roseSoft, color: c.rose },
 };
 
 function PropostaDetail({ proposal: initial, onBack }) {
@@ -5453,7 +5413,7 @@ function PropostaDetail({ proposal: initial, onBack }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <button
           onClick={onBack}
-          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
         >
           <ArrowLeft size={14} /> Propostas
         </button>
@@ -5461,13 +5421,13 @@ function PropostaDetail({ proposal: initial, onBack }) {
           <button
             onClick={() => updateProposal.mutate(proposal)}
             disabled={updateProposal.isPending}
-            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "7px 14px", cursor: "pointer" }}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "7px 14px", cursor: "pointer" }}
           >
             {updateProposal.isPending ? "A guardar…" : "Guardar"}
           </button>
           <button
             onClick={() => deleteProposal.mutate(proposal.id, { onSuccess: onBack })}
-            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 6, padding: "7px 12px", cursor: "pointer" }}
           >
             <Trash2 size={13} /> Eliminar proposta
           </button>
@@ -5478,7 +5438,7 @@ function PropostaDetail({ proposal: initial, onBack }) {
         style={{
           background: `linear-gradient(135deg, ${proposal.brandingColor}18, #FFFFFF 65%)`,
           border: `1px solid ${c.line}`,
-          borderRadius: 16,
+          borderRadius: 3,
           padding: "26px 30px",
           marginBottom: 28,
           position: "relative",
@@ -5488,38 +5448,38 @@ function PropostaDetail({ proposal: initial, onBack }) {
         <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 3, background: proposal.brandingColor }} />
         <Eyebrow>Proposta comercial</Eyebrow>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-          <span style={{ ...serif, fontSize: 26, color: c.ink }}>Para</span>
+          <span style={{ ...display, fontSize: 26, color: c.ink }}>Para</span>
           <input
             value={proposal.clientName}
             onChange={(e) => updateField("clientName", e.target.value)}
-            style={{ ...serif, fontSize: 26, color: c.ink, border: "none", outline: "none", background: "none", flex: 1 }}
+            style={{ ...display, fontSize: 26, color: c.ink, border: "none", outline: "none", background: "none", flex: 1 }}
           />
         </div>
-        <div style={{ ...sans, fontSize: 12, color: c.mist, marginBottom: 12 }}>big-boss.app/proposta/{proposal.slug}</div>
+        <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginBottom: 12 }}>big-boss.app/proposta/{proposal.slug}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ ...sans, fontSize: 11, color: c.mist }}>Estado:</span>
+          <span style={{ ...sans, fontSize: 12.5, color: c.mist }}>Estado:</span>
           <select
             value={proposal.status}
             onChange={(e) => updateField("status", e.target.value)}
-            style={{ ...sans, fontSize: 12, fontWeight: 600, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 7, padding: "5px 9px", cursor: "pointer" }}
+            style={{ ...sans, fontSize: 13.5, fontWeight: 600, color: c.ink, border: `1px solid ${c.lineStrong}`, borderRadius: 7, padding: "5px 9px", cursor: "pointer" }}
           >
             {Object.entries(PROPOSAL_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
           {proposal.status === "sent" || proposal.status === "accepted" ? (
-            <span style={{ ...sans, fontSize: 11, color: c.sage }}>Visível publicamente no link acima</span>
+            <span style={{ ...sans, fontSize: 12.5, color: c.sage }}>Visível publicamente no link acima</span>
           ) : (
-            <span style={{ ...sans, fontSize: 11, color: c.mistLight }}>Só "Enviada"/"Aceite" ficam visíveis no link público</span>
+            <span style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>Só "Enviada"/"Aceite" ficam visíveis no link público</span>
           )}
         </div>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {proposal.phases.map((p, i) => (
-          <div key={i} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: "18px 22px", display: "flex", gap: 16 }}>
+          <div key={i} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "18px 22px", display: "flex", gap: 16 }}>
             <div
               style={{
                 width: 30, height: 30, borderRadius: 999, background: `${proposal.brandingColor}1A`, color: proposal.brandingColor,
-                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...sans, fontSize: 12.5, fontWeight: 700,
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...sans, fontSize: 14, fontWeight: 700,
               }}
             >
               {i + 1}
@@ -5534,7 +5494,7 @@ function PropostaDetail({ proposal: initial, onBack }) {
                 value={p.description}
                 onChange={(e) => updatePhase(i, "description", e.target.value)}
                 rows={2}
-                style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.55, border: "none", outline: "none", background: "none", width: "100%", resize: "vertical" }}
+                style={{ ...sans, fontSize: 14, color: c.mist, lineHeight: 1.55, border: "none", outline: "none", background: "none", width: "100%", resize: "vertical" }}
               />
             </div>
             <button onClick={() => removePhase(i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, flexShrink: 0, height: "fit-content" }}>
@@ -5545,8 +5505,8 @@ function PropostaDetail({ proposal: initial, onBack }) {
         <button
           onClick={addPhase}
           style={{
-            ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: c.boss,
-            background: c.bossSoft, border: "none", borderRadius: 10, padding: "12px 16px", cursor: "pointer", justifyContent: "center",
+            ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: c.bossText,
+            background: c.bossSoft, border: "none", borderRadius: 6, padding: "12px 16px", cursor: "pointer", justifyContent: "center",
           }}
         >
           <Plus size={14} /> Adicionar fase
@@ -5605,13 +5565,13 @@ function PropostasModule({ session }) {
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <Eyebrow>Propostas</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>Propostas comerciais</h1>
+        <h1 style={{ ...display, fontSize: 30,  color: c.ink, margin: 0 }}>Propostas comerciais</h1>
         <div style={{ display: "flex", gap: 8 }}>
           <button
             onClick={() => setAiOpen(true)}
             style={{
-              ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: c.boss,
-              background: c.bossSoft, border: "none", borderRadius: 8, padding: "9px 14px", cursor: "pointer",
+              ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: c.bossText,
+              background: c.bossSoft, border: "none", borderRadius: 6, padding: "9px 14px", cursor: "pointer",
             }}
           >
             <Sparkles size={14} /> Criar com IA
@@ -5620,8 +5580,8 @@ function PropostasModule({ session }) {
             onClick={createProposal}
             disabled={addProposal.isPending}
             style={{
-              ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff",
-              background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer",
+              ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff",
+              background: c.boss, border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer",
             }}
           >
             <Plus size={14} /> Nova proposta
@@ -5629,7 +5589,7 @@ function PropostasModule({ session }) {
         </div>
       </div>
 
-      {proposalsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist, marginBottom: 20 }}>A carregar…</div>}
+      {proposalsQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist, marginBottom: 20 }}>A carregar…</div>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {proposals.map((p) => {
@@ -5639,18 +5599,18 @@ function PropostasModule({ session }) {
               key={p.id}
               onClick={() => setOpenId(p.id)}
               style={{
-                display: "flex", alignItems: "center", gap: 14, background: "#fff",
-                border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px", cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 14, background: c.folha,
+                border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px", cursor: "pointer",
               }}
             >
               <div style={{ width: 8, height: 34, borderRadius: 4, background: p.brandingColor, flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ ...serif, fontSize: 15.5, color: c.ink, fontWeight: 500 }}>{p.clientName}</div>
-                <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 2 }}>
-                  {p.phases.length} fases · /proposta/{p.slug}
+                <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginTop: 2 }}>
+                  {p.phases.length} fases, /proposta/{p.slug}
                 </div>
               </div>
-              <span style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: st.color, background: st.bg, borderRadius: 999, padding: "4px 10px" }}>
+              <span style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: st.color, background: st.bg, borderRadius: 999, padding: "4px 10px" }}>
                 {st.label}
               </span>
               <button
@@ -5664,7 +5624,7 @@ function PropostasModule({ session }) {
           );
         })}
         {!proposalsQuery.isLoading && proposals.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
             Ainda sem propostas — cria a primeira acima.
           </div>
         )}
@@ -5672,42 +5632,42 @@ function PropostasModule({ session }) {
 
       {aiOpen && (
         <div onClick={() => setAiOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(23,21,31,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20, overflowY: "auto" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: 26, maxWidth: 420, width: "100%", maxHeight: "85vh", overflowY: "auto", margin: "auto" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: c.folha, borderRadius: 3, padding: 26, maxWidth: 420, width: "100%", maxHeight: "85vh", overflowY: "auto", margin: "auto" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-              <Sparkles size={16} color={c.boss} />
-              <span style={{ ...sans, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: c.boss }}>Criar com IA</span>
+              <Sparkles size={16} color={c.bossText} />
+              <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: c.bossText }}>Criar com IA</span>
             </div>
             <div style={{ ...serif, fontSize: 18, color: c.ink, marginBottom: 18 }}>Responde a duas perguntas</div>
 
             <div style={{ marginBottom: 14 }}>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Nome do cliente</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Nome do cliente</div>
               <input
                 value={aiClient}
                 onChange={(e) => setAiClient(e.target.value)}
                 placeholder="Ex: Luís Silva"
-                style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink }}
+                style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink }}
               />
             </div>
             <div style={{ marginBottom: 20 }}>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>O que este cliente precisa?</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>O que este cliente precisa?</div>
               <textarea
                 value={aiContext}
                 onChange={(e) => setAiContext(e.target.value)}
                 rows={3}
                 placeholder="Ex: gestão de redes sociais e campanhas pagas para aumentar clientes"
-                style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
+                style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
               />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button
                 onClick={generateWithAI}
-                style={{ ...sans, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "10px 14px", cursor: "pointer" }}
+                style={{ ...sans, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 14.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "10px 14px", cursor: "pointer" }}
               >
                 <Sparkles size={14} /> Gerar proposta
               </button>
               <button
                 onClick={() => setAiOpen(false)}
-                style={{ ...sans, fontSize: 13, color: c.mist, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "10px 14px", cursor: "pointer" }}
+                style={{ ...sans, fontSize: 14.5, color: c.mist, background: "none", border: `1px solid ${c.line}`, borderRadius: 6, padding: "10px 14px", cursor: "pointer" }}
               >
                 Cancelar
               </button>
@@ -5742,7 +5702,7 @@ function GrowthMapDetail({ map: initial, onBack }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <button
           onClick={onBack}
-          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
         >
           <ArrowLeft size={14} /> Mapa de Crescimento
         </button>
@@ -5750,13 +5710,13 @@ function GrowthMapDetail({ map: initial, onBack }) {
           <button
             onClick={() => updateGrowthMap.mutate(map)}
             disabled={updateGrowthMap.isPending}
-            style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}
+            style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer" }}
           >
             {updateGrowthMap.isPending ? "A guardar…" : "Guardar"}
           </button>
           <button
             onClick={() => deleteGrowthMap.mutate(map.id, { onSuccess: onBack })}
-            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 6, padding: "7px 12px", cursor: "pointer" }}
           >
             <Trash2 size={13} /> Eliminar
           </button>
@@ -5766,34 +5726,34 @@ function GrowthMapDetail({ map: initial, onBack }) {
       <div
         style={{
           background: `linear-gradient(135deg, ${map.brandingColor}18, #FFFFFF 65%)`,
-          border: `1px solid ${c.line}`, borderRadius: 16, padding: "26px 30px", marginBottom: 24,
+          border: `1px solid ${c.line}`, borderRadius: 3, padding: "26px 30px", marginBottom: 24,
           position: "relative", overflow: "hidden",
         }}
       >
         <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 3, background: map.brandingColor }} />
         <Eyebrow>Mapa de Crescimento</Eyebrow>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-          <span style={{ ...serif, fontSize: 26, color: c.ink }}>Para</span>
+          <span style={{ ...display, fontSize: 26, color: c.ink }}>Para</span>
           <input
             value={map.clientName}
             onChange={(e) => updateField("clientName", e.target.value)}
-            style={{ ...serif, fontSize: 26, color: c.ink, border: "none", outline: "none", background: "none", flex: 1 }}
+            style={{ ...display, fontSize: 26, color: c.ink, border: "none", outline: "none", background: "none", flex: 1 }}
           />
         </div>
-        <div style={{ ...sans, fontSize: 12, color: c.mist, marginBottom: 12 }}>big-boss.app/mapa/{map.slug}</div>
+        <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginBottom: 12 }}>big-boss.app/mapa/{map.slug}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ ...sans, fontSize: 11, color: c.mist }}>Estado:</span>
+          <span style={{ ...sans, fontSize: 12.5, color: c.mist }}>Estado:</span>
           <select
             value={map.status}
             onChange={(e) => updateField("status", e.target.value)}
-            style={{ ...sans, fontSize: 12, fontWeight: 600, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 7, padding: "5px 9px", cursor: "pointer" }}
+            style={{ ...sans, fontSize: 13.5, fontWeight: 600, color: c.ink, border: `1px solid ${c.lineStrong}`, borderRadius: 7, padding: "5px 9px", cursor: "pointer" }}
           >
             {Object.entries(GROWTH_MAP_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
           {map.status === "sent" || map.status === "accepted" ? (
-            <span style={{ ...sans, fontSize: 11, color: c.sage }}>Visível publicamente no link acima</span>
+            <span style={{ ...sans, fontSize: 12.5, color: c.sage }}>Visível publicamente no link acima</span>
           ) : (
-            <span style={{ ...sans, fontSize: 11, color: c.mistLight }}>Só "Enviado"/"Aceite" ficam visíveis no link público</span>
+            <span style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>Só "Enviado"/"Aceite" ficam visíveis no link público</span>
           )}
         </div>
       </div>
@@ -5804,7 +5764,7 @@ function GrowthMapDetail({ map: initial, onBack }) {
             value={map.diagnosis}
             onChange={(e) => updateField("diagnosis", e.target.value)}
             rows={3}
-            style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
+            style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
           />
         </ChartCard>
       </div>
@@ -5815,7 +5775,7 @@ function GrowthMapDetail({ map: initial, onBack }) {
             value={map.objective}
             onChange={(e) => updateField("objective", e.target.value)}
             rows={2}
-            style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
+            style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
           />
         </ChartCard>
       </div>
@@ -5826,7 +5786,7 @@ function GrowthMapDetail({ map: initial, onBack }) {
             value={map.obstacle}
             onChange={(e) => updateField("obstacle", e.target.value)}
             rows={2}
-            style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
+            style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
           />
         </ChartCard>
       </div>
@@ -5837,7 +5797,7 @@ function GrowthMapDetail({ map: initial, onBack }) {
             value={map.competitorAnalysis}
             onChange={(e) => updateField("competitorAnalysis", e.target.value)}
             rows={4}
-            style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
+            style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
           />
         </ChartCard>
         <ChartCard title="Perfil de cliente ideal" sub="">
@@ -5845,7 +5805,7 @@ function GrowthMapDetail({ map: initial, onBack }) {
             value={map.idealClientProfile}
             onChange={(e) => updateField("idealClientProfile", e.target.value)}
             rows={4}
-            style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
+            style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
           />
         </ChartCard>
       </div>
@@ -5854,27 +5814,27 @@ function GrowthMapDetail({ map: initial, onBack }) {
         title="Auditoria de canais"
         sub="Onde está o obstáculo, canal a canal"
         right={
-          <button onClick={addChannel} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
+          <button onClick={addChannel} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 13.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
             <Plus size={13} /> Canal
           </button>
         }
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {map.channelAudit.map((ca, i) => (
-            <div key={i} style={{ background: c.paper, borderRadius: 10, padding: "12px 14px", display: "flex", gap: 10 }}>
+            <div key={i} style={{ background: c.paper, borderRadius: 6, padding: "12px 14px", display: "flex", gap: 10 }}>
               <div style={{ flex: 1 }}>
                 <input
                   value={ca.channel}
                   onChange={(e) => updateChannel(i, "channel", e.target.value)}
                   placeholder="Canal (ex: Instagram, Google Meu Negócio...)"
-                  style={{ ...sans, fontSize: 13, fontWeight: 600, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", marginBottom: 6 }}
+                  style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", marginBottom: 6 }}
                 />
                 <textarea
                   value={ca.finding}
                   onChange={(e) => updateChannel(i, "finding", e.target.value)}
                   placeholder="O que encontraste e recomendas..."
                   rows={2}
-                  style={{ ...sans, fontSize: 12.5, color: c.mist, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px", outline: "none", background: "#fff", resize: "vertical", width: "100%" }}
+                  style={{ ...sans, fontSize: 14, color: c.mist, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 10px", outline: "none", background: c.folha, resize: "vertical", width: "100%" }}
                 />
               </div>
               <button onClick={() => removeChannel(i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.rose, flexShrink: 0, height: "fit-content" }}>
@@ -5883,7 +5843,7 @@ function GrowthMapDetail({ map: initial, onBack }) {
             </div>
           ))}
           {map.channelAudit.length === 0 && (
-            <div style={{ ...sans, fontSize: 12, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>Sem canais ainda.</div>
+            <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>Sem canais ainda.</div>
           )}
         </div>
       </ChartCard>
@@ -5893,11 +5853,11 @@ function GrowthMapDetail({ map: initial, onBack }) {
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {map.strategicPlan.map((p, i) => (
-          <div key={i} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: "18px 22px", display: "flex", gap: 16 }}>
+          <div key={i} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "18px 22px", display: "flex", gap: 16 }}>
             <div
               style={{
                 width: 30, height: 30, borderRadius: 999, background: `${map.brandingColor}1A`, color: map.brandingColor,
-                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...sans, fontSize: 12.5, fontWeight: 700,
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...sans, fontSize: 14, fontWeight: 700,
               }}
             >
               {i + 1}
@@ -5912,7 +5872,7 @@ function GrowthMapDetail({ map: initial, onBack }) {
                 value={p.description}
                 onChange={(e) => updatePhase(i, "description", e.target.value)}
                 rows={2}
-                style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.55, border: "none", outline: "none", background: "none", width: "100%", resize: "vertical" }}
+                style={{ ...sans, fontSize: 14, color: c.mist, lineHeight: 1.55, border: "none", outline: "none", background: "none", width: "100%", resize: "vertical" }}
               />
             </div>
             <button onClick={() => removePhase(i)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, flexShrink: 0, height: "fit-content" }}>
@@ -5923,8 +5883,8 @@ function GrowthMapDetail({ map: initial, onBack }) {
         <button
           onClick={addPhase}
           style={{
-            ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: c.boss,
-            background: c.bossSoft, border: "none", borderRadius: 10, padding: "12px 16px", cursor: "pointer", justifyContent: "center",
+            ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: c.bossText,
+            background: c.bossSoft, border: "none", borderRadius: 6, padding: "12px 16px", cursor: "pointer", justifyContent: "center",
           }}
         >
           <Plus size={14} /> Adicionar fase
@@ -5955,23 +5915,23 @@ function GrowthMapsModule({ session }) {
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <Eyebrow>Mapa de Crescimento</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>Mapas de crescimento</h1>
+        <h1 style={{ ...display, fontSize: 30,  color: c.ink, margin: 0 }}>Mapas de crescimento</h1>
         <button
           onClick={createMap}
           disabled={addGrowthMap.isPending}
           style={{
-            ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff",
-            background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer",
+            ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff",
+            background: c.boss, border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer",
           }}
         >
           <Plus size={14} /> {addGrowthMap.isPending ? "A criar…" : "Novo mapa"}
         </button>
       </div>
-      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 20, maxWidth: 600, lineHeight: 1.6 }}>
+      <div style={{ ...sans, fontSize: 14, color: c.mist, marginBottom: 20, maxWidth: 600, lineHeight: 1.6 }}>
         Só tu vês esta lista — diagnóstico, objetivo, concorrência, perfil de cliente ideal, auditoria de canais e plano de ação, prontos a enviar com o teu branding.
       </div>
 
-      {mapsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist, marginBottom: 20 }}>A carregar…</div>}
+      {mapsQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist, marginBottom: 20 }}>A carregar…</div>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {maps.map((m) => {
@@ -5981,16 +5941,16 @@ function GrowthMapsModule({ session }) {
               key={m.id}
               onClick={() => setOpenId(m.id)}
               style={{
-                display: "flex", alignItems: "center", gap: 14, background: "#fff",
-                border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px", cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 14, background: c.folha,
+                border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px", cursor: "pointer",
               }}
             >
               <div style={{ width: 8, height: 34, borderRadius: 4, background: m.brandingColor, flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ ...serif, fontSize: 15.5, color: c.ink, fontWeight: 500 }}>{m.clientName}</div>
-                <div style={{ ...sans, fontSize: 12, color: c.mist, marginTop: 2 }}>/mapa/{m.slug}</div>
+                <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginTop: 2 }}>/mapa/{m.slug}</div>
               </div>
-              <span style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: st.color, background: st.bg, borderRadius: 999, padding: "4px 10px" }}>
+              <span style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: st.color, background: st.bg, borderRadius: 999, padding: "4px 10px" }}>
                 {st.label}
               </span>
               <button
@@ -6004,7 +5964,7 @@ function GrowthMapsModule({ session }) {
           );
         })}
         {!mapsQuery.isLoading && maps.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
             Ainda sem mapas — cria o primeiro acima.
           </div>
         )}
@@ -6038,7 +5998,7 @@ function CalendarioGeral({ session }) {
   const deleteTask = useDeletePersonalTask(session);
 
   if (session.role !== "admin_geral") {
-    return <div style={{ ...sans, fontSize: 13, color: c.mist }}>Só disponível para o Admin Geral.</div>;
+    return <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>Só disponível para o Admin Geral.</div>;
   }
 
   const events = (tasksQuery.data || []).filter((t) => t.allocationType === "periodo" && t.startDate);
@@ -6056,11 +6016,11 @@ function CalendarioGeral({ session }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, flexWrap: "wrap", gap: 8 }}>
-        <div style={{ ...sans, fontSize: 12, color: c.mist }}>Próximas 2 semanas · clica num evento para o eliminar</div>
+        <div style={{ ...sans, fontSize: 13.5, color: c.mist }}>Próximas 2 semanas, clica num evento para o eliminar</div>
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
-            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "8px 14px", cursor: "pointer" }}
           >
             <Plus size={13} /> Novo evento
           </button>
@@ -6068,11 +6028,11 @@ function CalendarioGeral({ session }) {
       </div>
 
       {showForm && (
-        <form onSubmit={submit} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: 16, marginBottom: 18, display: "flex", flexDirection: "column", gap: 10 }}>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Título do evento" style={{ ...sans, fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none" }} />
+        <form onSubmit={submit} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 16, marginBottom: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Título do evento" style={{ ...sans, fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none" }} />
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px" }} />
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px" }} />
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ ...sans, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 10px" }} />
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ ...sans, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 10px" }} />
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               {COLOR_TAG_SWATCHES.map((sw) => (
                 <button key={sw.key} type="button" onClick={() => setColorTag(sw.key)} style={{ width: 20, height: 20, borderRadius: 999, background: sw.hex, border: colorTag === sw.key ? `2px solid ${c.ink}` : "2px solid transparent", cursor: "pointer" }} />
@@ -6080,10 +6040,10 @@ function CalendarioGeral({ session }) {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button type="submit" disabled={addTask.isPending} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}>
+            <button type="submit" disabled={addTask.isPending} style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer" }}>
               {addTask.isPending ? "A guardar…" : "Criar"}
             </button>
-            <button type="button" onClick={() => setShowForm(false)} style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
+            <button type="button" onClick={() => setShowForm(false)} style={{ ...sans, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
               Cancelar
             </button>
           </div>
@@ -6094,7 +6054,7 @@ function CalendarioGeral({ session }) {
         <div style={{ minWidth: 640 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 8, marginBottom: 8 }}>
             {["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"].map((d) => (
-              <div key={d} style={{ ...sans, fontSize: 10.5, fontWeight: 600, color: c.mistLight, textAlign: "center", letterSpacing: "0.06em" }}>
+              <div key={d} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.mistLight, textAlign: "center", letterSpacing: "0.06em" }}>
                 {d}
               </div>
             ))}
@@ -6105,8 +6065,8 @@ function CalendarioGeral({ session }) {
               const dayNum = parseInt(day.slice(8, 10), 10);
               const isToday = day === todayStr;
               return (
-                <div key={day} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 10, padding: 8, minHeight: 84 }}>
-                  <div style={{ ...sans, fontSize: 11, color: isToday ? c.boss : c.mist, fontWeight: isToday ? 700 : 500, marginBottom: 6 }}>
+                <div key={day} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 6, padding: 8, minHeight: 84 }}>
+                  <div style={{ ...sans, fontSize: 12.5, color: isToday ? c.bossText : c.mist, fontWeight: isToday ? 700 : 500, marginBottom: 6 }}>
                     {dayNum}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -6138,12 +6098,12 @@ function CalendarioGeral({ session }) {
 function PersonalPendingItem({ task, onToggle, onDelete }) {
   const bg = COLOR_TAG_BG[task.colorTag] || COLOR_TAG_BG.purple;
   return (
-    <div style={{ background: bg, borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+    <div style={{ background: bg, borderRadius: 6, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
       <button onClick={onToggle} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", flexShrink: 0 }}>
         {task.done ? <CheckCircle2 size={15} color={c.sage} /> : <span style={{ width: 15, height: 15, borderRadius: 999, border: `1.5px solid ${c.mist}` }} />}
       </button>
-      <span style={{ ...sans, fontSize: 12.5, color: c.ink, flex: 1, textDecoration: task.done ? "line-through" : "none" }}>{task.text}</span>
-      {task.weekReference && <span style={{ ...sans, fontSize: 10.5, color: c.mist, flexShrink: 0 }}>{task.weekReference}</span>}
+      <span style={{ ...sans, fontSize: 14, color: c.ink, flex: 1, textDecoration: task.done ? "line-through" : "none" }}>{task.text}</span>
+      {task.weekReference && <span style={{ ...sans, fontSize: 12.5, color: c.mist, flexShrink: 0 }}>{task.weekReference}</span>}
       <button onClick={onDelete} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 0, flexShrink: 0 }}>
         <Trash2 size={13} />
       </button>
@@ -6162,17 +6122,17 @@ function NewPendingForm({ onAdd, onDone }) {
     onDone();
   };
   return (
-    <form onSubmit={submit} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 10, padding: 12, marginBottom: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-      <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Nova pendência" style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 10px", outline: "none" }} />
+    <form onSubmit={submit} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 6, padding: 12, marginBottom: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+      <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Nova pendência" style={{ ...sans, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "7px 10px", outline: "none" }} />
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <input value={weekReference} onChange={(e) => setWeekReference(e.target.value)} placeholder="Etiqueta (ex: 4ª Semana)" style={{ ...sans, fontSize: 12, border: `1px solid ${c.line}`, borderRadius: 8, padding: "6px 9px", flex: 1, minWidth: 120, outline: "none" }} />
+        <input value={weekReference} onChange={(e) => setWeekReference(e.target.value)} placeholder="Etiqueta (ex: 4ª Semana)" style={{ ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 9px", flex: 1, minWidth: 120, outline: "none" }} />
         {COLOR_TAG_SWATCHES.map((sw) => (
           <button key={sw.key} type="button" onClick={() => setColorTag(sw.key)} style={{ width: 18, height: 18, borderRadius: 999, background: sw.hex, border: colorTag === sw.key ? `2px solid ${c.ink}` : "2px solid transparent", cursor: "pointer" }} />
         ))}
       </div>
       <div style={{ display: "flex", gap: 8 }}>
-        <button type="submit" style={{ ...sans, fontSize: 12, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}>Adicionar</button>
-        <button type="button" onClick={onDone} style={{ ...sans, fontSize: 12, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>Cancelar</button>
+        <button type="submit" style={{ ...sans, fontSize: 13.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}>Adicionar</button>
+        <button type="button" onClick={onDone} style={{ ...sans, fontSize: 13.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>Cancelar</button>
       </div>
     </form>
   );
@@ -6189,17 +6149,17 @@ function WeekdayTaskColumn({ day, tasks, onAdd, onDelete }) {
   };
   return (
     <div>
-      <div style={{ ...sans, fontSize: 12, fontWeight: 600, color: c.ink, marginBottom: 8 }}>{day.label}</div>
+      <div style={{ ...sans, fontSize: 13.5, fontWeight: 600, color: c.ink, marginBottom: 8 }}>{day.label}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
         {tasks.map((t) => (
-          <div key={t.id} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ ...sans, fontSize: 12.5, color: c.ink, flex: 1 }}>{t.text}</span>
+          <div key={t.id} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 6, padding: "9px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ ...sans, fontSize: 14, color: c.ink, flex: 1 }}>{t.text}</span>
             <button onClick={() => onDelete(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 0, flexShrink: 0 }}>
               <Trash2 size={12} />
             </button>
           </div>
         ))}
-        {tasks.length === 0 && <div style={{ ...sans, fontSize: 11.5, color: c.mistLight }}>Sem tarefas.</div>}
+        {tasks.length === 0 && <div style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>Sem tarefas.</div>}
       </div>
       {adding ? (
         <div style={{ display: "flex", gap: 6 }}>
@@ -6209,12 +6169,12 @@ function WeekdayTaskColumn({ day, tasks, onAdd, onDelete }) {
             onKeyDown={(e) => e.key === "Enter" && submit()}
             autoFocus
             placeholder="Nova tarefa"
-            style={{ ...sans, flex: 1, fontSize: 12, border: `1px solid ${c.line}`, borderRadius: 7, padding: "6px 8px", outline: "none" }}
+            style={{ ...sans, flex: 1, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 7, padding: "6px 8px", outline: "none" }}
           />
-          <button onClick={submit} style={{ ...sans, fontSize: 11, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "6px 9px", cursor: "pointer" }}>OK</button>
+          <button onClick={submit} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "6px 9px", cursor: "pointer" }}>OK</button>
         </div>
       ) : (
-        <button onClick={() => setAdding(true)} style={{ ...sans, fontSize: 11, color: c.boss, background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
+        <button onClick={() => setAdding(true)} style={{ ...sans, fontSize: 12.5, color: c.bossText, background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
           <Plus size={11} /> Adicionar
         </button>
       )}
@@ -6233,17 +6193,17 @@ function MonthWeekTaskColumn({ week, tasks, onAdd, onDelete }) {
   };
   return (
     <div>
-      <div style={{ ...sans, fontSize: 12, fontWeight: 600, color: c.ink, marginBottom: 8 }}>{week.label}</div>
+      <div style={{ ...sans, fontSize: 13.5, fontWeight: 600, color: c.ink, marginBottom: 8 }}>{week.label}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
         {tasks.map((t) => (
-          <div key={t.id} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ ...sans, fontSize: 12.5, color: c.ink, flex: 1 }}>{t.text}</span>
+          <div key={t.id} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 6, padding: "9px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ ...sans, fontSize: 14, color: c.ink, flex: 1 }}>{t.text}</span>
             <button onClick={() => onDelete(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 0, flexShrink: 0 }}>
               <Trash2 size={12} />
             </button>
           </div>
         ))}
-        {tasks.length === 0 && <div style={{ ...sans, fontSize: 11.5, color: c.mistLight }}>Sem tarefas.</div>}
+        {tasks.length === 0 && <div style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>Sem tarefas.</div>}
       </div>
       {adding ? (
         <div style={{ display: "flex", gap: 6 }}>
@@ -6253,12 +6213,12 @@ function MonthWeekTaskColumn({ week, tasks, onAdd, onDelete }) {
             onKeyDown={(e) => e.key === "Enter" && submit()}
             autoFocus
             placeholder="Nova tarefa"
-            style={{ ...sans, flex: 1, fontSize: 12, border: `1px solid ${c.line}`, borderRadius: 7, padding: "6px 8px", outline: "none" }}
+            style={{ ...sans, flex: 1, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 7, padding: "6px 8px", outline: "none" }}
           />
-          <button onClick={submit} style={{ ...sans, fontSize: 11, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "6px 9px", cursor: "pointer" }}>OK</button>
+          <button onClick={submit} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "6px 9px", cursor: "pointer" }}>OK</button>
         </div>
       ) : (
-        <button onClick={() => setAdding(true)} style={{ ...sans, fontSize: 11, color: c.boss, background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
+        <button onClick={() => setAdding(true)} style={{ ...sans, fontSize: 12.5, color: c.bossText, background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
           <Plus size={11} /> Adicionar
         </button>
       )}
@@ -6274,7 +6234,7 @@ function CalendarioPessoal({ session }) {
   const deleteTask = useDeletePersonalTask(session);
 
   if (session.role !== "admin_geral") {
-    return <div style={{ ...sans, fontSize: 13, color: c.mist }}>Só disponível para o Admin Geral.</div>;
+    return <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>Só disponível para o Admin Geral.</div>;
   }
 
   const tasks = tasksQuery.data || [];
@@ -6289,19 +6249,19 @@ function CalendarioPessoal({ session }) {
         {!showPendingForm && (
           <button
             onClick={() => setShowPendingForm(true)}
-            style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 7, padding: "6px 11px", cursor: "pointer" }}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 13.5, fontWeight: 600, color: c.bossText, background: c.bossSoft, border: "none", borderRadius: 7, padding: "6px 11px", cursor: "pointer" }}
           >
             <Plus size={12} /> Nova pendência
           </button>
         )}
       </div>
       {showPendingForm && <NewPendingForm onAdd={(t) => addTask.mutate(t)} onDone={() => setShowPendingForm(false)} />}
-      {tasksQuery.isLoading && <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 10 }}>A carregar…</div>}
+      {tasksQuery.isLoading && <div style={{ ...sans, fontSize: 14, color: c.mist, marginBottom: 10 }}>A carregar…</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
         {pending.map((t) => (
           <PersonalPendingItem key={t.id} task={t} onToggle={() => toggleTask.mutate({ id: t.id, done: !t.done })} onDelete={() => deleteTask.mutate(t.id)} />
         ))}
-        {!tasksQuery.isLoading && pending.length === 0 && <div style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>Sem pendências.</div>}
+        {!tasksQuery.isLoading && pending.length === 0 && <div style={{ ...sans, fontSize: 14, color: c.mistLight }}>Sem pendências.</div>}
       </div>
 
       <h2 style={{ ...serif, fontSize: 16, color: c.ink, fontWeight: 500, margin: "0 0 12px" }}>Tarefas por dia da semana</h2>
@@ -6318,7 +6278,7 @@ function CalendarioPessoal({ session }) {
       </div>
 
       <h2 style={{ ...serif, fontSize: 16, color: c.ink, fontWeight: 500, margin: "24px 0 12px" }}>Tarefas por semana do mês</h2>
-      <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 12 }}>Tarefas que se repetem todos os meses, na mesma semana.</div>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 12 }}>Tarefas que se repetem todos os meses, na mesma semana.</div>
       <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-4, repeat(4, 1fr))", gap: 16 }}>
         {WEEKS_OF_MONTH.map((week) => (
           <MonthWeekTaskColumn
@@ -6343,7 +6303,7 @@ function MinhasTarefas({ session }) {
   const tasks = (tasksQuery.data || []).filter((t) => t.allocationType === "sem_dia");
 
   if (session.role !== "admin_geral") {
-    return <div style={{ ...sans, fontSize: 13, color: c.mist }}>Só disponível para o Admin Geral.</div>;
+    return <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>Só disponível para o Admin Geral.</div>;
   }
 
   const submitNew = () => {
@@ -6354,7 +6314,7 @@ function MinhasTarefas({ session }) {
 
   return (
     <div style={{ maxWidth: 480 }}>
-      {tasksQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist, marginBottom: 10 }}>A carregar…</div>}
+      {tasksQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist, marginBottom: 10 }}>A carregar…</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 12 }}>
         {tasks.map((t) => (
           <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 4px" }}>
@@ -6367,7 +6327,7 @@ function MinhasTarefas({ session }) {
               ) : (
                 <span style={{ width: 16, height: 16, borderRadius: 999, border: `1.5px solid ${c.line}`, flexShrink: 0 }} />
               )}
-              <span style={{ ...sans, fontSize: 13.5, color: t.done ? c.mist : c.ink, textDecoration: t.done ? "line-through" : "none" }}>
+              <span style={{ ...sans, fontSize: 15, color: t.done ? c.mist : c.ink, textDecoration: t.done ? "line-through" : "none" }}>
                 {t.text}
               </span>
             </button>
@@ -6377,7 +6337,7 @@ function MinhasTarefas({ session }) {
           </div>
         ))}
         {!tasksQuery.isLoading && tasks.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mistLight, padding: "8px 4px" }}>Ainda sem tarefas.</div>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, padding: "8px 4px" }}>Ainda sem tarefas.</div>
         )}
       </div>
       <div style={{ display: "flex", gap: 8 }}>
@@ -6386,11 +6346,11 @@ function MinhasTarefas({ session }) {
           onChange={(e) => setNewText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submitNew()}
           placeholder="Nova tarefa..."
-          style={{ ...sans, flex: 1, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", color: c.ink }}
+          style={{ ...sans, flex: 1, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none", color: c.ink }}
         />
         <button
           onClick={submitNew}
-          style={{ width: 34, height: 34, borderRadius: 8, background: c.boss, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+          style={{ width: 34, height: 34, borderRadius: 6, background: c.boss, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
         >
           <Plus size={15} color="#fff" />
         </button>
@@ -6409,16 +6369,16 @@ function CentroComandoModule({ session }) {
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <Eyebrow>Centro de Comando</Eyebrow>
-      <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: "0 0 22px" }}>
+      <h1 style={{ ...display, fontSize: 30,  color: c.ink, margin: "0 0 22px" }}>
         Visão operacional
       </h1>
-      <div style={{ display: "flex", gap: 4, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 10, padding: 4, marginBottom: 24, width: "fit-content" }}>
+      <div style={{ display: "flex", gap: 4, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 6, padding: 4, marginBottom: 24, width: "fit-content" }}>
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             style={{
-              ...sans, fontSize: 12.5, fontWeight: 600, padding: "8px 14px", borderRadius: 7, border: "none", cursor: "pointer",
+              ...sans, fontSize: 14, fontWeight: 600, padding: "8px 14px", borderRadius: 7, border: "none", cursor: "pointer",
               color: tab === t.key ? "#fff" : c.mist, background: tab === t.key ? c.boss : "transparent",
             }}
           >
@@ -6479,7 +6439,7 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <button
           onClick={onBack}
-          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
         >
           <ArrowLeft size={14} /> {t("kb.eyebrow")}
         </button>
@@ -6489,13 +6449,13 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
               <button
                 onClick={save}
                 disabled={updateArticle.isPending}
-                style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
+                style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "8px 14px", cursor: "pointer" }}
               >
                 {updateArticle.isPending ? t("common.saving") : t("common.save")}
               </button>
               <button
                 onClick={() => setEditing(false)}
-                style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+                style={{ ...sans, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
               >
                 {t("common.cancel")}
               </button>
@@ -6504,7 +6464,7 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
           {canManage && !editing && (
             <button
               onClick={startEditing}
-              style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.ink, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}
+              style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.ink, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 6, padding: "7px 12px", cursor: "pointer" }}
             >
               <Pencil size={13} /> {t("common.edit")}
             </button>
@@ -6512,32 +6472,32 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
           {!editing && (
             <button
               onClick={onDelete}
-              style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}
+              style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 6, padding: "7px 12px", cursor: "pointer" }}
             >
               <Trash2 size={13} /> {t("common.delete")}
             </button>
           )}
         </div>
       </div>
-      <span style={{ ...sans, fontSize: 10.5, fontWeight: 700, color: c.boss, background: c.bossSoft, borderRadius: 6, padding: "3px 8px" }}>
+      <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: c.bossText, background: c.bossSoft, borderRadius: 6, padding: "3px 8px" }}>
         {article.category}
       </span>
       {editing ? (
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          style={{ ...serif, fontSize: 24, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", width: "100%", margin: "12px 0 20px", display: "block" }}
+          style={{ ...display, fontSize: 24, color: c.ink, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none", width: "100%", margin: "12px 0 20px", display: "block" }}
         />
       ) : (
-        <h1 style={{ ...serif, fontSize: 26, fontWeight: 500, color: c.ink, margin: "12px 0 24px" }}>{article.title}</h1>
+        <h1 style={{ ...display, fontSize: 26,  color: c.ink, margin: "12px 0 24px" }}>{article.title}</h1>
       )}
 
       {editing && (
-        <div style={{ background: c.paper, border: `1px solid ${c.line}`, borderRadius: 12, padding: 16, marginBottom: 20 }}>
-          <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.ink, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-            <Sparkles size={13} color={c.boss} /> {t("kb.pasteProcess")}
+        <div style={{ background: c.paper, border: `1px solid ${c.line}`, borderRadius: 3, padding: 16, marginBottom: 20 }}>
+          <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: c.ink, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+            <Sparkles size={13} color={c.bossText} /> {t("kb.pasteProcess")}
           </div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 10, lineHeight: 1.5 }}>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 10, lineHeight: 1.5 }}>
             {t("kb.pasteHelp")}
           </div>
           <textarea
@@ -6545,12 +6505,12 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
             onChange={(e) => setPasteText(e.target.value)}
             rows={5}
             placeholder={t("kb.pastePlaceholder")}
-            style={{ ...sans, fontSize: 13, color: c.ink, width: "100%", border: `1px solid ${c.line}`, borderRadius: 8, padding: "10px 12px", outline: "none", resize: "vertical", marginBottom: 10, boxSizing: "border-box" }}
+            style={{ ...sans, fontSize: 14.5, color: c.ink, width: "100%", border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "10px 12px", outline: "none", resize: "vertical", marginBottom: 10, boxSizing: "border-box" }}
           />
           <button
             onClick={applySplit}
             disabled={!pasteText.trim()}
-            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "#fff", background: pasteText.trim() ? c.boss : c.mistLight, border: "none", borderRadius: 7, padding: "8px 13px", cursor: pasteText.trim() ? "pointer" : "default" }}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, fontWeight: 600, color: "#fff", background: pasteText.trim() ? c.boss : c.mistLight, border: "none", borderRadius: 7, padding: "8px 13px", cursor: pasteText.trim() ? "pointer" : "default" }}
           >
             <Sparkles size={12} /> {t("kb.splitSteps")}
           </button>
@@ -6559,10 +6519,10 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {steps.map((s, i) => (
-          <div key={i} style={{ display: "flex", gap: 14, alignItems: "center", background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 16px" }}>
+          <div key={i} style={{ display: "flex", gap: 14, alignItems: "center", background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 16px" }}>
             <span
               style={{
-                ...sans, fontSize: 11.5, fontWeight: 700, color: c.boss, background: c.bossSoft, borderRadius: 999,
+                ...sans, fontSize: 12.5, fontWeight: 700, color: c.bossText, background: c.bossSoft, borderRadius: 999,
                 width: 22, height: 22, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
               }}
             >
@@ -6573,7 +6533,7 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
                 <input
                   value={s}
                   onChange={(e) => setSteps(steps.map((st, idx) => (idx === i ? e.target.value : st)))}
-                  style={{ ...sans, fontSize: 13.5, color: c.ink, flex: 1, border: `1px solid ${c.line}`, borderRadius: 7, padding: "8px 10px", outline: "none" }}
+                  style={{ ...sans, fontSize: 15, color: c.ink, flex: 1, border: `1px solid ${c.lineStrong}`, borderRadius: 7, padding: "8px 10px", outline: "none" }}
                 />
                 <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
                   <button onClick={() => i > 0 && moveStep(i, i - 1)} disabled={i === 0} style={{ ...iconBtn, opacity: i === 0 ? 0.3 : 1 }}>
@@ -6588,17 +6548,17 @@ function ArticleDetail({ article, onBack, onDelete, session }) {
                 </div>
               </>
             ) : (
-              <span style={{ ...sans, fontSize: 13.5, color: c.ink, lineHeight: 1.6, paddingTop: 1 }}>{s}</span>
+              <span style={{ ...sans, fontSize: 15, color: c.ink, lineHeight: 1.6, paddingTop: 1 }}>{s}</span>
             )}
           </div>
         ))}
-        {steps.length === 0 && <div style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>{t("kb.noSteps")}</div>}
+        {steps.length === 0 && <div style={{ ...sans, fontSize: 14, color: c.mistLight }}>{t("kb.noSteps")}</div>}
       </div>
 
       {editing && (
         <button
           onClick={() => setSteps([...steps, ""])}
-          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: c.boss, background: "none", border: "none", cursor: "pointer", padding: "12px 0 0" }}
+          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, color: c.bossText, background: "none", border: "none", cursor: "pointer", padding: "12px 0 0" }}
         >
           <Plus size={12} /> {t("kb.addStepManual")}
         </button>
@@ -6637,14 +6597,14 @@ function BaseConhecimentoModule({ session }) {
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <Eyebrow>{t("kb.eyebrow")}</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>{t("kb.title")}</h1>
+        <h1 style={{ ...display, fontSize: 30,  color: c.ink, margin: 0 }}>{t("kb.title")}</h1>
         {canManage && (
         <button
           onClick={createArticle}
           disabled={addArticle.isPending}
           style={{
-            ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff",
-            background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer",
+            ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff",
+            background: c.boss, border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer",
           }}
         >
           <Plus size={14} /> {t("kb.new")}
@@ -6652,9 +6612,9 @@ function BaseConhecimentoModule({ session }) {
         )}
       </div>
 
-      {articlesQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>{t("common.loading")}</div>}
+      {articlesQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>{t("common.loading")}</div>}
       {!articlesQuery.isLoading && articles.length === 0 && (
-        <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
+        <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
           {t("kb.empty")}
         </div>
       )}
@@ -6664,7 +6624,7 @@ function BaseConhecimentoModule({ session }) {
           <div
             key={a.id}
             onClick={() => setOpenId(a.id)}
-            style={{ position: "relative", textAlign: "left", background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20, cursor: "pointer" }}
+            style={{ position: "relative", textAlign: "left", background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20, cursor: "pointer" }}
           >
             {canManage && (
             <button
@@ -6674,9 +6634,9 @@ function BaseConhecimentoModule({ session }) {
               <Trash2 size={14} />
             </button>
             )}
-            <BookMarked size={18} color={c.boss} strokeWidth={1.7} />
+            <BookMarked size={18} color={c.bossText} strokeWidth={1.7} />
             <div style={{ ...serif, fontSize: 15, color: c.ink, fontWeight: 500, marginTop: 12 }}>{a.title}</div>
-            <span style={{ ...sans, fontSize: 10, fontWeight: 700, color: c.mist, background: c.paper, borderRadius: 6, padding: "2px 6px", display: "inline-block", marginTop: 8 }}>
+            <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: c.mist, background: c.paper, borderRadius: 6, padding: "2px 6px", display: "inline-block", marginTop: 8 }}>
               {a.category}
             </span>
           </div>
@@ -6703,7 +6663,7 @@ function SlideThumb({ slide, brandingColor }) {
 
 function SlideCanvas({ slide, brandingColor, updateSlide, onImageUpload }) {
   const boxStyle = {
-    background: "#fff", border: `1px solid ${c.line}`, borderRadius: 16, minHeight: 340,
+    background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, minHeight: 340,
     display: "flex", flexDirection: "column", justifyContent: "center", position: "relative", overflow: "hidden",
     padding: "44px 40px",
   };
@@ -6716,7 +6676,7 @@ function SlideCanvas({ slide, brandingColor, updateSlide, onImageUpload }) {
         <input
           value={slide.value}
           onChange={(e) => updateSlide("value", e.target.value)}
-          style={{ ...serif, fontSize: 56, color: brandingColor, border: "none", outline: "none", background: "none", width: "100%", marginBottom: 8 }}
+          style={{ ...display, fontSize: 56, color: brandingColor, border: "none", outline: "none", background: "none", width: "100%", marginBottom: 8 }}
         />
         <input
           value={slide.label}
@@ -6727,7 +6687,7 @@ function SlideCanvas({ slide, brandingColor, updateSlide, onImageUpload }) {
           value={slide.body}
           onChange={(e) => updateSlide("body", e.target.value)}
           rows={2}
-          style={{ ...sans, fontSize: 13, color: c.mist, lineHeight: 1.6, border: "none", outline: "none", background: "none", resize: "vertical", width: "100%", maxWidth: 460 }}
+          style={{ ...sans, fontSize: 14.5, color: c.mist, lineHeight: 1.6, border: "none", outline: "none", background: "none", resize: "vertical", width: "100%", maxWidth: 460 }}
         />
       </div>
     );
@@ -6747,7 +6707,7 @@ function SlideCanvas({ slide, brandingColor, updateSlide, onImageUpload }) {
         <input
           value={slide.author}
           onChange={(e) => updateSlide("author", e.target.value)}
-          style={{ ...sans, fontSize: 12.5, color: c.mist, border: "none", outline: "none", background: "none", textAlign: "center", width: "100%" }}
+          style={{ ...sans, fontSize: 14, color: c.mist, border: "none", outline: "none", background: "none", textAlign: "center", width: "100%" }}
         />
       </div>
     );
@@ -6768,24 +6728,24 @@ function SlideCanvas({ slide, brandingColor, updateSlide, onImageUpload }) {
           {!slide.imageUrl && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
               <Plus size={18} color={c.mist} />
-              <span style={{ ...sans, fontSize: 12, color: c.mist }}>Carregar imagem</span>
+              <span style={{ ...sans, fontSize: 13.5, color: c.mist }}>Carregar imagem</span>
             </div>
           )}
           {slide.imageUrl && (
-            <span style={{ ...sans, fontSize: 11, fontWeight: 600, color: "#fff", background: "rgba(0,0,0,0.45)", borderRadius: 999, padding: "4px 10px" }}>Trocar imagem</span>
+            <span style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: "rgba(0,0,0,0.45)", borderRadius: 999, padding: "4px 10px" }}>Trocar imagem</span>
           )}
         </label>
         <div style={{ padding: "22px 30px" }}>
           <input
             value={slide.heading}
             onChange={(e) => updateSlide("heading", e.target.value)}
-            style={{ ...serif, fontSize: 22, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", marginBottom: 8 }}
+            style={{ ...display, fontSize: 22, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", marginBottom: 8 }}
           />
           <textarea
             value={slide.body}
             onChange={(e) => updateSlide("body", e.target.value)}
             rows={2}
-            style={{ ...sans, fontSize: 13, color: c.mist, lineHeight: 1.6, border: "none", outline: "none", background: "none", resize: "vertical", width: "100%" }}
+            style={{ ...sans, fontSize: 14.5, color: c.mist, lineHeight: 1.6, border: "none", outline: "none", background: "none", resize: "vertical", width: "100%" }}
           />
         </div>
       </div>
@@ -6796,19 +6756,19 @@ function SlideCanvas({ slide, brandingColor, updateSlide, onImageUpload }) {
     return (
       <div style={boxStyle}>
         {accentBar}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, background: c.paper, borderRadius: 10, padding: "10px 14px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, background: c.paper, borderRadius: 6, padding: "10px 14px" }}>
           <Video size={18} color={brandingColor} strokeWidth={1.8} />
           <input
             value={slide.body}
             onChange={(e) => updateSlide("body", e.target.value)}
             placeholder="nome-do-ficheiro.mp4"
-            style={{ ...sans, fontSize: 12.5, color: c.ink, border: "none", outline: "none", background: "none", flex: 1 }}
+            style={{ ...sans, fontSize: 14, color: c.ink, border: "none", outline: "none", background: "none", flex: 1 }}
           />
         </div>
         <input
           value={slide.heading}
           onChange={(e) => updateSlide("heading", e.target.value)}
-          style={{ ...serif, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none", width: "100%" }}
+          style={{ ...display, fontSize: 24, color: c.ink, border: "none", outline: "none", background: "none", width: "100%" }}
         />
       </div>
     );
@@ -6821,23 +6781,23 @@ function SlideCanvas({ slide, brandingColor, updateSlide, onImageUpload }) {
         <input
           value={slide.heading}
           onChange={(e) => updateSlide("heading", e.target.value)}
-          style={{ ...serif, fontSize: 22, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", marginBottom: 18 }}
+          style={{ ...display, fontSize: 22, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", marginBottom: 18 }}
         />
         <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-2, 1fr 1fr)", gap: 14 }}>
-          <div style={{ background: c.paper, borderRadius: 10, padding: "16px 18px" }}>
+          <div style={{ background: c.paper, borderRadius: 6, padding: "16px 18px" }}>
             <div style={{ width: 8, height: 8, borderRadius: 999, background: brandingColor, marginBottom: 10 }} />
             <input
               value={slide.leftLabel}
               onChange={(e) => updateSlide("leftLabel", e.target.value)}
-              style={{ ...sans, fontSize: 13, fontWeight: 600, color: c.ink, border: "none", outline: "none", background: "none", width: "100%" }}
+              style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink, border: "none", outline: "none", background: "none", width: "100%" }}
             />
           </div>
-          <div style={{ background: c.paper, borderRadius: 10, padding: "16px 18px" }}>
+          <div style={{ background: c.paper, borderRadius: 6, padding: "16px 18px" }}>
             <div style={{ width: 8, height: 8, borderRadius: 999, background: brandingColor, marginBottom: 10 }} />
             <input
               value={slide.rightLabel}
               onChange={(e) => updateSlide("rightLabel", e.target.value)}
-              style={{ ...sans, fontSize: 13, fontWeight: 600, color: c.ink, border: "none", outline: "none", background: "none", width: "100%" }}
+              style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink, border: "none", outline: "none", background: "none", width: "100%" }}
             />
           </div>
         </div>
@@ -6853,19 +6813,19 @@ function SlideCanvas({ slide, brandingColor, updateSlide, onImageUpload }) {
       <input
         value={slide.heading}
         onChange={(e) => updateSlide("heading", e.target.value)}
-        style={{ ...serif, fontSize: 30, color: c.ink, marginBottom: 6, maxWidth: 560, border: "none", outline: "none", background: "none", width: "100%" }}
+        style={{ ...display, fontSize: 30, color: c.ink, marginBottom: 6, maxWidth: 560, border: "none", outline: "none", background: "none", width: "100%" }}
       />
       <input
         value={slide.subheading || ""}
         onChange={(e) => updateSlide("subheading", e.target.value)}
         placeholder="Subtítulo (opcional)"
-        style={{ ...sans, fontSize: 14, fontWeight: 600, color: brandingColor, marginBottom: 14, border: "none", outline: "none", background: "none", width: "100%" }}
+        style={{ ...sans, fontSize: 15, fontWeight: 600, color: brandingColor, marginBottom: 14, border: "none", outline: "none", background: "none", width: "100%" }}
       />
       <textarea
         value={slide.body}
         onChange={(e) => updateSlide("body", e.target.value)}
         rows={2}
-        style={{ ...sans, fontSize: 14, color: c.mist, maxWidth: 480, lineHeight: 1.6, border: "none", outline: "none", background: "none", resize: "vertical", width: "100%" }}
+        style={{ ...sans, fontSize: 15, color: c.mist, maxWidth: 480, lineHeight: 1.6, border: "none", outline: "none", background: "none", resize: "vertical", width: "100%" }}
       />
     </div>
   );
@@ -6941,7 +6901,7 @@ function PortfolioViewer({ deck: initial, onBack }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
         <button
           onClick={onBack}
-          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
         >
           <ArrowLeft size={14} /> Portfólio
         </button>
@@ -6955,25 +6915,25 @@ function PortfolioViewer({ deck: initial, onBack }) {
             type="color"
             value={deck.brandingColor}
             onChange={(e) => onChange((d) => ({ ...d, brandingColor: e.target.value }))}
-            style={{ width: 30, height: 30, border: `1px solid ${c.line}`, borderRadius: 7, cursor: "pointer", padding: 2 }}
+            style={{ width: 30, height: 30, border: `1px solid ${c.lineStrong}`, borderRadius: 7, cursor: "pointer", padding: 2 }}
           />
           <button
             onClick={() => updateDeck.mutate(deck)}
             disabled={updateDeck.isPending}
-            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "7px 14px", cursor: "pointer" }}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "7px 14px", cursor: "pointer" }}
           >
             {updateDeck.isPending ? "A guardar…" : "Guardar"}
           </button>
           <button
             onClick={() => deleteDeck.mutate(deck.id, { onSuccess: onBack })}
-            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 6, padding: "7px 12px", cursor: "pointer" }}
           >
             <Trash2 size={13} /> Eliminar
           </button>
         </div>
       </div>
-      {error && <div style={{ ...sans, fontSize: 12, color: c.rose, marginBottom: 10 }}>{error}</div>}
-      {uploading && <div style={{ ...sans, fontSize: 12, color: c.mist, marginBottom: 10 }}>A carregar imagem…</div>}
+      {error && <div style={{ ...sans, fontSize: 13.5, color: c.rose, marginBottom: 10 }}>{error}</div>}
+      {uploading && <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginBottom: 10 }}>A carregar imagem…</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "var(--bb-split, 130px 1fr)", gap: 18 }}>
         {/* trilho de miniaturas */}
@@ -6983,8 +6943,8 @@ function PortfolioViewer({ deck: initial, onBack }) {
               <button
                 onClick={() => setI(idx)}
                 style={{
-                  width: 92, height: 62, borderRadius: 8, cursor: "pointer", padding: 0,
-                  background: "#fff", border: idx === i ? `2px solid ${deck.brandingColor}` : `1px solid ${c.line}`,
+                  width: 92, height: 62, borderRadius: 6, cursor: "pointer", padding: 0,
+                  background: c.folha, border: idx === i ? `2px solid ${deck.brandingColor}` : `1px solid ${c.line}`,
                 }}
               >
                 <SlideThumb slide={s} brandingColor={deck.brandingColor} />
@@ -7005,7 +6965,7 @@ function PortfolioViewer({ deck: initial, onBack }) {
           <button
             onClick={() => setPickingLayout((v) => !v)}
             style={{
-              width: 92, height: 62, borderRadius: 8, cursor: "pointer", border: `1.5px dashed ${c.line}`, background: c.paper,
+              width: 92, height: 62, borderRadius: 6, cursor: "pointer", border: `1.5px dashed ${c.line}`, background: c.paper,
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3,
             }}
           >
@@ -7017,7 +6977,7 @@ function PortfolioViewer({ deck: initial, onBack }) {
         {/* canvas */}
         <div>
           {pickingLayout && (
-            <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: 12 }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 12 }}>
               {SLIDE_LAYOUTS.map((l) => {
                 const LIcon = l.icon;
                 return (
@@ -7025,8 +6985,8 @@ function PortfolioViewer({ deck: initial, onBack }) {
                     key={l.key}
                     onClick={() => addSlide(l.key)}
                     style={{
-                      ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: c.ink,
-                      background: c.paper, border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 11px", cursor: "pointer",
+                      ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, color: c.ink,
+                      background: c.paper, border: `1px solid ${c.line}`, borderRadius: 6, padding: "7px 11px", cursor: "pointer",
                     }}
                   >
                     <LIcon size={13} color={deck.brandingColor} /> {l.label}
@@ -7042,7 +7002,7 @@ function PortfolioViewer({ deck: initial, onBack }) {
                 key={l.key}
                 onClick={() => changeSlideType(l.key)}
                 style={{
-                  ...sans, fontSize: 10.5, fontWeight: 600, borderRadius: 999, padding: "3px 9px", border: "none", cursor: "pointer",
+                  ...sans, fontSize: 12.5, fontWeight: 600, borderRadius: 999, padding: "3px 9px", border: "none", cursor: "pointer",
                   color: slide.type === l.key ? "#fff" : c.mist,
                   background: slide.type === l.key ? deck.brandingColor : c.paper,
                 }}
@@ -7058,17 +7018,17 @@ function PortfolioViewer({ deck: initial, onBack }) {
             <button
               onClick={() => setI((p) => Math.max(0, p - 1))}
               disabled={i === 0}
-              style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: i === 0 ? c.mistLight : c.boss, background: "none", border: "none", cursor: i === 0 ? "default" : "pointer" }}
+              style={{ ...sans, fontSize: 14, fontWeight: 600, color: i === 0 ? c.mistLight : c.bossText, background: "none", border: "none", cursor: i === 0 ? "default" : "pointer" }}
             >
               ← Anterior
             </button>
-            <span style={{ ...sans, fontSize: 11.5, color: c.mist }}>{i + 1} / {deck.slides.length}</span>
+            <span style={{ ...sans, fontSize: 12.5, color: c.mist }}>{i + 1} / {deck.slides.length}</span>
             <button
               onClick={() => setI((p) => Math.min(deck.slides.length - 1, p + 1))}
               disabled={i === deck.slides.length - 1}
-              style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: i === deck.slides.length - 1 ? c.mistLight : c.boss, background: "none", border: "none", cursor: i === deck.slides.length - 1 ? "default" : "pointer" }}
+              style={{ ...sans, fontSize: 14, fontWeight: 600, color: i === deck.slides.length - 1 ? c.mistLight : c.bossText, background: "none", border: "none", cursor: i === deck.slides.length - 1 ? "default" : "pointer" }}
             >
-              Seguinte →
+              Seguinte
             </button>
           </div>
         </div>
@@ -7117,12 +7077,12 @@ function PortfolioModule({ session }) {
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <Eyebrow>Portfólio</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>Apresentações</h1>
+        <h1 style={{ ...display, fontSize: 30,  color: c.ink, margin: 0 }}>Apresentações</h1>
         <div style={{ display: "flex", gap: 8 }}>
           <label
             style={{
-              ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: c.boss,
-              background: c.bossSoft, border: "none", borderRadius: 8, padding: "9px 14px", cursor: "pointer",
+              ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: c.bossText,
+              background: c.bossSoft, border: "none", borderRadius: 6, padding: "9px 14px", cursor: "pointer",
             }}
           >
             <input type="file" accept=".pdf,.ppt,.pptx,.key" onChange={onUploadDeck} style={{ display: "none" }} />
@@ -7132,26 +7092,26 @@ function PortfolioModule({ session }) {
             onClick={createDeck}
             disabled={addDeck.isPending}
             style={{
-              ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff",
-              background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer",
+              ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff",
+              background: c.boss, border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer",
             }}
           >
             <Plus size={14} /> Nova apresentação
           </button>
         </div>
       </div>
-      <div style={{ ...sans, fontSize: 12, color: c.mist, marginBottom: 20, maxWidth: 560, lineHeight: 1.6 }}>
+      <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginBottom: 20, maxWidth: 560, lineHeight: 1.6 }}>
         Cria uma apresentação do zero, com o teu branding — ou carrega uma que já tenhas para a recriares aqui dentro.
       </div>
 
-      {decksQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
+      {decksQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A carregar…</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-3, repeat(3, 1fr))", gap: 14 }}>
         {decks.map((d) => (
           <div
             key={d.id}
             onClick={() => setOpenId(d.id)}
-            style={{ position: "relative", textAlign: "left", background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20, cursor: "pointer" }}
+            style={{ position: "relative", textAlign: "left", background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20, cursor: "pointer" }}
           >
             <button
               onClick={(e) => { e.stopPropagation(); deleteDeck.mutate(d.id); }}
@@ -7159,11 +7119,11 @@ function PortfolioModule({ session }) {
             >
               <Trash2 size={14} />
             </button>
-            <div style={{ width: 34, height: 34, borderRadius: 9, background: `${d.brandingColor}1A`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 6, background: `${d.brandingColor}1A`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
               <Layers size={16} color={d.brandingColor} strokeWidth={1.8} />
             </div>
             <div style={{ ...serif, fontSize: 15, color: c.ink, fontWeight: 500 }}>{d.title}</div>
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 4 }}>{d.slides.length} slides</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 4 }}>{d.slides.length} slides</div>
           </div>
         ))}
       </div>
@@ -7253,9 +7213,9 @@ function LinkPageQuiz({ quiz, products, onExit }) {
   }
 
   return (
-    <div style={{ background: "#fff", borderRadius: 14, padding: "16px 14px", width: "100%" }}>
+    <div style={{ background: c.folha, borderRadius: 3, padding: "16px 14px", width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <span style={{ ...sans, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: c.boss }}>{quiz.title}</span>
+        <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: c.bossText }}>{quiz.title}</span>
         <button onClick={onExit} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 0 }}>
           <XCircle size={14} />
         </button>
@@ -7263,19 +7223,19 @@ function LinkPageQuiz({ quiz, products, onExit }) {
 
       {!isResult && (
         <div>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, marginBottom: 12, lineHeight: 1.4 }}>{quiz.questions[step].text}</div>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 12, lineHeight: 1.4 }}>{quiz.questions[step].text}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {quiz.questions[step].options.map((opt) => (
               <button
                 key={opt.id}
                 onClick={() => answer(opt.productId)}
-                style={{ ...sans, fontSize: 12.5, color: c.ink, background: c.paper, border: "none", borderRadius: 8, padding: "9px 12px", cursor: "pointer", textAlign: "left" }}
+                style={{ ...sans, fontSize: 14, color: c.ink, background: c.paper, border: "none", borderRadius: 6, padding: "9px 12px", cursor: "pointer", textAlign: "left" }}
               >
                 {opt.label}
               </button>
             ))}
           </div>
-          <div style={{ ...sans, fontSize: 10, color: c.mistLight, marginTop: 10, textAlign: "center" }}>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mistLight, marginTop: 10, textAlign: "center" }}>
             {step + 1} / {quiz.questions.length}
           </div>
         </div>
@@ -7285,22 +7245,22 @@ function LinkPageQuiz({ quiz, products, onExit }) {
         <div style={{ textAlign: "center" }}>
           {winner ? (
             <>
-              <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 4 }}>Recomendamos-te:</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 4 }}>Recomendamos-te:</div>
               <div style={{ ...serif, fontSize: 17, color: c.ink, marginBottom: 12 }}>{winner.name}</div>
               <a
                 href={winner.linkUrl || "#"}
                 target="_blank"
                 rel="noreferrer"
-                style={{ ...sans, display: "inline-block", fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, borderRadius: 999, padding: "9px 18px", textDecoration: "none" }}
+                style={{ ...sans, display: "inline-block", fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, borderRadius: 999, padding: "9px 18px", textDecoration: "none" }}
               >
                 {quizLinkLabel(winner)}
               </a>
             </>
           ) : (
-            <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>Não foi possível gerar uma recomendação.</div>
+            <div style={{ ...sans, fontSize: 14, color: c.mist }}>Não foi possível gerar uma recomendação.</div>
           )}
           <div>
-            <button onClick={onExit} style={{ ...sans, fontSize: 11, color: c.mistLight, background: "none", border: "none", cursor: "pointer", marginTop: 12 }}>
+            <button onClick={onExit} style={{ ...sans, fontSize: 12.5, color: c.mistLight, background: "none", border: "none", cursor: "pointer", marginTop: 12 }}>
               ‹ Voltar
             </button>
           </div>
@@ -7322,8 +7282,7 @@ function LinkBlockPill({ block, pillCss, layout }) {
         {...linkProps}
         style={{
           position: "relative", aspectRatio: "1", borderRadius: pillCss.borderRadius, overflow: "hidden",
-          background: block.imageUrl ? `url(${block.imageUrl}) center/cover` : pillCss.background,
-          boxShadow: pillCss.boxShadow, display: "flex", alignItems: "flex-end", textDecoration: "none",
+          background: block.imageUrl ? `url(${block.imageUrl}) center/cover` : pillCss.background, boxShadow: pillCss.boxShadow, display: "flex", alignItems: "flex-end", textDecoration: "none",
           opacity: hasUrl ? 1 : 0.6,
         }}
       >
@@ -7331,13 +7290,13 @@ function LinkBlockPill({ block, pillCss, layout }) {
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.65) 100%)" }} />
         )}
         <span style={{ position: "relative", ...sans, padding: "12px", textAlign: "center", width: "100%" }}>
-          <span style={{ display: "block", fontFamily: `'${pillCss.titleFont}', sans-serif`, fontSize: 12.5, fontWeight: pillCss.titleWeight, color: block.imageUrl ? "#fff" : pillCss.color, lineHeight: 1.25 }}>
+          <span style={{ display: "block", fontFamily: `'${pillCss.titleFont}', sans-serif`, fontSize: 14, fontWeight: pillCss.titleWeight, color: block.imageUrl ? "#fff" : pillCss.color, lineHeight: 1.25 }}>
             {block.label}
           </span>
           {block.caption && (
             <span
               style={{
-                display: "block", fontFamily: `'${pillCss.captionFont}', sans-serif`, fontSize: 10, fontWeight: pillCss.captionWeight, marginTop: 3, lineHeight: 1.3,
+                display: "block", fontFamily: `'${pillCss.captionFont}', sans-serif`, fontSize: 12.5, fontWeight: pillCss.captionWeight, marginTop: 3, lineHeight: 1.3,
                 color: block.imageUrl ? "rgba(255,255,255,0.85)" : pillCss.color, opacity: 0.8,
               }}
             >
@@ -7372,12 +7331,12 @@ function LinkBlockPill({ block, pillCss, layout }) {
         </span>
       )}
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: "block", fontFamily: `'${pillCss.titleFont}', sans-serif`, fontSize: 14, fontWeight: pillCss.titleWeight, lineHeight: 1.25 }}>
+        <span style={{ display: "block", fontFamily: `'${pillCss.titleFont}', sans-serif`, fontSize: 15, fontWeight: pillCss.titleWeight, lineHeight: 1.25 }}>
           {block.label}
-          {!hasUrl && <span style={{ fontSize: 10, fontWeight: 500 }}> (sem link)</span>}
+          {!hasUrl && <span style={{ fontSize: 12.5, fontWeight: 500 }}> (sem link)</span>}
         </span>
         {block.caption && (
-          <span style={{ display: "block", fontFamily: `'${pillCss.captionFont}', sans-serif`, fontSize: 11.5, fontWeight: pillCss.captionWeight, opacity: 0.75, marginTop: 2, lineHeight: 1.3 }}>
+          <span style={{ display: "block", fontFamily: `'${pillCss.captionFont}', sans-serif`, fontSize: 12.5, fontWeight: pillCss.captionWeight, opacity: 0.75, marginTop: 2, lineHeight: 1.3 }}>
             {block.caption}
           </span>
         )}
@@ -7450,7 +7409,7 @@ function LinkPagePreview({ page, fullPage }) {
               <button
                 onClick={() => setQuizOpen(true)}
                 style={{
-                  background: "#fff", borderRadius: 10, padding: "10px 12px", ...sans, fontSize: 11, color: c.boss, textAlign: "center",
+                  background: c.folha, borderRadius: 6, padding: "10px 12px", ...sans, fontSize: 12.5, color: c.bossText, textAlign: "center",
                   fontWeight: 700, marginTop: 4, border: "none", cursor: "pointer", width: "100%",
                   gridColumn: layout === "grelha" ? "1 / -1" : undefined,
                 }}
@@ -7495,12 +7454,12 @@ function NewLinkPageForm({ session, brands, onDone }) {
   };
 
   return (
-    <form onSubmit={submit} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: 18, marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+    <form onSubmit={submit} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 18, marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <select
           value={ownerChoice}
           onChange={(e) => setOwnerChoice(e.target.value)}
-          style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px" }}
+          style={{ ...sans, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 10px" }}
         >
           <option value="agency">Para a agência</option>
           {brands.map((b) => (
@@ -7511,15 +7470,15 @@ function NewLinkPageForm({ session, brands, onDone }) {
           value={slug}
           onChange={(e) => setSlug(e.target.value)}
           placeholder="slug (ex: harmoniae)"
-          style={{ ...sans, flex: 1, minWidth: 160, fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px" }}
+          style={{ ...sans, flex: 1, minWidth: 160, fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px" }}
         />
       </div>
-      {error && <div style={{ ...sans, fontSize: 12, color: c.rose }}>{error}</div>}
+      {error && <div style={{ ...sans, fontSize: 13.5, color: c.rose }}>{error}</div>}
       <div style={{ display: "flex", gap: 8 }}>
-        <button type="submit" disabled={addLinkPage.isPending} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}>
+        <button type="submit" disabled={addLinkPage.isPending} style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer" }}>
           {addLinkPage.isPending ? "A criar…" : "Criar"}
         </button>
-        <button type="button" onClick={onDone} style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
+        <button type="button" onClick={onDone} style={{ ...sans, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
           Cancelar
         </button>
       </div>
@@ -7556,43 +7515,43 @@ function LinkNaBioModule({ session }) {
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <Eyebrow>Link na Bio</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>As tuas páginas</h1>
+        <h1 style={{ ...display, fontSize: 30,  color: c.ink, margin: 0 }}>As tuas páginas</h1>
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
-            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer" }}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer" }}
           >
             <Plus size={14} /> Nova página
           </button>
         )}
       </div>
-      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 20, maxWidth: 600, lineHeight: 1.6 }}>
+      <div style={{ ...sans, fontSize: 14, color: c.mist, marginBottom: 20, maxWidth: 600, lineHeight: 1.6 }}>
         Uma página para a tua agência, e uma por cada marca/cliente — cada uma com o seu próprio link. Só a equipa cria e edita; o cliente nunca precisa de acesso para isto.
       </div>
 
       {showForm && <NewLinkPageForm session={session} brands={brands} onDone={() => setShowForm(false)} />}
 
-      {pagesQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
+      {pagesQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A carregar…</div>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {pages.map((p) => (
           <div
             key={p.id}
             onClick={() => setOpenId(p.id)}
-            style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px", cursor: "pointer" }}
+            style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px", cursor: "pointer" }}
           >
-            <div style={{ width: 34, height: 34, borderRadius: 9, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Link2 size={16} color={c.boss} strokeWidth={1.8} />
+            <div style={{ width: 34, height: 34, borderRadius: 6, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Link2 size={16} color={c.bossText} strokeWidth={1.8} />
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ ...serif, fontSize: 15, color: c.ink, fontWeight: 500 }}>{ownerLabel(p)}</div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>{publicLinkPageUrl(p.slug)}</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>{publicLinkPageUrl(p.slug)}</div>
             </div>
             <ChevronRight size={16} color={c.mist} />
           </div>
         ))}
         {!pagesQuery.isLoading && pages.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
             Ainda sem páginas — cria a primeira acima.
           </div>
         )}
@@ -7748,43 +7707,43 @@ function LinkNaBioEditor({ initialPage, onBack }) {
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1080 }}>
       <button
         onClick={onBack}
-        style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}
+        style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}
       >
         <ArrowLeft size={14} /> Link na Bio
       </button>
       <Eyebrow>Link na Bio</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>{page.ownerName}</h1>
+        <h1 style={{ ...display, fontSize: 30,  color: c.ink, margin: 0 }}>{page.ownerName}</h1>
         <div style={{ display: "flex", gap: 8 }}>
           <button
             onClick={save}
             disabled={saveLinkPage.isPending}
-            style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer" }}
+            style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer" }}
           >
             {saveLinkPage.isPending ? "A guardar…" : "Guardar"}
           </button>
           <button
             onClick={() => deleteLinkPage.mutate(page.id, { onSuccess: onBack })}
-            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 14px", cursor: "pointer" }}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 6, padding: "9px 14px", cursor: "pointer" }}
           >
             <Trash2 size={13} /> Eliminar
           </button>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-        <span style={{ ...sans, fontSize: 12, color: c.mist }}>{publicLinkPageUrl(page.slug)}</span>
+        <span style={{ ...sans, fontSize: 13.5, color: c.mist }}>{publicLinkPageUrl(page.slug)}</span>
         <button
           type="button"
           onClick={copyLink}
-          style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, color: copied ? c.sage : c.boss, background: copied ? "#E7F5EC" : c.bossSoft, border: "none", borderRadius: 6, padding: "4px 9px", cursor: "pointer" }}
+          style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 600, color: copied ? c.sage : c.bossText, background: copied ? c.sageSoft : c.bossSoft, border: "none", borderRadius: 6, padding: "4px 9px", cursor: "pointer" }}
         >
           {copied ? <CheckCircle2 size={12} /> : <Link2 size={12} />}
           {copied ? "Copiado!" : "Copiar link"}
         </button>
       </div>
-      {error && <div style={{ ...sans, fontSize: 12, color: c.rose, marginBottom: 16 }}>{error}</div>}
-      {saved && <div style={{ ...sans, fontSize: 12, color: c.sage, marginBottom: 16 }}>Alterações guardadas.</div>}
-      {uploading && <div style={{ ...sans, fontSize: 12, color: c.mist, marginBottom: 16 }}>A carregar imagem…</div>}
+      {error && <div style={{ ...sans, fontSize: 13.5, color: c.rose, marginBottom: 16 }}>{error}</div>}
+      {saved && <div style={{ ...sans, fontSize: 13.5, color: c.sage, marginBottom: 16 }}>Alterações guardadas.</div>}
+      {uploading && <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginBottom: 16 }}>A carregar imagem…</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "var(--bb-split, 300px 1fr)", gap: 28 }}>
         {/* pré-visualização em tempo real */}
@@ -7810,16 +7769,16 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                 {!page.avatarUrl && <Plus size={16} color={c.mist} />}
               </label>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <span style={{ ...sans, fontSize: 12, color: c.mist }}>
+                <span style={{ ...sans, fontSize: 13.5, color: c.mist }}>
                   {page.avatarUrl ? "Carrega em cima para trocar a foto." : "Carrega uma foto para o avatar da página."}
                 </span>
                 {page.avatarUrl && (
                   <button
                     onClick={() => setPage((p) => ({ ...p, avatarBgRemoved: !p.avatarBgRemoved }))}
                     style={{
-                      ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, width: "fit-content",
-                      color: page.avatarBgRemoved ? "#fff" : c.boss, background: page.avatarBgRemoved ? c.boss : c.bossSoft,
-                      border: "none", borderRadius: 8, padding: "7px 12px", cursor: "pointer",
+                      ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, fontWeight: 600, width: "fit-content",
+                      color: page.avatarBgRemoved ? "#fff" : c.bossText, background: page.avatarBgRemoved ? c.boss : c.bossSoft,
+                      border: "none", borderRadius: 6, padding: "7px 12px", cursor: "pointer",
                     }}
                   >
                     <Sparkles size={13} /> {page.avatarBgRemoved ? "Fundo removido ✓" : "Remover fundo da foto"}
@@ -7835,12 +7794,12 @@ function LinkNaBioEditor({ initialPage, onBack }) {
               value={page.displayName}
               onChange={(e) => setPage((p) => ({ ...p, displayName: e.target.value }))}
               placeholder={page.ownerName}
-              style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink }}
+              style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink }}
             />
           </ChartCard>
 
           <ChartCard title="Foto e fundo" sub="Otimiza o visual da página">
-            <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 8, padding: 3, marginBottom: 14, width: "fit-content" }}>
+            <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 6, padding: 3, marginBottom: 14, width: "fit-content" }}>
               {[
                 { key: "gradient", label: "Gradiente" },
                 { key: "color", label: "Cor" },
@@ -7850,7 +7809,7 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                   key={t.key}
                   onClick={() => { setBgTab(t.key); updateBg({ type: t.key }); }}
                   style={{
-                    ...sans, fontSize: 11.5, fontWeight: 600, padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer",
+                    ...sans, fontSize: 12.5, fontWeight: 600, padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer",
                     color: bgTab === t.key ? "#fff" : c.mist, background: bgTab === t.key ? c.boss : "transparent",
                   }}
                 >
@@ -7867,24 +7826,24 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                       key={i}
                       onClick={() => updateBg({ gradientFrom: from, gradientTo: to })}
                       style={{
-                        width: 32, height: 32, borderRadius: 9, background: `linear-gradient(135deg, ${from}, ${to})`, cursor: "pointer",
+                        width: 32, height: 32, borderRadius: 6, background: `linear-gradient(135deg, ${from}, ${to})`, cursor: "pointer",
                         border: page.bg.gradientFrom === from && page.bg.gradientTo === to ? `2px solid ${c.ink}` : "2px solid transparent",
                       }}
                     />
                   ))}
                 </div>
-                <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 8 }}>Ou escolhe as tuas próprias cores</div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 8 }}>Ou escolhe as tuas próprias cores</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <input type="color" value={page.bg.gradientFrom} onChange={(e) => updateBg({ gradientFrom: e.target.value })} style={{ width: 34, height: 30, border: `1px solid ${c.line}`, borderRadius: 6, cursor: "pointer", padding: 2 }} />
-                    <span style={{ ...sans, fontSize: 11, color: c.mist }}>Início</span>
+                    <input type="color" value={page.bg.gradientFrom} onChange={(e) => updateBg({ gradientFrom: e.target.value })} style={{ width: 34, height: 30, border: `1px solid ${c.lineStrong}`, borderRadius: 6, cursor: "pointer", padding: 2 }} />
+                    <span style={{ ...sans, fontSize: 12.5, color: c.mist }}>Início</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <input type="color" value={page.bg.gradientTo} onChange={(e) => updateBg({ gradientTo: e.target.value })} style={{ width: 34, height: 30, border: `1px solid ${c.line}`, borderRadius: 6, cursor: "pointer", padding: 2 }} />
-                    <span style={{ ...sans, fontSize: 11, color: c.mist }}>Fim</span>
+                    <input type="color" value={page.bg.gradientTo} onChange={(e) => updateBg({ gradientTo: e.target.value })} style={{ width: 34, height: 30, border: `1px solid ${c.lineStrong}`, borderRadius: 6, cursor: "pointer", padding: 2 }} />
+                    <span style={{ ...sans, fontSize: 12.5, color: c.mist }}>Fim</span>
                   </div>
                 </div>
-                <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 6 }}>Ângulo — {page.bg.gradientAngle}°</div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Ângulo — {page.bg.gradientAngle}°</div>
                 <input
                   type="range" min="0" max="360" step="5"
                   value={page.bg.gradientAngle}
@@ -7900,9 +7859,9 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                   type="color"
                   value={page.bg.colorValue}
                   onChange={(e) => updateBg({ colorValue: e.target.value })}
-                  style={{ width: 44, height: 36, border: `1px solid ${c.line}`, borderRadius: 8, cursor: "pointer", padding: 2 }}
+                  style={{ width: 44, height: 36, border: `1px solid ${c.lineStrong}`, borderRadius: 6, cursor: "pointer", padding: 2 }}
                 />
-                <span style={{ ...sans, fontSize: 12, color: c.mist }}>Escolhe qualquer cor sólida de fundo</span>
+                <span style={{ ...sans, fontSize: 13.5, color: c.mist }}>Escolhe qualquer cor sólida de fundo</span>
               </div>
             )}
 
@@ -7910,7 +7869,7 @@ function LinkNaBioEditor({ initialPage, onBack }) {
               <div>
                 <label
                   style={{
-                    height: page.bg.photoUrl ? 90 : 64, borderRadius: 12, border: `1.5px dashed ${c.line}`,
+                    height: page.bg.photoUrl ? 90 : 64, borderRadius: 3, border: `1.5px dashed ${c.line}`,
                     background: page.bg.photoUrl ? `url(${page.bg.photoUrl}) center/cover` : c.paper,
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", position: "relative", overflow: "hidden",
                   }}
@@ -7919,11 +7878,11 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                   {!page.bg.photoUrl && (
                     <>
                       <Plus size={15} color={c.mist} />
-                      <span style={{ ...sans, fontSize: 12, color: c.mist }}>Carregar foto de fundo</span>
+                      <span style={{ ...sans, fontSize: 13.5, color: c.mist }}>Carregar foto de fundo</span>
                     </>
                   )}
                   {page.bg.photoUrl && (
-                    <span style={{ ...sans, fontSize: 11, fontWeight: 600, color: "#fff", background: "rgba(0,0,0,0.45)", borderRadius: 999, padding: "4px 10px" }}>
+                    <span style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: "rgba(0,0,0,0.45)", borderRadius: 999, padding: "4px 10px" }}>
                       Trocar foto
                     </span>
                   )}
@@ -7932,12 +7891,12 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                 {page.bg.photoUrl && (
                   <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${c.line}` }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                      <span style={{ ...sans, fontSize: 12, fontWeight: 600, color: c.ink }}>Gradiente por cima da foto</span>
+                      <span style={{ ...sans, fontSize: 13.5, fontWeight: 600, color: c.ink }}>Gradiente por cima da foto</span>
                       <button
                         onClick={() => updateOverlay({ enabled: !page.bg.overlay.enabled })}
                         style={{
-                          ...sans, fontSize: 11, fontWeight: 600, color: page.bg.overlay.enabled ? c.sage : c.mist,
-                          background: page.bg.overlay.enabled ? "#E7F5EC" : c.paper, border: "none", borderRadius: 999, padding: "4px 10px", cursor: "pointer",
+                          ...sans, fontSize: 12.5, fontWeight: 600, color: page.bg.overlay.enabled ? c.sage : c.mist,
+                          background: page.bg.overlay.enabled ? c.sageSoft : c.paper, border: "none", borderRadius: 999, padding: "4px 10px", cursor: "pointer",
                         }}
                       >
                         {page.bg.overlay.enabled ? "Ativo" : "Inativo"}
@@ -7955,7 +7914,7 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                               key={d.key}
                               onClick={() => updateOverlay({ direction: d.key })}
                               style={{
-                                ...sans, fontSize: 11, fontWeight: 600, padding: "6px 10px", borderRadius: 7, cursor: "pointer",
+                                ...sans, fontSize: 12.5, fontWeight: 600, padding: "6px 10px", borderRadius: 7, cursor: "pointer",
                                 color: page.bg.overlay.direction === d.key ? "#fff" : c.mist,
                                 background: page.bg.overlay.direction === d.key ? c.boss : c.paper,
                                 border: "none",
@@ -7965,7 +7924,7 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                             </button>
                           ))}
                         </div>
-                        <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 6 }}>Intensidade — {page.bg.overlay.intensity}%</div>
+                        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Intensidade — {page.bg.overlay.intensity}%</div>
                         <input
                           type="range" min="0" max="90" step="5"
                           value={page.bg.overlay.intensity}
@@ -7985,7 +7944,7 @@ function LinkNaBioEditor({ initialPage, onBack }) {
               value={page.about}
               onChange={(e) => setPage((p) => ({ ...p, about: e.target.value }))}
               rows={2}
-              style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
+              style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink, resize: "vertical" }}
             />
           </ChartCard>
 
@@ -7996,7 +7955,7 @@ function LinkNaBioEditor({ initialPage, onBack }) {
               <button
                 onClick={() => setAddingBlock((v) => !v)}
                 style={{
-                  ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#fff",
+                  ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 13.5, fontWeight: 600, color: "#fff",
                   background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer",
                 }}
               >
@@ -8013,11 +7972,11 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                       key={bt.type}
                       onClick={() => addBlock(bt.type)}
                       style={{
-                        ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: c.ink,
-                        background: c.paper, border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 11px", cursor: "pointer",
+                        ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, color: c.ink,
+                        background: c.paper, border: `1px solid ${c.line}`, borderRadius: 6, padding: "7px 11px", cursor: "pointer",
                       }}
                     >
-                      <Icon size={13} color={c.boss} /> {bt.label}
+                      <Icon size={13} color={c.bossText} /> {bt.label}
                     </button>
                   );
                 })}
@@ -8025,14 +7984,14 @@ function LinkNaBioEditor({ initialPage, onBack }) {
             )}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {page.blocks.map((b, i) => (
-                <div key={b.id} style={{ background: c.paper, borderRadius: 8, padding: "7px 8px 7px 12px" }}>
+                <div key={b.id} style={{ background: c.paper, borderRadius: 6, padding: "7px 8px 7px 12px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <input
                       value={b.label}
                       onChange={(e) => renameBlock(b.id, e.target.value)}
-                      style={{ ...sans, flex: 1, fontSize: 12.5, color: c.ink, background: "none", border: "none", outline: "none" }}
+                      style={{ ...sans, flex: 1, fontSize: 14, color: c.ink, background: "none", border: "none", outline: "none" }}
                     />
-                    <span style={{ ...sans, fontSize: 9.5, fontWeight: 700, color: c.mist, textTransform: "uppercase", flexShrink: 0 }}>{b.type}</span>
+                    <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: c.mist, flexShrink: 0 }}>{b.type}</span>
                     <button onClick={() => moveBlock(b.id, -1)} disabled={i === 0} style={{ background: "none", border: "none", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? c.line : c.mist, padding: 2 }}>
                       <ChevronUp size={13} />
                     </button>
@@ -8049,7 +8008,7 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                         value={b.caption || ""}
                         onChange={(e) => updateBlockCaption(b.id, e.target.value)}
                         placeholder="Legenda (opcional) — aparece mais pequena, por baixo do título"
-                        style={{ ...sans, width: "100%", fontSize: 11.5, color: c.ink, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 6, padding: "6px 9px", outline: "none", boxSizing: "border-box", marginBottom: 6 }}
+                        style={{ ...sans, width: "100%", fontSize: 12.5, color: c.ink, background: c.folha, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 9px", outline: "none", boxSizing: "border-box", marginBottom: 6 }}
                       />
                     </div>
                   )}
@@ -8059,7 +8018,7 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                         value={b.url || ""}
                         onChange={(e) => updateBlockUrl(b.id, e.target.value)}
                         placeholder="https://... (para onde vai quando a pessoa carrega)"
-                        style={{ ...sans, flex: 1, fontSize: 11.5, color: c.ink, background: "#fff", border: `1px solid ${b.url ? c.line : c.rose}`, borderRadius: 6, padding: "6px 9px", outline: "none", boxSizing: "border-box" }}
+                        style={{ ...sans, flex: 1, fontSize: 12.5, color: c.ink, background: c.folha, border: `1px solid ${b.url ? c.line : c.rose}`, borderRadius: 6, padding: "6px 9px", outline: "none", boxSizing: "border-box" }}
                       />
                       <label
                         style={{
@@ -8096,8 +8055,8 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                               key={sp.key}
                               onClick={() => toggleSocialPlatform(b.id, sp.key)}
                               style={{
-                                display: "flex", alignItems: "center", gap: 5, ...sans, fontSize: 11, fontWeight: 600,
-                                color: active ? "#fff" : c.mist, background: active ? c.boss : "#fff",
+                                display: "flex", alignItems: "center", gap: 5, ...sans, fontSize: 12.5, fontWeight: 600,
+                                color: active ? "#fff" : c.mist, background: active ? c.boss : c.folha,
                                 border: `1px solid ${active ? c.boss : c.line}`, borderRadius: 999, padding: "4px 10px", cursor: "pointer",
                               }}
                             >
@@ -8118,7 +8077,7 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                                 value={url}
                                 onChange={(e) => updateSocialLink(b.id, key, e.target.value)}
                                 placeholder={`Link do ${sp.label}`}
-                                style={{ ...sans, flex: 1, fontSize: 11.5, color: c.ink, background: "#fff", border: `1px solid ${url ? c.line : c.rose}`, borderRadius: 6, padding: "6px 9px", outline: "none", boxSizing: "border-box" }}
+                                style={{ ...sans, flex: 1, fontSize: 12.5, color: c.ink, background: c.folha, border: `1px solid ${url ? c.line : c.rose}`, borderRadius: 6, padding: "6px 9px", outline: "none", boxSizing: "border-box" }}
                               />
                             </div>
                           );
@@ -8129,7 +8088,7 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                 </div>
               ))}
               {page.blocks.length === 0 && (
-                <div style={{ ...sans, fontSize: 12, color: c.mistLight, textAlign: "center", padding: "16px 0" }}>
+                <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "16px 0" }}>
                   Ainda sem blocos — adiciona o primeiro acima.
                 </div>
               )}
@@ -8140,11 +8099,11 @@ function LinkNaBioEditor({ initialPage, onBack }) {
             {(() => {
               const ps = page.pillStyle || DEFAULT_PILL_STYLE;
               const toggleBtn = (active) => ({
-                ...sans, fontSize: 12, fontWeight: 600, color: active ? "#fff" : c.ink,
-                background: active ? c.boss : "#fff", border: `1px solid ${active ? c.boss : c.line}`,
+                ...sans, fontSize: 13.5, fontWeight: 600, color: active ? "#fff" : c.ink,
+                background: active ? c.boss : c.folha, border: `1px solid ${active ? c.boss : c.line}`,
                 borderRadius: 7, padding: "7px 12px", cursor: "pointer",
               });
-              const label = { ...sans, fontSize: 11.5, fontWeight: 600, color: c.mist, marginBottom: 7 };
+              const label = { ...sans, fontSize: 12.5, fontWeight: 600, color: c.mist, marginBottom: 7 };
               return (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                   <div>
@@ -8175,7 +8134,7 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                         type="color"
                         value={ps.color || "#ffffff"}
                         onChange={(e) => updatePillStyle({ color: e.target.value })}
-                        style={{ width: 30, height: 26, border: `1px solid ${c.line}`, borderRadius: 6, cursor: "pointer", padding: 0, flexShrink: 0 }}
+                        style={{ width: 30, height: 26, border: `1px solid ${c.lineStrong}`, borderRadius: 6, cursor: "pointer", padding: 0, flexShrink: 0 }}
                       />
                     </div>
                   </div>
@@ -8210,7 +8169,7 @@ function LinkNaBioEditor({ initialPage, onBack }) {
           <ChartCard title="Tipografia" sub="Tipo de letra e negrito de cada elemento da página">
             {(() => {
               const ps = page.pillStyle || DEFAULT_PILL_STYLE;
-              const selectStyle = { ...sans, fontSize: 12, border: `1px solid ${c.line}`, borderRadius: 7, padding: "7px 9px", cursor: "pointer", background: "#fff" };
+              const selectStyle = { ...sans, fontSize: 13.5, border: `1px solid ${c.line}`, borderRadius: 7, padding: "7px 9px", cursor: "pointer", background: c.folha };
               const rows = [
                 { fontKey: "nameFont", boldKey: "nameBold", label: "Nome" },
                 { fontKey: "aboutFont", boldKey: "aboutBold", label: "Subtítulo" },
@@ -8223,7 +8182,7 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                     const bold = !!ps[r.boldKey];
                     return (
                       <div key={r.fontKey} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                        <div style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: c.mist, width: 140, flexShrink: 0 }}>{r.label}</div>
+                        <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.mist, width: 140, flexShrink: 0 }}>{r.label}</div>
                         <select value={ps[r.fontKey] || "Inter"} onChange={(e) => updatePillStyle({ [r.fontKey]: e.target.value })} style={selectStyle}>
                           {FONT_OPTIONS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
                         </select>
@@ -8232,8 +8191,8 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                           onClick={() => updatePillStyle({ [r.boldKey]: !bold })}
                           title="Negrito"
                           style={{
-                            ...sans, fontSize: 12, fontWeight: 700, width: 32, color: bold ? "#fff" : c.ink,
-                            background: bold ? c.boss : "#fff", border: `1px solid ${bold ? c.boss : c.line}`,
+                            ...sans, fontSize: 13.5, fontWeight: 700, width: 32, color: bold ? "#fff" : c.ink,
+                            background: bold ? c.boss : c.folha, border: `1px solid ${bold ? c.boss : c.line}`,
                             borderRadius: 7, padding: "7px 0", cursor: "pointer",
                           }}
                         >
@@ -8251,25 +8210,25 @@ function LinkNaBioEditor({ initialPage, onBack }) {
             title="Produtos e serviços"
             sub="Para recomendar no quiz — nome, público-alvo e para onde enviar"
             right={
-              <button onClick={addProduct} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
+              <button onClick={addProduct} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 13.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
                 <Plus size={13} /> Produto/serviço
               </button>
             }
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {page.products.map((pr) => (
-                <div key={pr.id} style={{ background: c.paper, borderRadius: 10, padding: "12px 14px" }}>
+                <div key={pr.id} style={{ background: c.paper, borderRadius: 6, padding: "12px 14px" }}>
                   <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
                     <input
                       value={pr.name}
                       onChange={(e) => updateProduct(pr.id, { name: e.target.value })}
                       placeholder="Nome"
-                      style={{ ...sans, flex: 1, fontSize: 13, fontWeight: 600, color: c.ink, border: "none", outline: "none", background: "none" }}
+                      style={{ ...sans, flex: 1, fontSize: 14.5, fontWeight: 600, color: c.ink, border: "none", outline: "none", background: "none" }}
                     />
                     <select
                       value={pr.type}
                       onChange={(e) => updateProduct(pr.id, { type: e.target.value })}
-                      style={{ ...sans, fontSize: 11, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 6, padding: "5px 8px", cursor: "pointer" }}
+                      style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.bossText, background: c.bossSoft, border: "none", borderRadius: 6, padding: "5px 8px", cursor: "pointer" }}
                     >
                       {Object.entries(PRODUCT_TYPES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                     </select>
@@ -8281,13 +8240,13 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                     value={pr.targetAudience}
                     onChange={(e) => updateProduct(pr.id, { targetAudience: e.target.value })}
                     placeholder="Para que público é isto?"
-                    style={{ ...sans, width: "100%", fontSize: 12.5, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px", outline: "none", background: "#fff", marginBottom: 8 }}
+                    style={{ ...sans, width: "100%", fontSize: 14, color: c.ink, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 10px", outline: "none", background: c.folha, marginBottom: 8 }}
                   />
                   <div style={{ display: "flex", gap: 8 }}>
                     <select
                       value={pr.linkType}
                       onChange={(e) => updateProduct(pr.id, { linkType: e.target.value })}
-                      style={{ ...sans, fontSize: 12, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 9px", cursor: "pointer" }}
+                      style={{ ...sans, fontSize: 13.5, color: c.ink, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "7px 9px", cursor: "pointer" }}
                     >
                       {Object.entries(LINK_TYPES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                     </select>
@@ -8295,13 +8254,13 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                       value={pr.linkUrl}
                       onChange={(e) => updateProduct(pr.id, { linkUrl: e.target.value })}
                       placeholder="https://..."
-                      style={{ ...sans, flex: 1, fontSize: 12.5, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 10px", outline: "none", background: "#fff" }}
+                      style={{ ...sans, flex: 1, fontSize: 14, color: c.ink, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "7px 10px", outline: "none", background: c.folha }}
                     />
                   </div>
                 </div>
               ))}
               {page.products.length === 0 && (
-                <div style={{ ...sans, fontSize: 12, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>Ainda sem produtos/serviços.</div>
+                <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>Ainda sem produtos/serviços.</div>
               )}
             </div>
           </ChartCard>
@@ -8313,8 +8272,8 @@ function LinkNaBioEditor({ initialPage, onBack }) {
               <button
                 onClick={() => updateQuiz({ enabled: !page.quiz.enabled })}
                 style={{
-                  ...sans, fontSize: 11.5, fontWeight: 600, color: page.quiz.enabled ? c.sage : c.mist,
-                  background: page.quiz.enabled ? "#E7F5EC" : c.paper, border: "none", borderRadius: 999, padding: "4px 10px", cursor: "pointer",
+                  ...sans, fontSize: 12.5, fontWeight: 600, color: page.quiz.enabled ? c.sage : c.mist,
+                  background: page.quiz.enabled ? c.sageSoft : c.paper, border: "none", borderRadius: 999, padding: "4px 10px", cursor: "pointer",
                 }}
               >
                 {page.quiz.enabled ? "Ativo" : "Inativo"}
@@ -8322,24 +8281,24 @@ function LinkNaBioEditor({ initialPage, onBack }) {
             }
           >
             <div style={{ marginBottom: 14 }}>
-              <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 5 }}>Título do quiz</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Título do quiz</div>
               <input
                 value={page.quiz.title}
                 onChange={(e) => updateQuiz({ title: e.target.value })}
-                style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink }}
+                style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink }}
               />
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12 }}>
               {page.quiz.questions.map((q, qi) => (
-                <div key={q.id} style={{ background: c.paper, borderRadius: 10, padding: "12px 14px" }}>
+                <div key={q.id} style={{ background: c.paper, borderRadius: 6, padding: "12px 14px" }}>
                   <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
-                    <span style={{ ...sans, fontSize: 10.5, fontWeight: 700, color: c.boss, flexShrink: 0 }}>P{qi + 1}</span>
+                    <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: c.bossText, flexShrink: 0 }}>P{qi + 1}</span>
                     <input
                       value={q.text}
                       onChange={(e) => updateQuestion(q.id, e.target.value)}
                       placeholder="Texto da pergunta"
-                      style={{ ...sans, flex: 1, fontSize: 13, fontWeight: 600, color: c.ink, border: "none", outline: "none", background: "none" }}
+                      style={{ ...sans, flex: 1, fontSize: 14.5, fontWeight: 600, color: c.ink, border: "none", outline: "none", background: "none" }}
                     />
                     <button onClick={() => removeQuestion(q.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.rose, flexShrink: 0 }}>
                       <Trash2 size={13} />
@@ -8352,12 +8311,12 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                           value={opt.label}
                           onChange={(e) => updateOption(q.id, opt.id, { label: e.target.value })}
                           placeholder="Texto da resposta"
-                          style={{ ...sans, flex: 1, fontSize: 12.5, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 10px", outline: "none", background: "#fff" }}
+                          style={{ ...sans, flex: 1, fontSize: 14, color: c.ink, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "7px 10px", outline: "none", background: c.folha }}
                         />
                         <select
                           value={opt.productId}
                           onChange={(e) => updateOption(q.id, opt.id, { productId: e.target.value })}
-                          style={{ ...sans, fontSize: 11.5, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 8px", cursor: "pointer", maxWidth: 140 }}
+                          style={{ ...sans, fontSize: 12.5, color: c.ink, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "7px 8px", cursor: "pointer", maxWidth: 140 }}
                         >
                           <option value="">Recomenda...</option>
                           {page.products.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
@@ -8370,19 +8329,19 @@ function LinkNaBioEditor({ initialPage, onBack }) {
                   </div>
                   <button
                     onClick={() => addOption(q.id)}
-                    style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: c.boss, background: "none", border: `1px dashed ${c.line}`, borderRadius: 7, padding: "6px 10px", cursor: "pointer", width: "100%" }}
+                    style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.bossText, background: "none", border: `1px dashed ${c.line}`, borderRadius: 7, padding: "6px 10px", cursor: "pointer", width: "100%" }}
                   >
                     <Plus size={11} style={{ verticalAlign: "middle", marginRight: 4 }} /> Adicionar resposta
                   </button>
                 </div>
               ))}
               {page.quiz.questions.length === 0 && (
-                <div style={{ ...sans, fontSize: 12, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>Ainda sem perguntas.</div>
+                <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>Ainda sem perguntas.</div>
               )}
             </div>
             <button
               onClick={addQuestion}
-              style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 7, padding: "8px 12px", cursor: "pointer", justifyContent: "center", width: "100%" }}
+              style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 13.5, fontWeight: 600, color: c.bossText, background: c.bossSoft, border: "none", borderRadius: 7, padding: "8px 12px", cursor: "pointer", justifyContent: "center", width: "100%" }}
             >
               <Plus size={13} /> Adicionar pergunta
             </button>
@@ -8436,14 +8395,14 @@ function TypeSpecificFields({ product, onChange }) {
       <ChartCard title="Tempo de trabalho" sub="Entra automaticamente no custo total">
         <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-2, 1fr 1fr)", gap: 12 }}>
           <div>
-            <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 5 }}>Duração da sessão (horas)</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Duração da sessão (horas)</div>
             <input type="number" step="0.1" value={product.hoursPerSession} onChange={(e) => onChange({ ...product, hoursPerSession: e.target.value })}
-              style={{ ...sans, width: "100%", fontSize: 15, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", color: c.ink }} />
+              style={{ ...sans, width: "100%", fontSize: 15, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none", color: c.ink }} />
           </div>
           <div>
-            <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 5 }}>Valor da tua hora (€)</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Valor da tua hora (€)</div>
             <input type="number" value={product.hourlyRate} onChange={(e) => onChange({ ...product, hourlyRate: e.target.value })}
-              style={{ ...sans, width: "100%", fontSize: 15, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", color: c.ink }} />
+              style={{ ...sans, width: "100%", fontSize: 15, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none", color: c.ink }} />
           </div>
         </div>
       </ChartCard>
@@ -8453,7 +8412,7 @@ function TypeSpecificFields({ product, onChange }) {
     return (
       <ChartCard title="Lote" sub="Quantas unidades produziste com estes custos — reparte o custo por unidade">
         <input type="number" value={product.quantity} onChange={(e) => onChange({ ...product, quantity: e.target.value })}
-          style={{ ...sans, width: 160, fontSize: 16, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", color: c.ink }} />
+          style={{ ...sans, width: 160, fontSize: 16, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none", color: c.ink }} />
       </ChartCard>
     );
   }
@@ -8466,7 +8425,7 @@ function TypeSpecificFields({ product, onChange }) {
         title="Entregáveis do projeto"
         sub="Cada um consome horas, à tua taxa horária definida abaixo"
         right={
-          <button onClick={addDeliverable} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
+          <button onClick={addDeliverable} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 13.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
             <Plus size={13} /> Entregável
           </button>
         }
@@ -8475,21 +8434,21 @@ function TypeSpecificFields({ product, onChange }) {
           {(product.deliverables || []).map((d) => (
             <div key={d.id} style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input value={d.label} onChange={(e) => updateDeliverable(d.id, "label", e.target.value)} placeholder="Ex: Logótipo"
-                style={{ ...sans, flex: 1, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", color: c.ink }} />
+                style={{ ...sans, flex: 1, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none", color: c.ink }} />
               <input type="number" value={d.hours} onChange={(e) => updateDeliverable(d.id, "hours", e.target.value)} placeholder="Horas"
-                style={{ ...sans, width: 90, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", color: c.ink }} />
+                style={{ ...sans, width: 90, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none", color: c.ink }} />
               <button onClick={() => removeDeliverable(d.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.rose, flexShrink: 0 }}>
                 <Trash2 size={14} />
               </button>
             </div>
           ))}
           {(!product.deliverables || product.deliverables.length === 0) && (
-            <div style={{ ...sans, fontSize: 12, color: c.mistLight, textAlign: "center", padding: "6px 0" }}>Sem entregáveis ainda.</div>
+            <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "6px 0" }}>Sem entregáveis ainda.</div>
           )}
         </div>
-        <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 5 }}>A tua taxa horária (€)</div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>A tua taxa horária (€)</div>
         <input type="number" value={product.hourlyRate} onChange={(e) => onChange({ ...product, hourlyRate: e.target.value })}
-          style={{ ...sans, width: 160, fontSize: 15, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", color: c.ink }} />
+          style={{ ...sans, width: 160, fontSize: 15, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none", color: c.ink }} />
       </ChartCard>
     );
   }
@@ -8498,14 +8457,14 @@ function TypeSpecificFields({ product, onChange }) {
       <ChartCard title="Amortização do arranque" sub="Custo único de configuração, distribuído pelos primeiros meses">
         <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-2, 1fr 1fr)", gap: 12 }}>
           <div>
-            <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 5 }}>Custo de configuração inicial (€)</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Custo de configuração inicial (€)</div>
             <input type="number" value={product.setupCost} onChange={(e) => onChange({ ...product, setupCost: e.target.value })}
-              style={{ ...sans, width: "100%", fontSize: 15, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", color: c.ink }} />
+              style={{ ...sans, width: "100%", fontSize: 15, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none", color: c.ink }} />
           </div>
           <div>
-            <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 5 }}>Meses para amortizar</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Meses para amortizar</div>
             <input type="number" value={product.amortizeMonths} onChange={(e) => onChange({ ...product, amortizeMonths: e.target.value })}
-              style={{ ...sans, width: "100%", fontSize: 15, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", color: c.ink }} />
+              style={{ ...sans, width: "100%", fontSize: 15, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none", color: c.ink }} />
           </div>
         </div>
       </ChartCard>
@@ -8530,14 +8489,14 @@ function ProductPricingForm({ product, onChange, onDelete }) {
           value={product.name}
           onChange={(e) => onChange({ ...product, name: e.target.value })}
           placeholder="Nome do produto ou serviço"
-          style={{ ...serif, flex: 1, fontSize: 22, color: c.ink, border: "none", outline: "none", background: "none", padding: "4px 0", minWidth: 200 }}
+          style={{ ...display, flex: 1, fontSize: 22, color: c.ink, border: "none", outline: "none", background: "none", padding: "4px 0", minWidth: 200 }}
         />
-        <button onClick={onDelete} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 11px", cursor: "pointer", flexShrink: 0 }}>
+        <button onClick={onDelete} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 13.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 6, padding: "7px 11px", cursor: "pointer", flexShrink: 0 }}>
           <Trash2 size={13} /> Eliminar
         </button>
       </div>
       {typeInfo && (
-        <div style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: c.boss, background: c.bossSoft, borderRadius: 999, padding: "4px 10px", display: "inline-block", marginBottom: 20 }}>
+        <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.bossText, background: c.bossSoft, borderRadius: 999, padding: "4px 10px", display: "inline-block", marginBottom: 20 }}>
           {typeInfo.label}
         </div>
       )}
@@ -8552,7 +8511,7 @@ function ProductPricingForm({ product, onChange, onDelete }) {
         right={
           <button
             onClick={addLine}
-            style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 13.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}
           >
             <Plus size={13} /> Adicionar custo
           </button>
@@ -8565,14 +8524,14 @@ function ProductPricingForm({ product, onChange, onDelete }) {
                 value={l.label}
                 onChange={(e) => updateLine(l.id, "label", e.target.value)}
                 placeholder="Ex: tecido, embalagem, consumível..."
-                style={{ ...sans, flex: 1, minWidth: 160, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", color: c.ink }}
+                style={{ ...sans, flex: 1, minWidth: 160, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none", color: c.ink }}
               />
               <input
                 type="number"
                 value={l.amount}
                 onChange={(e) => updateLine(l.id, "amount", e.target.value)}
                 placeholder="0.00€"
-                style={{ ...sans, width: 100, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", color: c.ink }}
+                style={{ ...sans, width: 100, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none", color: c.ink }}
               />
               <button onClick={() => removeLine(l.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.rose, flexShrink: 0 }}>
                 <Trash2 size={14} />
@@ -8580,7 +8539,7 @@ function ProductPricingForm({ product, onChange, onDelete }) {
             </div>
           ))}
           {product.costLines.length === 0 && (
-            <div style={{ ...sans, fontSize: 12, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>
+            <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>
               Sem custos adicionais — adiciona se fizer sentido.
             </div>
           )}
@@ -8593,7 +8552,7 @@ function ProductPricingForm({ product, onChange, onDelete }) {
             type="number"
             value={product.marginPct}
             onChange={(e) => onChange({ ...product, marginPct: e.target.value })}
-            style={{ ...sans, width: "100%", fontSize: 16, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", color: c.ink }}
+            style={{ ...sans, width: "100%", fontSize: 16, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none", color: c.ink }}
           />
         </ChartCard>
         <ChartCard title="Fator de exclusividade" sub={`${parseFloat(product.exclusivity || 1).toFixed(1)}× — arrasta para ajustar`}>
@@ -8606,7 +8565,7 @@ function ProductPricingForm({ product, onChange, onDelete }) {
             onChange={(e) => onChange({ ...product, exclusivity: e.target.value })}
             style={{ width: "100%", accentColor: c.boss, marginTop: 10 }}
           />
-          <div style={{ display: "flex", justifyContent: "space-between", ...sans, fontSize: 10, color: c.mistLight, marginTop: 4 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", ...sans, fontSize: 12.5, color: c.mistLight, marginTop: 4 }}>
             <span>Padrão</span>
             <span>Premium</span>
           </div>
@@ -8620,7 +8579,7 @@ function ProductPricingForm({ product, onChange, onDelete }) {
             value={product.currentPrice}
             onChange={(e) => onChange({ ...product, currentPrice: e.target.value })}
             placeholder="0.00€"
-            style={{ ...sans, width: 160, fontSize: 14, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 12px", outline: "none", color: c.ink }}
+            style={{ ...sans, width: 160, fontSize: 15, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 12px", outline: "none", color: c.ink }}
           />
         </ChartCard>
       </div>
@@ -8629,23 +8588,23 @@ function ProductPricingForm({ product, onChange, onDelete }) {
         <ChartCard title="Resultado" sub={`Calculado a partir de todos os custos acima — ${totals.unitLabel}`}>
           <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
             <div>
-              <div style={{ ...serif, fontSize: 24, color: c.ink }}>{totals.costPerUnit.toFixed(2)}€</div>
-              <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>Custo total ({totals.unitLabel})</div>
+              <div style={{ ...display, fontSize: 24, color: c.ink }}>{totals.costPerUnit.toFixed(2)}€</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>Custo total ({totals.unitLabel})</div>
             </div>
             <div>
-              <div style={{ ...serif, fontSize: 24, color: c.boss }}>{totals.suggested.toFixed(2)}€</div>
-              <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>Preço sugerido</div>
+              <div style={{ ...display, fontSize: 24, color: c.bossText }}>{totals.suggested.toFixed(2)}€</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>Preço sugerido</div>
             </div>
             <div>
-              <div style={{ ...serif, fontSize: 24, color: c.sage }}>{(totals.suggested - totals.costPerUnit).toFixed(2)}€</div>
-              <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>Lucro estimado</div>
+              <div style={{ ...display, fontSize: 24, color: c.sage }}>{(totals.suggested - totals.costPerUnit).toFixed(2)}€</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>Lucro estimado</div>
             </div>
             {totals.realMarginPct !== null && (
               <div>
-                <div style={{ ...serif, fontSize: 24, color: totals.realMarginPct >= 0 ? c.sage : c.rose }}>
+                <div style={{ ...display, fontSize: 24, color: totals.realMarginPct >= 0 ? c.sage : c.rose }}>
                   {totals.realMarginPct.toFixed(0)}%
                 </div>
-                <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>Margem real ao preço atual</div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>Margem real ao preço atual</div>
               </div>
             )}
           </div>
@@ -8665,14 +8624,14 @@ function ProductPricingPanel({ initialProduct, onBack }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <button
           onClick={onBack}
-          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
+          style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}
         >
           <ArrowLeft size={14} /> Calculadora de Precificação
         </button>
         <button
           onClick={() => saveProduct.mutate(product)}
           disabled={saveProduct.isPending}
-          style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer" }}
+          style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer" }}
         >
           {saveProduct.isPending ? "A guardar…" : "Guardar"}
         </button>
@@ -8711,21 +8670,21 @@ function CalculadoraModule({ session }) {
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <Eyebrow>Calculadora de Precificação</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 10 }}>
-        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>Produtos e serviços</h1>
+        <h1 style={{ ...display, fontSize: 30,  color: c.ink, margin: 0 }}>Produtos e serviços</h1>
         <button
           onClick={() => setPickingType(true)}
           style={{
-            ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff",
-            background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer",
+            ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff",
+            background: c.boss, border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer",
           }}
         >
           <Plus size={14} /> Novo produto/serviço
         </button>
       </div>
-      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 20, maxWidth: 600, lineHeight: 1.6 }}>
+      <div style={{ ...sans, fontSize: 14, color: c.mist, marginBottom: 20, maxWidth: 600, lineHeight: 1.6 }}>
         Cada tipo tem a sua própria lógica de custo — uma consulta não se calcula como um produto físico, nem como um projeto fechado. Escolhe o tipo certo para cada coisa que vendas.
       </div>
-      {productsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist, marginBottom: 20 }}>A carregar…</div>}
+      {productsQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist, marginBottom: 20 }}>A carregar…</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {products.map((p) => {
           const totals = calcTotals(p);
@@ -8735,18 +8694,18 @@ function CalculadoraModule({ session }) {
             <div
               key={p.id}
               onClick={() => setOpenId(p.id)}
-              style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px", cursor: "pointer", flexWrap: "wrap" }}
+              style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px", cursor: "pointer", flexWrap: "wrap" }}
             >
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <TypeIcon size={16} color={c.boss} strokeWidth={1.8} />
+              <div style={{ width: 34, height: 34, borderRadius: 6, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <TypeIcon size={16} color={c.bossText} strokeWidth={1.8} />
               </div>
               <div style={{ flex: 1, minWidth: 140 }}>
                 <div style={{ ...serif, fontSize: 15, color: c.ink, fontWeight: 500 }}>{p.name}</div>
-                <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>
-                  {typeInfo ? typeInfo.label : "—"} · {totals.unitLabel}
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
+                  {typeInfo ? typeInfo.label : "—"}, {totals.unitLabel}
                 </div>
               </div>
-              <div style={{ ...serif, fontSize: 17, color: c.boss }}>{totals.suggested.toFixed(2)}€</div>
+              <div style={{ ...serif, fontSize: 17, color: c.bossText }}>{totals.suggested.toFixed(2)}€</div>
               <button
                 onClick={(e) => { e.stopPropagation(); deleteProduct.mutate(p.id); }}
                 style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 4 }}
@@ -8757,7 +8716,7 @@ function CalculadoraModule({ session }) {
           );
         })}
         {!productsQuery.isLoading && products.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
             Ainda sem produtos — cria o primeiro para veres o custo real.
           </div>
         )}
@@ -8765,7 +8724,7 @@ function CalculadoraModule({ session }) {
 
       {pickingType && (
         <div onClick={() => setPickingType(false)} style={{ position: "fixed", inset: 0, background: "rgba(23,21,31,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20, overflowY: "auto" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: 26, maxWidth: 520, width: "100%", maxHeight: "85vh", overflowY: "auto", position: "relative", margin: "auto" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: c.folha, borderRadius: 3, padding: 26, maxWidth: 520, width: "100%", maxHeight: "85vh", overflowY: "auto", position: "relative", margin: "auto" }}>
             <button
               onClick={() => setPickingType(false)}
               style={{ position: "absolute", top: 14, right: 14, background: c.paper, border: "none", borderRadius: 999, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: c.mist }}
@@ -8773,7 +8732,7 @@ function CalculadoraModule({ session }) {
               <XCircle size={16} />
             </button>
             <div style={{ ...serif, fontSize: 18, color: c.ink, marginBottom: 4, paddingRight: 30 }}>O que vais precificar?</div>
-            <div style={{ ...sans, fontSize: 12, color: c.mist, marginBottom: 18 }}>Escolhe o tipo — muda os campos e a fórmula de cálculo.</div>
+            <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginBottom: 18 }}>Escolhe o tipo — muda os campos e a fórmula de cálculo.</div>
             <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-2, 1fr 1fr)", gap: 10 }}>
               {PRICING_TYPES.map((t) => {
                 const Icon = t.icon;
@@ -8781,11 +8740,11 @@ function CalculadoraModule({ session }) {
                   <button
                     key={t.key}
                     onClick={() => createProduct(t.key)}
-                    style={{ textAlign: "left", background: c.paper, border: `1px solid ${c.line}`, borderRadius: 12, padding: 16, cursor: "pointer" }}
+                    style={{ textAlign: "left", background: c.paper, border: `1px solid ${c.line}`, borderRadius: 3, padding: 16, cursor: "pointer" }}
                   >
-                    <Icon size={17} color={c.boss} strokeWidth={1.8} />
-                    <div style={{ ...serif, fontSize: 14, color: c.ink, marginTop: 10, marginBottom: 4 }}>{t.label}</div>
-                    <div style={{ ...sans, fontSize: 11, color: c.mist, lineHeight: 1.5 }}>{t.desc}</div>
+                    <Icon size={17} color={c.bossText} strokeWidth={1.8} />
+                    <div style={{ ...serif, fontSize: 15, color: c.ink, marginTop: 10, marginBottom: 4 }}>{t.label}</div>
+                    <div style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.5 }}>{t.desc}</div>
                   </button>
                 );
               })}
@@ -8809,8 +8768,8 @@ function TeamMemberRow({ member, canManage, onRename, onRemove }) {
     : scope.type === "brands" ? `${scope.count} ${t(scope.count > 1 ? "team.brandsPlural" : "team.brandSingular")}`
     : t("team.noScope");
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px" }}>
-      <div style={{ width: 38, height: 38, borderRadius: 999, background: c.bossSoft, color: c.boss, display: "flex", alignItems: "center", justifyContent: "center", ...serif, fontSize: 15, flexShrink: 0 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px" }}>
+      <div style={{ width: 38, height: 38, borderRadius: 999, background: c.bossSoft, color: c.bossText, display: "flex", alignItems: "center", justifyContent: "center", ...serif, fontSize: 15, flexShrink: 0 }}>
         {member.initial}
       </div>
       <div style={{ flex: 1 }}>
@@ -8822,9 +8781,9 @@ function TeamMemberRow({ member, canManage, onRename, onRemove }) {
           placeholder={t("team.noName")}
           style={{ ...serif, fontSize: 14.5, color: c.ink, border: "none", outline: "none", background: "none", width: "100%" }}
         />
-        <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>{scopeText} · {member.email}</div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>{scopeText}, {member.email}</div>
       </div>
-      <span style={{ ...sans, fontSize: 11, fontWeight: 600, color: c.boss, background: c.bossSoft, borderRadius: 999, padding: "4px 10px" }}>
+      <span style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.bossText, background: c.bossSoft, borderRadius: 999, padding: "4px 10px" }}>
         {t(`role.${member.roleKey}`, member.role)}
       </span>
       {canManage && (
@@ -8849,13 +8808,13 @@ function EquipaModule({ session }) {
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
       <Eyebrow>{t("team.eyebrow")}</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: 0 }}>{t("team.title")}</h1>
+        <h1 style={{ ...display, fontSize: 30,  color: c.ink, margin: 0 }}>{t("team.title")}</h1>
         {canManage && (
           <button
             onClick={() => setShowInvite((v) => !v)}
             style={{
-              ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff",
-              background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer",
+              ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff",
+              background: c.boss, border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer",
             }}
           >
             <Plus size={14} /> {t("team.invite")}
@@ -8864,14 +8823,14 @@ function EquipaModule({ session }) {
       </div>
 
       {showInvite && (
-        <div style={{ background: c.bossSoft, borderRadius: 12, padding: "16px 18px", marginBottom: 20, ...sans, fontSize: 12.5, color: c.ink, lineHeight: 1.7 }}>
+        <div style={{ background: c.bossSoft, borderRadius: 3, padding: "16px 18px", marginBottom: 20, ...sans, fontSize: 14, color: c.ink, lineHeight: 1.7 }}>
           {t("team.inviteHelp1")}
           <br />1. {t("team.inviteHelp2")}
           <br />2. {t("team.inviteHelp3")}
         </div>
       )}
 
-      {membersQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>{t("common.loading")}</div>}
+      {membersQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>{t("common.loading")}</div>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {members.map((m) => (
@@ -8884,7 +8843,7 @@ function EquipaModule({ session }) {
           />
         ))}
         {!membersQuery.isLoading && members.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
             {t("team.empty")}
           </div>
         )}
@@ -8969,7 +8928,7 @@ function DefinicoesModule({ session }) {
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 760 }}>
       <Eyebrow>{t("settings.eyebrow")}</Eyebrow>
-      <h1 style={{ ...serif, fontSize: 30, fontWeight: 500, color: c.ink, margin: "0 0 24px" }}>{t("settings.title")}</h1>
+      <h1 style={{ ...display, fontSize: 30,  color: c.ink, margin: "0 0 24px" }}>{t("settings.title")}</h1>
 
       {canManageAgency && (
         <div style={{ marginBottom: 14 }}>
@@ -8980,7 +8939,7 @@ function DefinicoesModule({ session }) {
               <button
                 onClick={saveBranding}
                 disabled={saveColor.isPending}
-                style={{ ...sans, fontSize: 12, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}
+                style={{ ...sans, fontSize: 13.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}
               >
                 {saveColor.isPending ? t("common.saving") : t("common.save")}
               </button>
@@ -8999,12 +8958,12 @@ function DefinicoesModule({ session }) {
                 type="color"
                 value={colorValue}
                 onChange={(e) => setBrandColor(e.target.value)}
-                style={{ width: 40, height: 32, border: `1px solid ${c.line}`, borderRadius: 8, cursor: "pointer", padding: 2 }}
+                style={{ width: 40, height: 32, border: `1px solid ${c.lineStrong}`, borderRadius: 6, cursor: "pointer", padding: 2 }}
               />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 22, height: 22, borderRadius: 6, background: colorValue, flexShrink: 0 }} />
-              <span style={{ ...sans, fontSize: 12, color: c.mist }}>{t("settings.currentColor")} {colorValue} {t("settings.currentColorSuffix")}</span>
+              <span style={{ ...sans, fontSize: 13.5, color: c.mist }}>{t("settings.currentColor")} {colorValue} {t("settings.currentColorSuffix")}</span>
             </div>
           </ChartCard>
         </div>
@@ -9017,7 +8976,7 @@ function DefinicoesModule({ session }) {
           <button
             onClick={saveAccount}
             disabled={savingAccount}
-            style={{ ...sans, fontSize: 12, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}
+            style={{ ...sans, fontSize: 13.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}
           >
             {savingAccount ? t("common.saving") : t("common.save")}
           </button>
@@ -9025,19 +8984,19 @@ function DefinicoesModule({ session }) {
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 380 }}>
           <div>
-            <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 5 }}>{t("settings.name")}</div>
-            <input value={name} onChange={(e) => setName(e.target.value)} style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink }} />
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>{t("settings.name")}</div>
+            <input value={name} onChange={(e) => setName(e.target.value)} style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink }} />
           </div>
           <div>
-            <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 5 }}>{t("login.email")}</div>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink }} />
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>{t("login.email")}</div>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink }} />
           </div>
           <div>
-            <div style={{ ...sans, fontSize: 11, color: c.mist, marginBottom: 5 }}>{t("settings.newPassword")}</div>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("settings.newPasswordPlaceholder")} style={{ ...sans, width: "100%", fontSize: 13, border: `1px solid ${c.line}`, borderRadius: 8, padding: "9px 12px", outline: "none", color: c.ink }} />
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>{t("settings.newPassword")}</div>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("settings.newPasswordPlaceholder")} style={{ ...sans, width: "100%", fontSize: 14.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "9px 12px", outline: "none", color: c.ink }} />
           </div>
-          {accountError && <div style={{ ...sans, fontSize: 12, color: c.rose }}>{accountError}</div>}
-          {accountSaved && <div style={{ ...sans, fontSize: 12, color: c.sage }}>{t("settings.saved")}</div>}
+          {accountError && <div style={{ ...sans, fontSize: 13.5, color: c.rose }}>{accountError}</div>}
+          {accountSaved && <div style={{ ...sans, fontSize: 13.5, color: c.sage }}>{t("settings.saved")}</div>}
         </div>
       </ChartCard>
     </div>
@@ -9049,13 +9008,13 @@ function DefinicoesModule({ session }) {
 --------------------------------------------------------- */
 function ContentIdeaRow({ idea, onChange, onRemove, canManage }) {
   return (
-    <div style={{ background: c.paper, borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
+    <div style={{ background: c.paper, borderRadius: 6, padding: "10px 12px", marginBottom: 8 }}>
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         <select
           value={idea.type}
           onChange={(e) => onChange({ ...idea, type: e.target.value })}
           disabled={!canManage}
-          style={{ ...sans, fontSize: 11.5, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 6, padding: "5px 8px", cursor: canManage ? "pointer" : "default" }}
+          style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.bossText, background: c.bossSoft, border: "none", borderRadius: 6, padding: "5px 8px", cursor: canManage ? "pointer" : "default" }}
         >
           {CONTENT_IDEA_TYPES.map((t) => (
             <option key={t} value={t}>{t}</option>
@@ -9074,14 +9033,14 @@ function ContentIdeaRow({ idea, onChange, onRemove, canManage }) {
         readOnly={!canManage}
         placeholder="O que vai conter este conteúdo?"
         rows={2}
-        style={{ ...sans, width: "100%", fontSize: 12.5, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px", outline: "none", resize: "vertical", background: "#fff", marginBottom: 6 }}
+        style={{ ...sans, width: "100%", fontSize: 14, color: c.ink, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 10px", outline: "none", resize: "vertical", background: c.folha, marginBottom: 6 }}
       />
       <input
         value={idea.inspiration}
         onChange={(e) => onChange({ ...idea, inspiration: e.target.value })}
         readOnly={!canManage}
         placeholder="Inspiração de design ou reel (opcional)"
-        style={{ ...sans, width: "100%", fontSize: 11.5, color: c.mist, border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 10px", outline: "none", background: "#fff" }}
+        style={{ ...sans, width: "100%", fontSize: 12.5, color: c.mist, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "7px 10px", outline: "none", background: c.folha }}
       />
     </div>
   );
@@ -9126,7 +9085,7 @@ function ScheduleDetail({ schedule: initial, onBack, brandId, canManage }) {
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1080 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-        <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
+        <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer" }}>
           <ArrowLeft size={14} /> Cronograma de Conteúdos
         </button>
         {canManage && (
@@ -9134,13 +9093,13 @@ function ScheduleDetail({ schedule: initial, onBack, brandId, canManage }) {
             <button
               onClick={() => saveSchedule.mutate(schedule)}
               disabled={saveSchedule.isPending}
-              style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "7px 14px", cursor: "pointer" }}
+              style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "7px 14px", cursor: "pointer" }}
             >
               {saveSchedule.isPending ? "A guardar…" : "Guardar"}
             </button>
             <button
               onClick={() => deleteSchedule.mutate(schedule.id, { onSuccess: onBack })}
-              style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}
+              style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 6, padding: "7px 12px", cursor: "pointer" }}
             >
               <Trash2 size={13} /> Eliminar
             </button>
@@ -9152,17 +9111,17 @@ function ScheduleDetail({ schedule: initial, onBack, brandId, canManage }) {
         value={schedule.title}
         onChange={(e) => updateField("title", e.target.value)}
         readOnly={!canManage}
-        style={{ ...serif, fontSize: 27, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", marginBottom: 18 }}
+        style={{ ...display, fontSize: 27, color: c.ink, border: "none", outline: "none", background: "none", width: "100%", marginBottom: 18 }}
       />
 
       <div
         style={{
-          background: `linear-gradient(135deg, ${c.bossSoft} 0%, #FFFFFF 65%)`, border: `1px solid ${c.line}`, borderRadius: 14,
+          background: c.bossSoft, border: `1px solid ${c.line}`, borderRadius: 3,
           padding: "18px 22px", marginBottom: 20, position: "relative", overflow: "hidden",
         }}
       >
-        <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 3, background: `linear-gradient(180deg, ${c.boss}, ${c.bossDeep})` }} />
-        <div style={{ ...sans, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: c.boss, marginBottom: 8 }}>
+        <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 3, background: c.boss }} />
+        <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.bossText, marginBottom: 8 }}>
           Foco deste período
         </div>
         <textarea
@@ -9171,7 +9130,7 @@ function ScheduleDetail({ schedule: initial, onBack, brandId, canManage }) {
           readOnly={!canManage}
           placeholder="Ex: Autoridade, Conversão, lançamento de um serviço específico..."
           rows={2}
-          style={{ ...sans, width: "100%", fontSize: 13.5, color: c.ink, lineHeight: 1.55, border: "none", outline: "none", background: "none", resize: "vertical" }}
+          style={{ ...sans, width: "100%", fontSize: 15, color: c.ink, lineHeight: 1.55, border: "none", outline: "none", background: "none", resize: "vertical" }}
         />
       </div>
 
@@ -9180,7 +9139,7 @@ function ScheduleDetail({ schedule: initial, onBack, brandId, canManage }) {
         sub="Eventos ou ações pontuais — podem ser várias, em qualquer altura do mês"
         right={
           canManage && (
-            <button onClick={addAction} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
+            <button onClick={addAction} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 13.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
               <Plus size={13} /> Ação
             </button>
           )
@@ -9188,13 +9147,13 @@ function ScheduleDetail({ schedule: initial, onBack, brandId, canManage }) {
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {schedule.specificActions.map((a) => (
-            <div key={a.id} style={{ background: c.paper, borderRadius: 10, padding: "12px 14px" }}>
+            <div key={a.id} style={{ background: c.paper, borderRadius: 6, padding: "12px 14px" }}>
               <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
                 <select
                   value={a.timing}
                   onChange={(e) => updateAction(a.id, { timing: e.target.value })}
                   disabled={!canManage}
-                  style={{ ...sans, fontSize: 11, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 6, padding: "5px 8px", cursor: canManage ? "pointer" : "default" }}
+                  style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.bossText, background: c.bossSoft, border: "none", borderRadius: 6, padding: "5px 8px", cursor: canManage ? "pointer" : "default" }}
                 >
                   {TIMING_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
@@ -9202,7 +9161,7 @@ function ScheduleDetail({ schedule: initial, onBack, brandId, canManage }) {
                   value={a.label}
                   onChange={(e) => updateAction(a.id, { label: e.target.value })}
                   readOnly={!canManage}
-                  style={{ ...sans, flex: 1, fontSize: 13, fontWeight: 600, color: c.ink, border: "none", outline: "none", background: "none" }}
+                  style={{ ...sans, flex: 1, fontSize: 14.5, fontWeight: 600, color: c.ink, border: "none", outline: "none", background: "none" }}
                 />
                 {canManage && (
                   <button onClick={() => removeAction(a.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.rose, flexShrink: 0 }}>
@@ -9216,12 +9175,12 @@ function ScheduleDetail({ schedule: initial, onBack, brandId, canManage }) {
                 readOnly={!canManage}
                 rows={2}
                 placeholder="Descreve a ação..."
-                style={{ ...sans, width: "100%", fontSize: 12.5, color: c.mist, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 10px", outline: "none", background: "#fff", resize: "vertical" }}
+                style={{ ...sans, width: "100%", fontSize: 14, color: c.mist, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 10px", outline: "none", background: c.folha, resize: "vertical" }}
               />
             </div>
           ))}
           {schedule.specificActions.length === 0 && (
-            <div style={{ ...sans, fontSize: 12, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>Sem ações específicas ainda.</div>
+            <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>Sem ações específicas ainda.</div>
           )}
         </div>
       </ChartCard>
@@ -9229,18 +9188,18 @@ function ScheduleDetail({ schedule: initial, onBack, brandId, canManage }) {
       <div style={{ marginTop: 20, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
         <h2 style={{ ...serif, fontSize: 17, color: c.ink, fontWeight: 500, margin: 0 }}>Semanas</h2>
         {canManage && (
-          <button onClick={addWeek} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
+          <button onClick={addWeek} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 13.5, fontWeight: 600, color: c.bossText, background: c.bossSoft, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
             <Plus size={13} /> Adicionar semana
           </button>
         )}
       </div>
-      <div style={{ ...sans, fontSize: 11.5, color: c.mistLight, marginBottom: 14 }}>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mistLight, marginBottom: 14 }}>
         Mínimo de 1 mês (4 semanas) — adiciona quantas semanas ou meses precisares.
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {schedule.weeks.map((w) => (
-          <div key={w.id} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: "18px 20px" }}>
+          <div key={w.id} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "18px 20px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
               <input
                 value={w.label}
@@ -9253,7 +9212,7 @@ function ScheduleDetail({ schedule: initial, onBack, brandId, canManage }) {
                 onChange={(e) => updateWeek(w.id, { action: e.target.value })}
                 readOnly={!canManage}
                 placeholder="Ação que queres que o cliente faça esta semana..."
-                style={{ ...sans, flex: 1, fontSize: 12.5, color: c.ink, border: `1px solid ${c.line}`, borderRadius: 8, padding: "7px 10px", outline: "none" }}
+                style={{ ...sans, flex: 1, fontSize: 14, color: c.ink, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "7px 10px", outline: "none" }}
               />
               {canManage && (
                 <button onClick={() => removeWeek(w.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, flexShrink: 0 }}>
@@ -9261,7 +9220,7 @@ function ScheduleDetail({ schedule: initial, onBack, brandId, canManage }) {
                 </button>
               )}
             </div>
-            <div style={{ ...sans, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: c.mist, marginBottom: 8 }}>
+            <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.mist, marginBottom: 8 }}>
               Ideias de conteúdo
             </div>
             {w.contentIdeas.map((idea) => (
@@ -9276,7 +9235,7 @@ function ScheduleDetail({ schedule: initial, onBack, brandId, canManage }) {
             {canManage && (
               <button
                 onClick={() => addIdea(w.id)}
-                style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, color: c.boss, background: "none", border: `1px dashed ${c.line}`, borderRadius: 8, padding: "8px 10px", cursor: "pointer", width: "100%", justifyContent: "center", marginTop: 4 }}
+                style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 600, color: c.bossText, background: "none", border: `1px dashed ${c.line}`, borderRadius: 6, padding: "8px 10px", cursor: "pointer", width: "100%", justifyContent: "center", marginTop: 4 }}
               >
                 <Plus size={12} /> Adicionar ideia de conteúdo
               </button>
@@ -9310,27 +9269,27 @@ function CronogramaConteudosView({ brand, onBack, session }) {
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
         <ArrowLeft size={14} /> {brand.name}
       </button>
       <Eyebrow>Cronograma de Conteúdos</Eyebrow>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <h1 style={{ ...serif, fontSize: 27, fontWeight: 500, color: c.ink, margin: 0 }}>Planeamento do que vai sair</h1>
+        <h1 style={{ ...display, fontSize: 27,  color: c.ink, margin: 0 }}>Planeamento do que vai sair</h1>
         {canManage && (
           <button
             onClick={createSchedule}
             disabled={addSchedule.isPending}
-            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer" }}
+            style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "9px 16px", cursor: "pointer" }}
           >
             <Plus size={14} /> {addSchedule.isPending ? "A criar…" : "Novo cronograma"}
           </button>
         )}
       </div>
-      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 24, maxWidth: 600, lineHeight: 1.6 }}>
+      <div style={{ ...sans, fontSize: 14, color: c.mist, marginBottom: 24, maxWidth: 600, lineHeight: 1.6 }}>
         Distinto de "Conteúdos" (que é aprovação) — aqui planeias o que ainda vai ser criado: o foco do período, ações específicas, e as ideias de conteúdo semana a semana.
       </div>
 
-      {schedulesQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
+      {schedulesQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A carregar…</div>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {schedules.map((s) => {
@@ -9339,15 +9298,15 @@ function CronogramaConteudosView({ brand, onBack, session }) {
             <div
               key={s.id}
               onClick={() => setOpenId(s.id)}
-              style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px", cursor: "pointer" }}
+              style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px", cursor: "pointer" }}
             >
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Calendar size={16} color={c.boss} strokeWidth={1.8} />
+              <div style={{ width: 34, height: 34, borderRadius: 6, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Calendar size={16} color={c.bossText} strokeWidth={1.8} />
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ ...serif, fontSize: 15, color: c.ink, fontWeight: 500 }}>{s.title}</div>
-                <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>
-                  {s.weeks.length} semanas · {ideaCount} ideias de conteúdo
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
+                  {s.weeks.length} semanas, {ideaCount} ideias de conteúdo
                 </div>
               </div>
               {canManage && (
@@ -9363,7 +9322,7 @@ function CronogramaConteudosView({ brand, onBack, session }) {
           );
         })}
         {!schedulesQuery.isLoading && schedules.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "40px 0" }}>
             Ainda sem cronogramas — cria o primeiro acima (mínimo de 1 mês).
           </div>
         )}
@@ -9385,7 +9344,7 @@ function EmConstrucao({ label, onBack }) {
           display: "flex",
           alignItems: "center",
           gap: 6,
-          fontSize: 12.5,
+          fontSize: 14,
           color: c.mist,
           background: "none",
           border: "none",
@@ -9397,16 +9356,16 @@ function EmConstrucao({ label, onBack }) {
       </button>
       <div
         style={{
-          background: "#fff",
+          background: c.folha,
           border: `1px dashed ${c.line}`,
-          borderRadius: 16,
+          borderRadius: 3,
           padding: "60px 30px",
           textAlign: "center",
         }}
       >
-        <Sparkles size={22} color={c.boss} style={{ margin: "0 auto 14px" }} />
+        <Sparkles size={22} color={c.bossText} style={{ margin: "0 auto 14px" }} />
         <div style={{ ...serif, fontSize: 19, color: c.ink }}>{label}</div>
-        <div style={{ ...sans, fontSize: 13, color: c.mist, marginTop: 6 }}>
+        <div style={{ ...sans, fontSize: 14.5, color: c.mist, marginTop: 6 }}>
           Este módulo entra na próxima ronda do protótipo.
         </div>
       </div>
@@ -9486,46 +9445,34 @@ function LoginPage() {
     <div style={{ minHeight: "100vh", background: c.paper, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, ...sans }}>
       <style>{FONTS}</style>
       <div style={{ width: "100%", maxWidth: 420 }}>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginBottom: 24 }}>
+          <ThemeToggle compact />
           <LangToggle />
         </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, marginBottom: 28 }}>
-          <div
-            style={{
-              width: 36, height: 36, borderRadius: 11, background: `linear-gradient(135deg, ${c.boss}, ${c.bossDeep})`,
-              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-            }}
-          >
-            <Sparkles size={18} color="#fff" strokeWidth={2} />
-          </div>
-          <div>
-            <div style={{ ...serif, color: c.ink, fontSize: 20, fontWeight: 600, lineHeight: 1.1 }}>Big Boss</div>
-            <div style={{ ...sans, color: c.mistLight, fontSize: 10.5, letterSpacing: "0.1em" }}>BIAMELO</div>
-          </div>
-        </div>
+        <BrandLogo variant="empilhado" height={150} style={{ marginBottom: 28 }} />
 
-        <form onSubmit={submit} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 18, padding: 28 }}>
-          <div style={{ ...serif, fontSize: 21, color: c.ink, marginBottom: 4 }}>{t("login.title")}</div>
-          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 22 }}>{t("login.subtitle")}</div>
+        <form onSubmit={submit} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 28 }}>
+          <div style={{ ...display, fontSize: 28, color: c.ink, marginBottom: 4 }}>{t("login.title")}</div>
+          <div style={{ ...sans, fontSize: 14, color: c.mist, marginBottom: 22 }}>{t("login.subtitle")}</div>
 
           <div style={{ marginBottom: 14 }}>
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>{t("login.email")}</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>{t("login.email")}</div>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="tu@biamelo.com"
-              style={{ ...sans, width: "100%", fontSize: 14, border: `1px solid ${c.line}`, borderRadius: 9, padding: "10px 13px", outline: "none", color: c.ink }}
+              style={{ ...sans, width: "100%", fontSize: 15, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "10px 13px", outline: "none", color: c.ink }}
             />
           </div>
           <div style={{ marginBottom: 8 }}>
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>{t("login.password")}</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>{t("login.password")}</div>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              style={{ ...sans, width: "100%", fontSize: 14, border: `1px solid ${c.line}`, borderRadius: 9, padding: "10px 13px", outline: "none", color: c.ink }}
+              style={{ ...sans, width: "100%", fontSize: 15, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "10px 13px", outline: "none", color: c.ink }}
             />
           </div>
 
@@ -9533,16 +9480,16 @@ function LoginPage() {
             <button
               type="button"
               onClick={() => setForgotOpen((v) => !v)}
-              style={{ ...sans, fontSize: 11.5, color: c.boss, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              style={{ ...sans, fontSize: 12.5, color: c.bossText, background: "none", border: "none", cursor: "pointer", padding: 0 }}
             >
               {t("login.forgot")}
             </button>
           </div>
 
           {forgotOpen && (
-            <div style={{ background: c.paper, borderRadius: 10, padding: 14, marginBottom: 18 }}>
+            <div style={{ background: c.paper, borderRadius: 6, padding: 14, marginBottom: 18 }}>
               {forgotSent ? (
-                <div style={{ ...sans, fontSize: 12, color: c.sage, display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ ...sans, fontSize: 13.5, color: c.sage, display: "flex", alignItems: "center", gap: 6 }}>
                   <CheckCircle2 size={14} /> {t("login.resetSent")} {forgotEmail || t("login.resetSentFallback")}.
                 </div>
               ) : (
@@ -9553,18 +9500,18 @@ function LoginPage() {
                       value={forgotEmail}
                       onChange={(e) => setForgotEmail(e.target.value)}
                       placeholder={t("login.yourEmail")}
-                      style={{ ...sans, flex: 1, minWidth: 140, fontSize: 12.5, border: `1px solid ${c.line}`, borderRadius: 8, padding: "8px 11px", outline: "none", color: c.ink }}
+                      style={{ ...sans, flex: 1, minWidth: 140, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 11px", outline: "none", color: c.ink }}
                     />
                     <button
                       type="button"
                       onClick={sendResetLink}
-                      style={{ ...sans, fontSize: 12, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 8, padding: "8px 13px", cursor: "pointer" }}
+                      style={{ ...sans, fontSize: 13.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "8px 13px", cursor: "pointer" }}
                     >
                       {t("login.sendLink")}
                     </button>
                   </div>
                   {forgotError && (
-                    <div style={{ ...sans, fontSize: 11.5, color: c.rose, marginTop: 8 }}>{forgotError}</div>
+                    <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginTop: 8 }}>{forgotError}</div>
                   )}
                 </>
               )}
@@ -9572,7 +9519,7 @@ function LoginPage() {
           )}
 
           {error && (
-            <div style={{ ...sans, fontSize: 12, color: c.rose, background: "#FBE9EC", borderRadius: 8, padding: "8px 12px", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ ...sans, fontSize: 13.5, color: c.rose, background: c.roseSoft, borderRadius: 6, padding: "8px 12px", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
               <XCircle size={13} /> {error}
             </div>
           )}
@@ -9580,14 +9527,14 @@ function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            style={{ ...sans, width: "100%", fontSize: 14, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 10, padding: "11px 14px", cursor: loading ? "default" : "pointer", opacity: loading ? 0.7 : 1 }}
+            style={{ ...sans, width: "100%", fontSize: 15, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "11px 14px", cursor: loading ? "default" : "pointer", opacity: loading ? 0.7 : 1 }}
           >
             {loading ? t("login.submitting") : t("login.title")}
           </button>
         </form>
 
         <div style={{ textAlign: "center", marginTop: 16 }}>
-          <a href="/registar" style={{ ...sans, fontSize: 12, color: c.mist, textDecoration: "none" }}>
+          <a href="/registar" style={{ ...sans, fontSize: 13.5, color: c.mist, textDecoration: "none" }}>
             Não tens conta? Regista a tua agência
           </a>
         </div>
@@ -9602,8 +9549,8 @@ function DevRoleSwitcher({ role, onChange }) {
   return (
     <div style={{ position: "fixed", bottom: 16, left: 16, zIndex: 60 }}>
       {open && (
-        <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, boxShadow: "0 12px 30px rgba(23,21,31,0.18)", padding: 10, marginBottom: 8, width: 260, maxHeight: "60vh", overflowY: "auto" }}>
-          <div style={{ ...sans, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: c.mistLight, padding: "2px 4px 8px" }}>
+        <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3,  padding: 10, marginBottom: 8, width: 260, maxHeight: "60vh", overflowY: "auto" }}>
+          <div style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: c.mistLight, padding: "2px 4px 8px" }}>
             Só no protótipo — simular perfil
           </div>
           {ROLES.map((r) => (
@@ -9611,12 +9558,12 @@ function DevRoleSwitcher({ role, onChange }) {
               key={r.key}
               onClick={() => { onChange(r.key); setOpen(false); }}
               style={{
-                display: "block", width: "100%", textAlign: "left", cursor: "pointer", borderRadius: 8, padding: "8px 10px", marginBottom: 2,
+                display: "block", width: "100%", textAlign: "left", cursor: "pointer", borderRadius: 6, padding: "8px 10px", marginBottom: 2,
                 border: "none", background: r.key === role ? c.bossSoft : "transparent",
               }}
             >
-              <div style={{ ...sans, fontSize: 12, fontWeight: 600, color: r.key === role ? c.boss : c.ink }}>{r.label}</div>
-              <div style={{ ...sans, fontSize: 10, color: c.mist, lineHeight: 1.4, marginTop: 1 }}>{r.desc}</div>
+              <div style={{ ...sans, fontSize: 13.5, fontWeight: 600, color: r.key === role ? c.bossText : c.ink }}>{r.label}</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.4, marginTop: 1 }}>{r.desc}</div>
             </button>
           ))}
         </div>
@@ -9624,9 +9571,8 @@ function DevRoleSwitcher({ role, onChange }) {
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
-          ...sans, display: "flex", alignItems: "center", gap: 7, fontSize: 11, fontWeight: 600, color: c.mist,
-          background: "#fff", border: `1px dashed ${c.line}`, borderRadius: 999, padding: "7px 12px", cursor: "pointer",
-          boxShadow: "0 4px 14px rgba(23,21,31,0.08)",
+          ...sans, display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 600, color: c.mist,
+          background: c.folha, border: `1px dashed ${c.line}`, borderRadius: 999, padding: "7px 12px", cursor: "pointer", 
         }}
       >
         <Eye size={12} /> A ver como: {current.label}
@@ -9652,7 +9598,7 @@ async function loadSessionFromAuthUser(authUser) {
 --------------------------------------------------------- */
 function PublicPageShell({ children }) {
   return (
-    <div style={{ minHeight: "100vh", background: c.paper, ...sans }}>
+    <div className="bb-force-light" style={{ minHeight: "100vh", background: c.paper, ...sans }}>
       <style>{FONTS}</style>
       {children}
     </div>
@@ -9663,7 +9609,7 @@ function PublicStateMessage({ text }) {
   return (
     <PublicPageShell>
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ ...sans, fontSize: 13, color: c.mist }}>{text}</div>
+        <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>{text}</div>
       </div>
     </PublicPageShell>
   );
@@ -9698,28 +9644,28 @@ export function PublicProposalPage() {
         <div
           style={{
             background: `linear-gradient(135deg, ${p.branding_color}18, #FFFFFF 65%)`,
-            border: `1px solid ${c.line}`, borderRadius: 16, padding: "26px 30px", marginBottom: 28,
+            border: `1px solid ${c.line}`, borderRadius: 3, padding: "26px 30px", marginBottom: 28,
             position: "relative", overflow: "hidden",
           }}
         >
           <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 3, background: p.branding_color }} />
           <Eyebrow>Proposta comercial</Eyebrow>
-          <div style={{ ...serif, fontSize: 26, color: c.ink }}>Para {p.client_name}</div>
+          <div style={{ ...display, fontSize: 26, color: c.ink }}>Para {p.client_name}</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {p.phases.map((ph, i) => (
-            <div key={i} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: "18px 22px", display: "flex", gap: 16 }}>
+            <div key={i} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "18px 22px", display: "flex", gap: 16 }}>
               <div
                 style={{
                   width: 30, height: 30, borderRadius: 999, background: `${p.branding_color}1A`, color: p.branding_color,
-                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...sans, fontSize: 12.5, fontWeight: 700,
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...sans, fontSize: 14, fontWeight: 700,
                 }}
               >
                 {i + 1}
               </div>
               <div>
                 <div style={{ ...serif, fontSize: 16, color: c.ink, marginBottom: 4 }}>{ph.title}</div>
-                <div style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.55 }}>{ph.description}</div>
+                <div style={{ ...sans, fontSize: 14, color: c.mist, lineHeight: 1.55 }}>{ph.description}</div>
               </div>
             </div>
           ))}
@@ -9766,20 +9712,20 @@ export function PublicGrowthMapPage() {
         <div
           style={{
             background: `linear-gradient(135deg, ${m.branding_color}18, #FFFFFF 65%)`,
-            border: `1px solid ${c.line}`, borderRadius: 16, padding: "26px 30px", marginBottom: 28,
+            border: `1px solid ${c.line}`, borderRadius: 3, padding: "26px 30px", marginBottom: 28,
             position: "relative", overflow: "hidden",
           }}
         >
           <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 3, background: m.branding_color }} />
           <Eyebrow>Mapa de Crescimento</Eyebrow>
-          <div style={{ ...serif, fontSize: 26, color: c.ink }}>Para {m.client_name}</div>
+          <div style={{ ...display, fontSize: 26, color: c.ink }}>Para {m.client_name}</div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 20 }}>
           {sections.map(([title, body]) => body && (
-            <div key={title} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: "18px 22px" }}>
-              <div style={{ ...sans, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: m.branding_color, marginBottom: 8 }}>{title}</div>
-              <div style={{ ...sans, fontSize: 13.5, color: c.ink, lineHeight: 1.65, whiteSpace: "pre-line" }}>{body}</div>
+            <div key={title} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "18px 22px" }}>
+              <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: m.branding_color, marginBottom: 8 }}>{title}</div>
+              <div style={{ ...sans, fontSize: 15, color: c.ink, lineHeight: 1.65, whiteSpace: "pre-line" }}>{body}</div>
             </div>
           ))}
         </div>
@@ -9789,9 +9735,9 @@ export function PublicGrowthMapPage() {
             <div style={{ ...serif, fontSize: 17, color: c.ink, marginBottom: 10 }}>Auditoria de canais</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {m.channel_audit.map((ca, i) => (
-                <div key={i} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 16px" }}>
-                  <div style={{ ...sans, fontSize: 13, fontWeight: 600, color: c.ink, marginBottom: 4 }}>{ca.channel}</div>
-                  <div style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.55 }}>{ca.finding}</div>
+                <div key={i} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 16px" }}>
+                  <div style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink, marginBottom: 4 }}>{ca.channel}</div>
+                  <div style={{ ...sans, fontSize: 14, color: c.mist, lineHeight: 1.55 }}>{ca.finding}</div>
                 </div>
               ))}
             </div>
@@ -9803,18 +9749,18 @@ export function PublicGrowthMapPage() {
             <div style={{ ...serif, fontSize: 17, color: c.ink, marginBottom: 10 }}>Plano estratégico e cronograma</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {m.strategic_plan.map((p, i) => (
-                <div key={i} style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: "18px 22px", display: "flex", gap: 16 }}>
+                <div key={i} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "18px 22px", display: "flex", gap: 16 }}>
                   <div
                     style={{
                       width: 30, height: 30, borderRadius: 999, background: `${m.branding_color}1A`, color: m.branding_color,
-                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...sans, fontSize: 12.5, fontWeight: 700,
+                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...sans, fontSize: 14, fontWeight: 700,
                     }}
                   >
                     {i + 1}
                   </div>
                   <div>
                     <div style={{ ...serif, fontSize: 16, color: c.ink, marginBottom: 4 }}>{p.title}</div>
-                    <div style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.55 }}>{p.description}</div>
+                    <div style={{ ...sans, fontSize: 14, color: c.mist, lineHeight: 1.55 }}>{p.description}</div>
                   </div>
                 </div>
               ))}
@@ -9828,7 +9774,7 @@ export function PublicGrowthMapPage() {
 
 function PublicSlide({ slide, brandingColor }) {
   const boxStyle = {
-    background: "#fff", border: `1px solid ${c.line}`, borderRadius: 16, minHeight: 320,
+    background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, minHeight: 320,
     padding: "40px 36px", position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "center",
   };
   const accent = <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: brandingColor }} />;
@@ -9837,9 +9783,9 @@ function PublicSlide({ slide, brandingColor }) {
     return (
       <div style={boxStyle}>
         {accent}
-        <div style={{ ...serif, fontSize: 48, color: brandingColor, marginBottom: 8 }}>{slide.value}</div>
+        <div style={{ ...display, fontSize: 48, color: brandingColor, marginBottom: 8 }}>{slide.value}</div>
         <div style={{ ...sans, fontSize: 15, fontWeight: 600, color: c.ink, marginBottom: 10 }}>{slide.label}</div>
-        <div style={{ ...sans, fontSize: 13, color: c.mist, lineHeight: 1.6, maxWidth: 460 }}>{slide.body}</div>
+        <div style={{ ...sans, fontSize: 14.5, color: c.mist, lineHeight: 1.6, maxWidth: 460 }}>{slide.body}</div>
       </div>
     );
   }
@@ -9848,7 +9794,7 @@ function PublicSlide({ slide, brandingColor }) {
       <div style={{ ...boxStyle, alignItems: "center", textAlign: "center" }}>
         {accent}
         <div style={{ ...serif, fontSize: 20, color: c.ink, lineHeight: 1.5, maxWidth: 480, marginBottom: 12 }}>&ldquo;{slide.quote}&rdquo;</div>
-        <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>{slide.author}</div>
+        <div style={{ ...sans, fontSize: 14, color: c.mist }}>{slide.author}</div>
       </div>
     );
   }
@@ -9859,7 +9805,7 @@ function PublicSlide({ slide, brandingColor }) {
         <div style={{ height: 220, background: slide.imageUrl ? `url(${slide.imageUrl}) center/cover` : c.paper }} />
         <div style={{ padding: "22px 28px" }}>
           <div style={{ ...serif, fontSize: 20, color: c.ink, marginBottom: 6 }}>{slide.heading}</div>
-          <div style={{ ...sans, fontSize: 13, color: c.mist, lineHeight: 1.6 }}>{slide.body}</div>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mist, lineHeight: 1.6 }}>{slide.body}</div>
         </div>
       </div>
     );
@@ -9868,11 +9814,11 @@ function PublicSlide({ slide, brandingColor }) {
     return (
       <div style={boxStyle}>
         {accent}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, background: c.paper, borderRadius: 10, padding: "10px 14px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, background: c.paper, borderRadius: 6, padding: "10px 14px" }}>
           <Video size={16} color={brandingColor} strokeWidth={1.8} />
-          <span style={{ ...sans, fontSize: 12.5, color: c.ink }}>{slide.body}</span>
+          <span style={{ ...sans, fontSize: 14, color: c.ink }}>{slide.body}</span>
         </div>
-        <div style={{ ...serif, fontSize: 22, color: c.ink }}>{slide.heading}</div>
+        <div style={{ ...display, fontSize: 22, color: c.ink }}>{slide.heading}</div>
       </div>
     );
   }
@@ -9882,8 +9828,8 @@ function PublicSlide({ slide, brandingColor }) {
         {accent}
         <div style={{ ...serif, fontSize: 20, color: c.ink, marginBottom: 16 }}>{slide.heading}</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <div style={{ background: c.paper, borderRadius: 10, padding: "16px 18px", ...sans, fontSize: 13, fontWeight: 600, color: c.ink }}>{slide.leftLabel}</div>
-          <div style={{ background: c.paper, borderRadius: 10, padding: "16px 18px", ...sans, fontSize: 13, fontWeight: 600, color: c.ink }}>{slide.rightLabel}</div>
+          <div style={{ background: c.paper, borderRadius: 6, padding: "16px 18px", ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink }}>{slide.leftLabel}</div>
+          <div style={{ background: c.paper, borderRadius: 6, padding: "16px 18px", ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink }}>{slide.rightLabel}</div>
         </div>
       </div>
     );
@@ -9891,9 +9837,9 @@ function PublicSlide({ slide, brandingColor }) {
   return (
     <div style={boxStyle}>
       {accent}
-      <div style={{ ...serif, fontSize: 28, color: c.ink, marginBottom: 6 }}>{slide.heading}</div>
-      {slide.subheading && <div style={{ ...sans, fontSize: 13, fontWeight: 600, color: brandingColor, marginBottom: 12 }}>{slide.subheading}</div>}
-      <div style={{ ...sans, fontSize: 14, color: c.mist, lineHeight: 1.6, maxWidth: 480 }}>{slide.body}</div>
+      <div style={{ ...display, fontSize: 28, color: c.ink, marginBottom: 6 }}>{slide.heading}</div>
+      {slide.subheading && <div style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: brandingColor, marginBottom: 12 }}>{slide.subheading}</div>}
+      <div style={{ ...sans, fontSize: 15, color: c.mist, lineHeight: 1.6, maxWidth: 480 }}>{slide.body}</div>
     </div>
   );
 }
@@ -9926,23 +9872,23 @@ export function PublicPresentationPage() {
   return (
     <PublicPageShell>
       <div style={{ maxWidth: 780, margin: "0 auto", padding: "60px 24px" }}>
-        <div style={{ ...serif, fontSize: 22, color: c.ink, marginBottom: 20, textAlign: "center" }}>{deck.title}</div>
+        <div style={{ ...display, fontSize: 22, color: c.ink, marginBottom: 20, textAlign: "center" }}>{deck.title}</div>
         <PublicSlide slide={slide} brandingColor={deck.branding_color || c.boss} />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 18 }}>
           <button
             onClick={() => setI((p) => Math.max(0, p - 1))}
             disabled={i === 0}
-            style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: i === 0 ? c.mistLight : c.boss, background: "none", border: "none", cursor: i === 0 ? "default" : "pointer" }}
+            style={{ ...sans, fontSize: 14, fontWeight: 600, color: i === 0 ? c.mistLight : c.bossText, background: "none", border: "none", cursor: i === 0 ? "default" : "pointer" }}
           >
             ← Anterior
           </button>
-          <span style={{ ...sans, fontSize: 11.5, color: c.mist }}>{i + 1} / {deck.slides.length}</span>
+          <span style={{ ...sans, fontSize: 12.5, color: c.mist }}>{i + 1} / {deck.slides.length}</span>
           <button
             onClick={() => setI((p) => Math.min(deck.slides.length - 1, p + 1))}
             disabled={i === deck.slides.length - 1}
-            style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: i === deck.slides.length - 1 ? c.mistLight : c.boss, background: "none", border: "none", cursor: i === deck.slides.length - 1 ? "default" : "pointer" }}
+            style={{ ...sans, fontSize: 14, fontWeight: 600, color: i === deck.slides.length - 1 ? c.mistLight : c.bossText, background: "none", border: "none", cursor: i === deck.slides.length - 1 ? "default" : "pointer" }}
           >
-            Seguinte →
+            Seguinte
           </button>
         </div>
       </div>
@@ -10073,7 +10019,7 @@ function BigBossPrototypeInner() {
     return (
       <div style={{ minHeight: "100vh", background: c.paper, display: "flex", alignItems: "center", justifyContent: "center", ...sans }}>
         <style>{FONTS}</style>
-        <div style={{ color: c.mist, fontSize: 13 }}>A carregar…</div>
+        <div style={{ color: c.mist, fontSize: 14.5 }}>A carregar…</div>
       </div>
     );
   }
@@ -10086,15 +10032,15 @@ function BigBossPrototypeInner() {
     return (
       <div style={{ minHeight: "100vh", background: c.paper, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, ...sans }}>
         <style>{FONTS}</style>
-        <div style={{ maxWidth: 420, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 18, padding: 28, textAlign: "center" }}>
+        <div style={{ maxWidth: 420, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 28, textAlign: "center" }}>
           <div style={{ ...serif, fontSize: 19, color: c.ink, marginBottom: 10 }}>Conta sem perfil associado</div>
-          <div style={{ ...sans, fontSize: 13, color: c.mist, marginBottom: 20, lineHeight: 1.5 }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mist, marginBottom: 20, lineHeight: 1.5 }}>
             A conta <strong>{session.email}</strong> está autenticada mas ainda não tem uma linha na tabela
             <code> profiles</code>. Segue a secção 4 do README para associares um perfil e um papel (role) a este email.
           </div>
           <button
             onClick={() => supabase.auth.signOut()}
-            style={{ ...sans, fontSize: 13, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 9, padding: "10px 18px", cursor: "pointer" }}
+            style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "10px 18px", cursor: "pointer" }}
           >
             Sair
           </button>
@@ -10165,7 +10111,7 @@ function BigBossPrototypeInner() {
         session={session}
       />
     ) : (
-      <div className="bb-page" style={{ padding: "8px 40px 60px", color: c.mist, ...sans, fontSize: 13 }}>
+      <div className="bb-page" style={{ padding: "8px 40px 60px", color: c.mist, ...sans, fontSize: 14.5 }}>
         A carregar marca…
       </div>
     );

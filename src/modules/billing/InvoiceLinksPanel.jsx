@@ -101,18 +101,18 @@ function LinkForm({ initial, onSubmit, onCancel, pending, submitLabel }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div>
-        <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Nome do documento</div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Nome do documento</div>
         <input style={inputStyle} value={name} maxLength={160} onChange={(e) => setName(e.target.value)} placeholder="Ex: Fatura de abril" autoFocus />
       </div>
       <div>
-        <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Link</div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Link</div>
         <input style={inputStyle} value={url} maxLength={2000} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" inputMode="url" />
       </div>
       <div>
-        <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Data da fatura (opcional — por omissão, hoje)</div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Data da fatura (opcional — por omissão, hoje)</div>
         <input style={inputStyle} type="date" value={documentDate} onChange={(e) => setDocumentDate(e.target.value)} />
       </div>
-      {error && <div style={{ ...sans, fontSize: 12, color: c.rose }}>{error}</div>}
+      {error && <div style={{ ...sans, fontSize: 13.5, color: c.rose }}>{error}</div>}
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={submit} disabled={pending} style={btnPrimary}><Check size={13} /> {pending ? "A guardar…" : submitLabel}</button>
         <button onClick={onCancel} style={btnGhost}><X size={13} /> Cancelar</button>
@@ -152,18 +152,18 @@ export default function InvoiceLinksPanel({ brandId, isClient, userId }) {
         )}
       </div>
 
-      {linksQuery.isError && <div style={{ ...sans, fontSize: 12.5, color: c.rose, marginBottom: 10 }}>Não foi possível carregar os documentos.</div>}
+      {linksQuery.isError && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 10 }}>Não foi possível carregar os documentos.</div>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {links.map((link) => (
-          <div key={link.id} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "14px 18px", flexWrap: "wrap" }}>
-            <FileText size={18} color={c.boss} style={{ flexShrink: 0 }} />
+          <div key={link.id} style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px", flexWrap: "wrap" }}>
+            <FileText size={18} color={c.bossText} style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 180 }}>
               <a href={link.url} target="_blank" rel="noopener noreferrer" style={{ ...serif, fontSize: 15, color: c.ink, textDecoration: "none", wordBreak: "break-word" }}>
                 {link.name}
               </a>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>
-                {[formatDate(link.document_date), hostOf(link.url)].filter(Boolean).join(" · ")}
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
+                {[formatDate(link.document_date), hostOf(link.url)].filter(Boolean).join(", ")}
               </div>
             </div>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -184,7 +184,7 @@ export default function InvoiceLinksPanel({ brandId, isClient, userId }) {
           </div>
         ))}
         {!linksQuery.isLoading && links.length === 0 && (
-          <div style={{ ...sans, fontSize: 13, color: c.mistLight, textAlign: "center", padding: "28px 0" }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.mistLight, textAlign: "center", padding: "28px 0" }}>
             {isClient ? "Ainda não há faturas disponíveis." : "Ainda não há documentos. Usa “Adicionar link” para pôr aqui o link de cada fatura."}
           </div>
         )}
@@ -215,12 +215,12 @@ export default function InvoiceLinksPanel({ brandId, isClient, userId }) {
 
       {confirmDelete && (
         <Modal title="Apagar documento" onClose={() => setConfirmDelete(null)} width={380}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, lineHeight: 1.6, marginBottom: 14, wordBreak: "break-word" }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.6, marginBottom: 14, wordBreak: "break-word" }}>
             Apagar <b>{confirmDelete.name}</b>? O cliente deixa de ver este link (a fatura em si não é apagada).
           </div>
-          {deleteError && <div style={{ ...sans, fontSize: 12, color: c.rose, marginBottom: 10 }}>{deleteError}</div>}
+          {deleteError && <div style={{ ...sans, fontSize: 13.5, color: c.rose, marginBottom: 10 }}>{deleteError}</div>}
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={doDelete} disabled={remove.isPending} style={{ ...btnPrimary, background: c.rose }}>
+            <button onClick={doDelete} disabled={remove.isPending} style={{ ...btnPrimary, background: c.roseSolid }}>
               {remove.isPending ? "A apagar…" : "Apagar"}
             </button>
             <button onClick={() => setConfirmDelete(null)} style={btnGhost}>Cancelar</button>

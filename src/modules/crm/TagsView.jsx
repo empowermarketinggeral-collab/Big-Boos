@@ -11,7 +11,7 @@ import { Plus, Pencil, Trash2, Search, Check, X } from "lucide-react";
    contacto.
 --------------------------------------------------------- */
 
-const TAG_COLORS = ["#7C4DE0", "#3B82F6", "#14B8A6", "#10B981", "#25D366", "#F59E0B", "#EF4444", "#EC4899", "#8B5CF6", "#6B7280"];
+const TAG_COLORS = ["#7C52A8", "#3B82F6", "#14B8A6", "#10B981", "#25D366", "#F59E0B", "#EF4444", "#EC4899", "#8B5CF6", "#6B7280"];
 const DEFAULT_COLOR = TAG_COLORS[0];
 
 function friendlyError(err) {
@@ -130,7 +130,7 @@ function TagRow({ tag, onSave, onDelete, saving }) {
     }
   };
 
-  const box = { background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: "12px 16px" };
+  const box = { background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "12px 16px" };
 
   if (editing) {
     return (
@@ -138,7 +138,7 @@ function TagRow({ tag, onSave, onDelete, saving }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <input style={inputStyle} value={name} maxLength={60} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && save()} autoFocus />
           <ColorPicker value={color} onChange={setColor} />
-          {error && <div style={{ ...sans, fontSize: 12, color: c.rose }}>{error}</div>}
+          {error && <div style={{ ...sans, fontSize: 13.5, color: c.rose }}>{error}</div>}
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={save} disabled={saving} style={btnPrimary}><Check size={13} /> Guardar</button>
             <button onClick={() => setEditing(false)} style={btnGhost}><X size={13} /> Cancelar</button>
@@ -153,9 +153,9 @@ function TagRow({ tag, onSave, onDelete, saving }) {
       <span style={{ width: 12, height: 12, borderRadius: 999, background: tag.color, flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 140 }}>
         <div style={{ ...serif, fontSize: 14.5, color: c.ink, wordBreak: "break-word" }}>{tag.name}</div>
-        <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 2 }}>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
           {tag.contactCount} {tag.contactCount === 1 ? "contacto" : "contactos"}
-          {tag.automations.length > 0 && ` · usada em ${tag.automations.length} ${tag.automations.length === 1 ? "automação" : "automações"}`}
+          {tag.automations.length > 0 && `, usada em ${tag.automations.length} ${tag.automations.length === 1 ? "automação" : "automações"}`}
         </div>
       </div>
       <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
@@ -206,8 +206,8 @@ export default function TagsView({ brand }) {
 
   return (
     <div>
-      <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 12, padding: 16, marginBottom: 18 }}>
-        <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.ink, marginBottom: 10 }}>Nova tag</div>
+      <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 16, marginBottom: 18 }}>
+        <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: c.ink, marginBottom: 10 }}>Nova tag</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
           <input
             style={{ ...inputStyle, flex: 1, minWidth: 180 }}
@@ -222,7 +222,7 @@ export default function TagsView({ brand }) {
           </button>
         </div>
         <ColorPicker value={newColor} onChange={setNewColor} />
-        {createError && <div style={{ ...sans, fontSize: 12, color: c.rose, marginTop: 8 }}>{createError}</div>}
+        {createError && <div style={{ ...sans, fontSize: 13.5, color: c.rose, marginTop: 8 }}>{createError}</div>}
       </div>
 
       <div style={{ position: "relative", maxWidth: 320, marginBottom: 14 }}>
@@ -230,13 +230,13 @@ export default function TagsView({ brand }) {
         <input style={{ ...inputStyle, paddingLeft: 32 }} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Pesquisar tags…" />
       </div>
 
-      {tagsQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
-      {tagsQuery.isError && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>Não foi possível carregar as tags.</div>}
+      {tagsQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A carregar…</div>}
+      {tagsQuery.isError && <div style={{ ...sans, fontSize: 14, color: c.rose }}>Não foi possível carregar as tags.</div>}
       {tagsQuery.data && tagsQuery.data.length === 0 && (
-        <div style={{ ...sans, fontSize: 13, color: c.mist }}>Ainda não há tags nesta marca. Cria a primeira acima.</div>
+        <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>Ainda não há tags nesta marca. Cria a primeira acima.</div>
       )}
       {tagsQuery.data?.length > 0 && tags.length === 0 && (
-        <div style={{ ...sans, fontSize: 13, color: c.mist }}>Nenhuma tag corresponde à pesquisa.</div>
+        <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>Nenhuma tag corresponde à pesquisa.</div>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -253,7 +253,7 @@ export default function TagsView({ brand }) {
 
       {confirmDelete && (
         <Modal title="Apagar tag" onClose={() => setConfirmDelete(null)} width={400}>
-          <div style={{ ...sans, fontSize: 13, color: c.ink, lineHeight: 1.6, marginBottom: 14 }}>
+          <div style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.6, marginBottom: 14 }}>
             Apagar a tag <b>{confirmDelete.name}</b>? Sai de {confirmDelete.contactCount} {confirmDelete.contactCount === 1 ? "contacto" : "contactos"}. Esta ação não pode ser desfeita.
             {confirmDelete.automations.length > 0 && (
               <div style={{ marginTop: 10, color: c.rose }}>
@@ -262,9 +262,9 @@ export default function TagsView({ brand }) {
               </div>
             )}
           </div>
-          {deleteError && <div style={{ ...sans, fontSize: 12, color: c.rose, marginBottom: 10 }}>{deleteError}</div>}
+          {deleteError && <div style={{ ...sans, fontSize: 13.5, color: c.rose, marginBottom: 10 }}>{deleteError}</div>}
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={doDelete} disabled={remove.isPending} style={{ ...btnPrimary, background: c.rose }}>
+            <button onClick={doDelete} disabled={remove.isPending} style={{ ...btnPrimary, background: c.roseSolid }}>
               {remove.isPending ? "A apagar…" : "Apagar"}
             </button>
             <button onClick={() => setConfirmDelete(null)} style={btnGhost}>Cancelar</button>

@@ -77,7 +77,7 @@ export default function ContractEditor({ value, onChange }) {
       <div
         style={{
           position: "sticky", top: 0, zIndex: 5, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 2, padding: 6,
-          background: "#fff", border: `1px solid ${c.line}`, borderRadius: 10, marginBottom: 12,
+          background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, marginBottom: 12,
         }}
       >
         <ToolButton label="Desfazer" onClick={() => run().undo().run()} disabled={!state.canUndo}><Undo2 size={15} /></ToolButton>
@@ -107,7 +107,7 @@ export default function ContractEditor({ value, onChange }) {
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => insertSignature("agency")}
-          style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}
+          style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: c.bossText, background: c.bossSoft, border: "none", borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}
         >
           <PenLine size={13} /> Assinatura da agência
         </button>
@@ -115,7 +115,7 @@ export default function ContractEditor({ value, onChange }) {
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => insertSignature("counterparty")}
-          style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: c.boss, background: c.bossSoft, border: "none", borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}
+          style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: c.bossText, background: c.bossSoft, border: "none", borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}
         >
           <PenLine size={13} /> Assinatura do cliente
         </button>

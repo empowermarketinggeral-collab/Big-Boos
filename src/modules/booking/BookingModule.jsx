@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
-import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, PAGE_FONT_OPTIONS, PAGE_COLOR_SWATCHES, DEFAULT_PAGE_STYLE } from "../../shared/theme.jsx";
+import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, PAGE_FONT_OPTIONS, PAGE_COLOR_SWATCHES, DEFAULT_PAGE_STYLE, display } from "../../shared/theme.jsx";
 import { ArrowLeft, Plus, Trash2, Pencil, Link2, CheckCircle2, Calendar as CalendarIcon, User, History, Upload, CreditCard } from "lucide-react";
 
 async function uploadStaffPhoto(brandId, staffId, file) {
@@ -420,7 +420,7 @@ function StaffFormModal({ brandId, staff, onClose }) {
         </div>
         <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome" />
         <input style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (opcional)" />
-        {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}
+        {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
         <button onClick={save} disabled={saveStaff.isPending} style={{ ...btnPrimary, width: "fit-content" }}>{saveStaff.isPending ? "A guardar…" : "Guardar"}</button>
       </div>
     </Modal>
@@ -440,7 +440,7 @@ function StaffSection({ brand, selectedStaffId, onSelectStaff }) {
   }, [firstStaffId, selectedStaffId, onSelectStaff]);
 
   return (
-    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+    <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <div style={{ ...serif, fontSize: 15.5, color: c.ink }}>Profissionais</div>
         <button onClick={() => { setEditing(null); setShowForm(true); }} style={{ ...btnGhost, padding: "6px 12px" }}><Plus size={12} /> Profissional</button>
@@ -460,12 +460,12 @@ function StaffSection({ brand, selectedStaffId, onSelectStaff }) {
             ) : (
               <User size={12} />
             )}
-            <span style={{ ...sans, fontSize: 12 }}>{s.name}</span>
+            <span style={{ ...sans, fontSize: 13.5 }}>{s.name}</span>
             <button onClick={(e) => { e.stopPropagation(); setEditing(s); setShowForm(true); }} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", opacity: 0.75, padding: 3 }}><Pencil size={11} /></button>
             <button onClick={(e) => { e.stopPropagation(); deleteStaff.mutate(s.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", opacity: 0.75, padding: 3 }}><Trash2 size={11} /></button>
           </div>
         ))}
-        {!staff.length && <div style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>Cria o primeiro profissional (pode ser só tu).</div>}
+        {!staff.length && <div style={{ ...sans, fontSize: 14, color: c.mistLight }}>Cria o primeiro profissional (pode ser só tu).</div>}
       </div>
       {showForm && <StaffFormModal brandId={brand.id} staff={editing} onClose={() => setShowForm(false)} />}
     </div>
@@ -515,27 +515,27 @@ function ServiceFormModal({ brandId, service, onClose }) {
           <input type="number" style={inputStyle} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Preço (€)" />
           <input type="number" style={inputStyle} value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} placeholder="Duração (min)" />
         </div>
-        {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}
+        {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
         <button onClick={save} disabled={saveService.isPending} style={{ ...btnPrimary, width: "fit-content" }}>
           {saveService.isPending ? "A guardar…" : savedId ? "Guardar alterações" : "Criar serviço"}
         </button>
 
         {savedId && (
           <div style={{ borderTop: `1px solid ${c.line}`, paddingTop: 14, marginTop: 4 }}>
-            <div style={{ ...sans, fontSize: 12, fontWeight: 700, color: c.ink, marginBottom: 8 }}>Upsells (extras opcionais)</div>
+            <div style={{ ...sans, fontSize: 13.5, fontWeight: 700, color: c.ink, marginBottom: 8 }}>Upsells (extras opcionais)</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
               {(upsellsQuery.data || []).map((u) => (
-                <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 8, background: c.paper, borderRadius: 8, padding: "6px 10px" }}>
-                  <div style={{ flex: 1, ...sans, fontSize: 12, color: c.ink }}>{u.name} — {money(u.price)} · +{u.extra_duration_minutes}min</div>
+                <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 8, background: c.paper, borderRadius: 6, padding: "6px 10px" }}>
+                  <div style={{ flex: 1, ...sans, fontSize: 13.5, color: c.ink }}>{u.name} — {money(u.price)}, +{u.extra_duration_minutes}min</div>
                   <button onClick={() => deleteUpsell.mutate(u.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 2 }}><Trash2 size={12} /></button>
                 </div>
               ))}
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <input style={{ ...inputStyle, fontSize: 12 }} value={newUpsellName} onChange={(e) => setNewUpsellName(e.target.value)} placeholder="Nome (ex: Brushing)" />
-              <input type="number" style={{ ...inputStyle, fontSize: 12, width: 80 }} value={newUpsellPrice} onChange={(e) => setNewUpsellPrice(e.target.value)} placeholder="€" />
-              <input type="number" style={{ ...inputStyle, fontSize: 12, width: 80 }} value={newUpsellMinutes} onChange={(e) => setNewUpsellMinutes(e.target.value)} placeholder="+min" />
-              <button onClick={addUpsell} style={{ background: "none", border: "none", cursor: "pointer", color: c.boss, padding: 4 }}><Plus size={16} /></button>
+              <input style={{ ...inputStyle, fontSize: 13.5 }} value={newUpsellName} onChange={(e) => setNewUpsellName(e.target.value)} placeholder="Nome (ex: Brushing)" />
+              <input type="number" style={{ ...inputStyle, fontSize: 13.5, width: 80 }} value={newUpsellPrice} onChange={(e) => setNewUpsellPrice(e.target.value)} placeholder="€" />
+              <input type="number" style={{ ...inputStyle, fontSize: 13.5, width: 80 }} value={newUpsellMinutes} onChange={(e) => setNewUpsellMinutes(e.target.value)} placeholder="+min" />
+              <button onClick={addUpsell} style={{ background: "none", border: "none", cursor: "pointer", color: c.bossText, padding: 4 }}><Plus size={16} /></button>
             </div>
           </div>
         )}
@@ -551,23 +551,23 @@ function ServicesSection({ brand }) {
   const [showForm, setShowForm] = useState(false);
 
   return (
-    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+    <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <div style={{ ...serif, fontSize: 15.5, color: c.ink }}>Serviços</div>
         <button onClick={() => { setEditing(null); setShowForm(true); }} style={{ ...btnGhost, padding: "6px 12px" }}><Plus size={12} /> Serviço</button>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {(servicesQuery.data || []).map((s) => (
-          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, background: c.paper, borderRadius: 10, padding: "10px 14px" }}>
+          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, background: c.paper, borderRadius: 6, padding: "10px 14px" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ ...sans, fontSize: 13, fontWeight: 600, color: c.ink }}>{s.name}</div>
-              <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>{money(s.price)} · {s.duration_minutes} min</div>
+              <div style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink }}>{s.name}</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>{money(s.price)}, {s.duration_minutes} min</div>
             </div>
             <button onClick={() => { setEditing(s); setShowForm(true); }} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 4 }}><Pencil size={13} /></button>
             <button onClick={() => deleteService.mutate(s.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 4 }}><Trash2 size={13} /></button>
           </div>
         ))}
-        {!servicesQuery.data?.length && <div style={{ ...sans, fontSize: 12, color: c.mistLight, textAlign: "center", padding: "16px 0" }}>Ainda sem serviços.</div>}
+        {!servicesQuery.data?.length && <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "16px 0" }}>Ainda sem serviços.</div>}
       </div>
       {showForm && <ServiceFormModal brandId={brand.id} service={editing} onClose={() => setShowForm(false)} />}
     </div>
@@ -583,10 +583,10 @@ function AddAvailabilityRow({ brandId, staffId, weekday }) {
   const addAvailability = useAddAvailability(brandId, staffId);
   return (
     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-      <input type="time" value={start} onChange={(e) => setStart(e.target.value)} style={{ ...sans, fontSize: 12, border: `1px solid ${c.line}`, borderRadius: 6, padding: "5px 7px" }} />
-      <span style={{ ...sans, fontSize: 12, color: c.mist }}>–</span>
-      <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={{ ...sans, fontSize: 12, border: `1px solid ${c.line}`, borderRadius: 6, padding: "5px 7px" }} />
-      <button onClick={() => addAvailability.mutate({ weekday, startTime: start, endTime: end })} disabled={addAvailability.isPending} style={{ background: "none", border: "none", cursor: "pointer", color: c.boss, padding: 4 }}><Plus size={14} /></button>
+      <input type="time" value={start} onChange={(e) => setStart(e.target.value)} style={{ ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "5px 7px" }} />
+      <span style={{ ...sans, fontSize: 13.5, color: c.mist }}>–</span>
+      <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={{ ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "5px 7px" }} />
+      <button onClick={() => addAvailability.mutate({ weekday, startTime: start, endTime: end })} disabled={addAvailability.isPending} style={{ background: "none", border: "none", cursor: "pointer", color: c.bossText, padding: 4 }}><Plus size={14} /></button>
     </div>
   );
 }
@@ -606,17 +606,17 @@ function AvailabilitySection({ brand, staffId }) {
 
   return (
     <>
-      <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+      <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
         <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 4 }}>Disponibilidade semanal</div>
-        <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 14 }}>Repete-se todas as semanas, para este profissional.</div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 14 }}>Repete-se todas as semanas, para este profissional.</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {WEEKDAYS.map((label, weekday) => (
             <div key={weekday} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-              <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.ink, width: 80, flexShrink: 0, paddingTop: 5 }}>{label}</div>
+              <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: c.ink, width: 80, flexShrink: 0, paddingTop: 5 }}>{label}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
                 {rules.filter((r) => r.weekday === weekday).map((r) => (
                   <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ ...sans, fontSize: 12, color: c.ink, background: c.paper, borderRadius: 6, padding: "4px 9px" }}>{r.start_time.slice(0, 5)} – {r.end_time.slice(0, 5)}</span>
+                    <span style={{ ...sans, fontSize: 13.5, color: c.ink, background: c.paper, borderRadius: 6, padding: "4px 9px" }}>{r.start_time.slice(0, 5)} – {r.end_time.slice(0, 5)}</span>
                     <button onClick={() => removeAvailability.mutate(r.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 2 }}><Trash2 size={12} /></button>
                   </div>
                 ))}
@@ -627,23 +627,23 @@ function AvailabilitySection({ brand, staffId }) {
         </div>
       </div>
 
-      <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+      <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
         <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 4 }}>Períodos indisponíveis</div>
-        <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 14 }}>Férias, folgas — bloqueia marcações neste intervalo, para este profissional.</div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 14 }}>Férias, folgas — bloqueia marcações neste intervalo, para este profissional.</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
           {(timeOffQuery.data || []).map((t) => (
-            <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, background: c.paper, borderRadius: 8, padding: "8px 12px" }}>
-              <div style={{ flex: 1, ...sans, fontSize: 12, color: c.ink }}>
-                {new Date(t.starts_at).toLocaleDateString("pt-PT")} – {new Date(t.ends_at).toLocaleDateString("pt-PT")}{t.reason ? ` · ${t.reason}` : ""}
+            <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, background: c.paper, borderRadius: 6, padding: "8px 12px" }}>
+              <div style={{ flex: 1, ...sans, fontSize: 13.5, color: c.ink }}>
+                {new Date(t.starts_at).toLocaleDateString("pt-PT")} – {new Date(t.ends_at).toLocaleDateString("pt-PT")}{t.reason ? `, ${t.reason}` : ""}
               </div>
               <button onClick={() => removeTimeOff.mutate(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 2 }}><Trash2 size={12} /></button>
             </div>
           ))}
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-          <input type="date" value={offStart} onChange={(e) => setOffStart(e.target.value)} style={{ ...sans, fontSize: 12, border: `1px solid ${c.line}`, borderRadius: 6, padding: "6px 8px" }} />
-          <input type="date" value={offEnd} onChange={(e) => setOffEnd(e.target.value)} style={{ ...sans, fontSize: 12, border: `1px solid ${c.line}`, borderRadius: 6, padding: "6px 8px" }} />
-          <input value={offReason} onChange={(e) => setOffReason(e.target.value)} placeholder="Motivo (opcional)" style={{ ...sans, fontSize: 12, border: `1px solid ${c.line}`, borderRadius: 6, padding: "6px 8px", flex: 1, minWidth: 120 }} />
+          <input type="date" value={offStart} onChange={(e) => setOffStart(e.target.value)} style={{ ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 8px" }} />
+          <input type="date" value={offEnd} onChange={(e) => setOffEnd(e.target.value)} style={{ ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 8px" }} />
+          <input value={offReason} onChange={(e) => setOffReason(e.target.value)} placeholder="Motivo (opcional)" style={{ ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 8px", flex: 1, minWidth: 120 }} />
           <button
             onClick={() => {
               if (!offStart || !offEnd) return;
@@ -669,14 +669,14 @@ function ContactHistoryModal({ brand, contactId, contactName, onClose }) {
     <Modal title={`Histórico — ${contactName}`} onClose={onClose} width={420}>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {(historyQuery.data || []).map((a) => (
-          <div key={a.id} style={{ background: c.paper, borderRadius: 8, padding: "10px 12px" }}>
-            <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.ink }}>{a.booking_services?.name}</div>
-            <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>
-              {new Date(a.starts_at).toLocaleString("pt-PT")} · {a.booking_staff?.name} · {a.status === "cancelled" ? "Cancelada" : a.status === "completed" ? "Concluída" : "Confirmada"}
+          <div key={a.id} style={{ background: c.paper, borderRadius: 6, padding: "10px 12px" }}>
+            <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: c.ink }}>{a.booking_services?.name}</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
+              {new Date(a.starts_at).toLocaleString("pt-PT")}, {a.booking_staff?.name}, {a.status === "cancelled" ? "Cancelada" : a.status === "completed" ? "Concluída" : "Confirmada"}
             </div>
           </div>
         ))}
-        {!historyQuery.data?.length && <div style={{ ...sans, fontSize: 12.5, color: c.mistLight, textAlign: "center", padding: "16px 0" }}>Sem marcações anteriores.</div>}
+        {!historyQuery.data?.length && <div style={{ ...sans, fontSize: 14, color: c.mistLight, textAlign: "center", padding: "16px 0" }}>Sem marcações anteriores.</div>}
       </div>
     </Modal>
   );
@@ -689,22 +689,22 @@ function AppointmentsSection({ brand }) {
   const appointments = (appointmentsQuery.data || []).filter((a) => a.status === "confirmed");
 
   return (
-    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+    <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
       <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Marcações</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {appointments.map((a) => (
-          <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 12, background: c.paper, borderRadius: 10, padding: "10px 14px" }}>
-            <CalendarIcon size={15} color={c.boss} style={{ flexShrink: 0 }} />
+          <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 12, background: c.paper, borderRadius: 6, padding: "10px 14px" }}>
+            <CalendarIcon size={15} color={c.bossText} style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <button onClick={() => setHistoryFor({ id: a.contact_id, name: a.customer_name })} style={{ ...sans, fontSize: 13, fontWeight: 600, color: c.ink, background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 5 }}>
+              <button onClick={() => setHistoryFor({ id: a.contact_id, name: a.customer_name })} style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink, background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 5 }}>
                 {a.booking_services?.name} — {a.customer_name} <History size={11} color={c.mist} />
               </button>
-              <div style={{ ...sans, fontSize: 11, color: c.mist, marginTop: 2 }}>{new Date(a.starts_at).toLocaleString("pt-PT")} · {a.booking_staff?.name || "—"} · {money(a.total_price)}</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>{new Date(a.starts_at).toLocaleString("pt-PT")}, {a.booking_staff?.name || "—"}, {money(a.total_price)}</div>
             </div>
-            <button onClick={() => cancelAppointment.mutate(a.id)} style={{ ...sans, fontSize: 11.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 7, padding: "5px 10px", cursor: "pointer" }}>Cancelar</button>
+            <button onClick={() => cancelAppointment.mutate(a.id)} style={{ ...sans, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 7, padding: "5px 10px", cursor: "pointer" }}>Cancelar</button>
           </div>
         ))}
-        {!appointments.length && <div style={{ ...sans, fontSize: 12, color: c.mistLight, textAlign: "center", padding: "16px 0" }}>Ainda sem marcações.</div>}
+        {!appointments.length && <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "16px 0" }}>Ainda sem marcações.</div>}
       </div>
       {historyFor && <ContactHistoryModal brand={brand} contactId={historyFor.id} contactName={historyFor.name} onClose={() => setHistoryFor(null)} />}
     </div>
@@ -727,13 +727,13 @@ function ReminderRow({ brand, type, label, setting }) {
   };
 
   return (
-    <div style={{ background: c.paper, borderRadius: 10, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+    <div style={{ background: c.paper, borderRadius: 6, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <label style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.ink, display: "flex", alignItems: "center", gap: 7 }}>
+        <label style={{ ...sans, fontSize: 14, fontWeight: 600, color: c.ink, display: "flex", alignItems: "center", gap: 7 }}>
           <input type="checkbox" checked={enabled} onChange={(e) => { setEnabled(e.target.checked); persist({ enabled: e.target.checked }); }} />
           {label}
         </label>
-        <select value={channel} onChange={(e) => { setChannel(e.target.value); persist({ channel: e.target.value }); }} style={{ ...sans, fontSize: 11.5, border: `1px solid ${c.line}`, borderRadius: 6, padding: "4px 7px" }}>
+        <select value={channel} onChange={(e) => { setChannel(e.target.value); persist({ channel: e.target.value }); }} style={{ ...sans, fontSize: 12.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "4px 7px" }}>
           <option value="whatsapp">WhatsApp</option>
           <option value="sms">SMS</option>
           <option value="email">Email</option>
@@ -745,7 +745,7 @@ function ReminderRow({ brand, type, label, setting }) {
         onChange={(e) => setTemplate(e.target.value)}
         onBlur={() => persist({})}
         placeholder="Mensagem — usa {{nome}}, {{servico}}, {{data}}, {{hora}}"
-        style={{ ...sans, fontSize: 12, border: `1px solid ${c.line}`, borderRadius: 7, padding: "7px 9px", outline: "none", resize: "vertical", background: "#fff" }}
+        style={{ ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 7, padding: "7px 9px", outline: "none", resize: "vertical", background: c.folha }}
       />
       {type === "post_visit" && (
         <input
@@ -753,7 +753,7 @@ function ReminderRow({ brand, type, label, setting }) {
           onChange={(e) => setReviewLink(e.target.value)}
           onBlur={() => persist({})}
           placeholder="Link de avaliação (ex: Google My Business)"
-          style={{ ...sans, fontSize: 12, border: `1px solid ${c.line}`, borderRadius: 7, padding: "7px 9px", outline: "none", background: "#fff" }}
+          style={{ ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 7, padding: "7px 9px", outline: "none", background: c.folha }}
         />
       )}
     </div>
@@ -766,11 +766,11 @@ function AppearanceSection({ brand }) {
   const style = styleQuery.data || DEFAULT_PAGE_STYLE;
 
   return (
-    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+    <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
       <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Aparência da página de marcação</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Cor de destaque</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Cor de destaque</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             {PAGE_COLOR_SWATCHES.map((hex) => (
               <button
@@ -784,18 +784,18 @@ function AppearanceSection({ brand }) {
               type="color"
               value={style.accentColor}
               onChange={(e) => updateStyle.mutate({ ...style, accentColor: e.target.value })}
-              style={{ width: 30, height: 26, border: `1px solid ${c.line}`, borderRadius: 6, cursor: "pointer", padding: 0, flexShrink: 0 }}
+              style={{ width: 30, height: 26, border: `1px solid ${c.lineStrong}`, borderRadius: 6, cursor: "pointer", padding: 0, flexShrink: 0 }}
             />
           </div>
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Tipo de letra</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Tipo de letra</div>
           <select style={inputStyle} value={style.font} onChange={(e) => updateStyle.mutate({ ...style, font: e.target.value })}>
             {PAGE_FONT_OPTIONS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
           </select>
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Logótipo (link da imagem, opcional)</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Logótipo (link da imagem, opcional)</div>
           <input style={inputStyle} defaultValue={style.logoUrl} onBlur={(e) => updateStyle.mutate({ ...style, logoUrl: e.target.value })} placeholder="https://…" />
         </div>
       </div>
@@ -807,9 +807,9 @@ function RemindersSection({ brand }) {
   const settingsQuery = useReminderSettings(brand.id);
   const settings = settingsQuery.data || [];
   return (
-    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+    <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
       <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 4 }}>Lembretes automáticos</div>
-      <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 14 }}>Por WhatsApp ou Email — reaproveita as contas já ligadas nesses módulos.</div>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 14 }}>Por WhatsApp ou Email — reaproveita as contas já ligadas nesses módulos.</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {REMINDER_TYPES.map((rt) => (
           <ReminderRow key={rt.value} brand={brand} type={rt.value} label={rt.label} setting={settings.find((s) => s.type === rt.value)} />
@@ -830,21 +830,21 @@ function PaymentSettingsSection({ brand }) {
   const persist = (patch) => save.mutate({ enabled: s.enabled, percentage: s.percentage, scope: s.scope, ...patch });
 
   return (
-    <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 20 }}>
+    <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
       <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 4, display: "flex", alignItems: "center", gap: 7 }}>
-        <CreditCard size={15} color={c.boss} /> Sinal ao marcar
+        <CreditCard size={15} color={c.bossText} /> Sinal ao marcar
       </div>
-      <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 14 }}>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 14 }}>
         Pede pagamento (via Stripe) antes de confirmar a marcação. A marcação só fica confirmada depois de paga.
       </div>
-      <label style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.ink, display: "flex", alignItems: "center", gap: 7, marginBottom: 14 }}>
+      <label style={{ ...sans, fontSize: 14, fontWeight: 600, color: c.ink, display: "flex", alignItems: "center", gap: 7, marginBottom: 14 }}>
         <input type="checkbox" checked={s.enabled} onChange={(e) => persist({ enabled: e.target.checked })} />
         Pedir sinal para confirmar marcações
       </label>
       {s.enabled && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Percentagem do valor total</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Percentagem do valor total</div>
             <select value={s.percentage} onChange={(e) => persist({ percentage: Number(e.target.value) })} style={{ ...inputStyle, maxWidth: 200 }}>
               <option value={20}>20%</option>
               <option value={50}>50%</option>
@@ -852,7 +852,7 @@ function PaymentSettingsSection({ brand }) {
             </select>
           </div>
           <div>
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Quem tem de pagar sinal</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Quem tem de pagar sinal</div>
             <select value={s.scope} onChange={(e) => persist({ scope: e.target.value })} style={{ ...inputStyle, maxWidth: 260 }}>
               <option value="all">Todos os clientes</option>
               <option value="new_customers">Só clientes novos (sem marcação anterior)</option>
@@ -887,15 +887,15 @@ export default function BookingModule({ brand, onBack }) {
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
+      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
         <ArrowLeft size={14} /> Voltar à marca
       </button>
 
       <Eyebrow>Agendamento</Eyebrow>
-      <h1 style={{ ...serif, fontSize: 24, color: c.ink, margin: "0 0 16px" }}>Marcações</h1>
+      <h1 style={{ ...display, fontSize: 24, color: c.ink, margin: "0 0 16px" }}>Marcações</h1>
 
-      <div style={{ background: "#fff", border: `1px solid ${c.line}`, borderRadius: 14, padding: 18, marginBottom: 24, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <div style={{ ...sans, fontSize: 11.5, color: c.mist, flexShrink: 0 }}>Página pública de marcação</div>
+      <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 18, marginBottom: 24, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, flexShrink: 0 }}>Página pública de marcação</div>
         {slug ? (
           <button onClick={copyLink} style={{ ...btnGhost, display: "flex", alignItems: "center", gap: 6 }}>
             {copied ? <CheckCircle2 size={13} /> : <Link2 size={13} />} {copied ? "Copiado!" : publicBookingUrl(slug)}
@@ -1016,8 +1016,8 @@ export function PublicBookingPage() {
     }
   };
 
-  if (state.loading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", ...sans, color: c.mist }}>A carregar…</div>;
-  if (state.error) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", ...sans, color: c.mist }}>{state.error}</div>;
+  if (state.loading) return <div className="bb-force-light" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", ...sans, color: c.mist }}>A carregar…</div>;
+  if (state.error) return <div className="bb-force-light" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", ...sans, color: c.mist }}>{state.error}</div>;
 
   const service = state.services.find((s) => s.id === serviceId);
   const minDate = new Date().toISOString().slice(0, 10);
@@ -1028,37 +1028,37 @@ export function PublicBookingPage() {
   const bodyFont = { fontFamily: `'${bookingStyle.font}', sans-serif` };
 
   return (
-    <div style={{ minHeight: "100vh", background: c.paper, display: "flex", justifyContent: "center", padding: "60px 20px", boxSizing: "border-box" }}>
+    <div className="bb-force-light" style={{ minHeight: "100vh", background: c.paper, display: "flex", justifyContent: "center", padding: "60px 20px", boxSizing: "border-box" }}>
       <div style={{ width: "100%", maxWidth: 460 }}>
-        <div style={{ background: "#fff", borderRadius: 20, padding: "32px 28px", boxShadow: "0 12px 30px rgba(30,20,50,0.1)" }}>
+        <div style={{ background: c.folha, borderRadius: 3, padding: "32px 28px", }}>
           {bookingStyle.logoUrl && <img src={bookingStyle.logoUrl} alt="" style={{ maxHeight: 44, maxWidth: "60%", display: "block", marginBottom: 16 }} />}
           {confirmed ? (
             <div style={{ textAlign: "center", padding: "20px 0" }}>
               <CheckCircle2 size={32} color={bookingStyle.accentColor} style={{ marginBottom: 12 }} />
               <div style={{ ...serif, ...titleFont, fontSize: 19, color: c.ink, marginBottom: 8 }}>Marcação confirmada!</div>
-              <div style={{ ...sans, ...bodyFont, fontSize: 13.5, color: c.mist, lineHeight: 1.6 }}>{service?.name} — {new Date(chosenSlot).toLocaleString("pt-PT")}</div>
+              <div style={{ ...sans, ...bodyFont, fontSize: 15, color: c.mist, lineHeight: 1.6 }}>{service?.name} — {new Date(chosenSlot).toLocaleString("pt-PT")}</div>
             </div>
           ) : (
             <>
               <h1 style={{ ...serif, ...titleFont, fontSize: 21, color: c.ink, marginBottom: 4 }}>{state.brand.name}</h1>
-              <div style={{ ...sans, ...bodyFont, fontSize: 13, color: c.mist, marginBottom: 20 }}>Marca o teu horário</div>
+              <div style={{ ...sans, ...bodyFont, fontSize: 14.5, color: c.mist, marginBottom: 20 }}>Marca o teu horário</div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div>
-                  <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Serviço</div>
+                  <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Serviço</div>
                   <select style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
-                    {state.services.map((s) => <option key={s.id} value={s.id}>{s.name} — {money(s.price)} · {s.duration_minutes} min</option>)}
+                    {state.services.map((s) => <option key={s.id} value={s.id}>{s.name} — {money(s.price)}, {s.duration_minutes} min</option>)}
                   </select>
                 </div>
 
                 {upsells.length > 0 && (
                   <div>
-                    <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Extras (opcional)</div>
+                    <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Extras (opcional)</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       {upsells.map((u) => (
-                        <label key={u.id} style={{ ...sans, fontSize: 12.5, color: c.ink, display: "flex", alignItems: "center", gap: 8 }}>
+                        <label key={u.id} style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "center", gap: 8 }}>
                           <input type="checkbox" checked={selectedUpsellIds.includes(u.id)} onChange={() => toggleUpsell(u.id)} />
-                          {u.name} — {money(u.price)} · +{u.extra_duration_minutes}min
+                          {u.name} — {money(u.price)}, +{u.extra_duration_minutes}min
                         </label>
                       ))}
                     </div>
@@ -1066,24 +1066,24 @@ export function PublicBookingPage() {
                 )}
 
                 <div>
-                  <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Profissional</div>
+                  <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Profissional</div>
                   <select style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={staffId} onChange={(e) => setStaffId(e.target.value)}>
                     {state.staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
 
                 <div>
-                  <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Dia</div>
+                  <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Dia</div>
                   <input type="date" min={minDate} style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={date} onChange={(e) => setDate(e.target.value)} />
                 </div>
 
                 {date && (
                   <div>
-                    <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Hora {extraMinutes > 0 && `(duração total: ${(service?.duration_minutes || 0) + extraMinutes} min)`}</div>
+                    <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Hora {extraMinutes > 0 && `(duração total: ${(service?.duration_minutes || 0) + extraMinutes} min)`}</div>
                     {loadingSlots ? (
-                      <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>A ver horários livres…</div>
+                      <div style={{ ...sans, fontSize: 14, color: c.mist }}>A ver horários livres…</div>
                     ) : slots.length === 0 ? (
-                      <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>Sem horários livres neste dia.</div>
+                      <div style={{ ...sans, fontSize: 14, color: c.mist }}>Sem horários livres neste dia.</div>
                     ) : (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                         {slots.map((s) => (
@@ -1091,8 +1091,8 @@ export function PublicBookingPage() {
                             key={s}
                             onClick={() => setChosenSlot(s)}
                             style={{
-                              ...sans, ...bodyFont, fontSize: 12, fontWeight: 600, borderRadius: 8, padding: "8px 12px", cursor: "pointer",
-                              border: `1px solid ${chosenSlot === s ? bookingStyle.accentColor : "#E0DAEC"}`, background: chosenSlot === s ? bookingStyle.accentColor : "#fff",
+                              ...sans, ...bodyFont, fontSize: 13.5, fontWeight: 600, borderRadius: 6, padding: "8px 12px", cursor: "pointer",
+                              border: `1px solid ${chosenSlot === s ? bookingStyle.accentColor : "#E0DAEC"}`, background: chosenSlot === s ? bookingStyle.accentColor : c.folha,
                               color: chosenSlot === s ? "#fff" : c.ink,
                             }}
                           >
@@ -1106,24 +1106,24 @@ export function PublicBookingPage() {
 
                 {chosenSlot && (
                   <>
-                    <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>Total: <strong style={{ color: c.ink }}>{money(totalPrice)}</strong></div>
+                    <div style={{ ...sans, fontSize: 14, color: c.mist }}>Total: <strong style={{ color: c.ink }}>{money(totalPrice)}</strong></div>
                     <div>
-                      <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Nome</div>
+                      <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Nome</div>
                       <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={name} onChange={(e) => setName(e.target.value)} />
                     </div>
                     <div>
-                      <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Telefone</div>
+                      <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Telefone</div>
                       <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={phone} onChange={(e) => setPhone(e.target.value)} />
                     </div>
                     <div>
-                      <div style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Email (opcional se deres telefone)</div>
+                      <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Email (opcional se deres telefone)</div>
                       <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={email} onChange={(e) => setEmail(e.target.value)} />
                     </div>
-                    {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}
+                    {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
                     <button
                       onClick={confirm}
                       disabled={submitting}
-                      style={{ ...sans, ...bodyFont, width: "100%", fontSize: 14, fontWeight: 600, color: "#fff", background: bookingStyle.accentColor, border: "none", borderRadius: 9, padding: "12px", cursor: "pointer" }}
+                      style={{ ...sans, ...bodyFont, width: "100%", fontSize: 15, fontWeight: 600, color: "#fff", background: bookingStyle.accentColor, border: "none", borderRadius: 6, padding: "12px", cursor: "pointer" }}
                     >
                       {submitting ? "A confirmar…" : "Confirmar marcação"}
                     </button>

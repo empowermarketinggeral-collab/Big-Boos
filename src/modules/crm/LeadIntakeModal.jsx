@@ -76,9 +76,9 @@ function CopyRow({ label, value }) {
   };
   return (
     <div>
-      <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>{label}</div>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>{label}</div>
       <div style={{ display: "flex", gap: 6 }}>
-        <input readOnly style={{ ...inputStyle, fontSize: 12, fontFamily: "monospace", minWidth: 0 }} value={value} onFocus={(e) => e.target.select()} />
+        <input readOnly style={{ ...inputStyle, fontSize: 13.5, fontFamily: "monospace", minWidth: 0 }} value={value} onFocus={(e) => e.target.select()} />
         <button onClick={copy} style={btnGhost} aria-label={`Copiar ${label}`}>
           {copied ? <Check size={13} /> : <Copy size={13} />}
         </button>
@@ -124,20 +124,20 @@ export default function LeadIntakeModal({ brand, onClose }) {
   return (
     <Modal title="Entrada de leads" onClose={onClose} width={560}>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.6 }}>
+        <div style={{ ...sans, fontSize: 14, color: c.mist, lineHeight: 1.6 }}>
           Liga as landing pages externas (Webflow, Elementor, WordPress, Zapier…) a este CRM: cada envio cria — ou atualiza — um contacto de <b>{brand.name}</b>, aplica as tags e dispara as automações.
         </div>
 
-        {webhookQuery.isLoading && <div style={{ ...sans, fontSize: 13, color: c.mist }}>A carregar…</div>}
+        {webhookQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A carregar…</div>}
         {webhookQuery.isError && (
-          <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>
+          <div style={{ ...sans, fontSize: 14, color: c.rose }}>
             Não foi possível abrir a configuração. Só a equipa da agência pode gerir a entrada de leads.
           </div>
         )}
 
         {hook && (
           <>
-            <label style={{ ...sans, fontSize: 12.5, color: c.ink, display: "flex", alignItems: "center", gap: 7 }}>
+            <label style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "center", gap: 7 }}>
               <input
                 type="checkbox"
                 checked={hook.enabled}
@@ -150,16 +150,16 @@ export default function LeadIntakeModal({ brand, onClose }) {
             <CopyRow label="Token (cabeçalho x-lead-token)" value={hook.token} />
             <CopyRow label="URL com token — para plataformas que só aceitam um endereço" value={`${ENDPOINT}?token=${hook.token}`} />
 
-            <div style={{ ...sans, fontSize: 11.5, color: c.mist, lineHeight: 1.6 }}>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.6 }}>
               Quem tiver o token pode criar leads nesta marca (não consegue ler nada). Se ficar exposto, gera um novo — o antigo deixa de funcionar logo.
             </div>
             {confirmRotate ? (
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <span style={{ ...sans, fontSize: 12, color: c.ink }}>As landing pages ligadas vão parar até atualizares o token.</span>
+                <span style={{ ...sans, fontSize: 13.5, color: c.ink }}>As landing pages ligadas vão parar até atualizares o token.</span>
                 <button
                   onClick={() => run(async () => { await rotate.mutateAsync(); setConfirmRotate(false); })}
                   disabled={rotate.isPending}
-                  style={{ ...btnPrimary, background: c.rose }}
+                  style={{ ...btnPrimary, background: c.roseSolid }}
                 >
                   {rotate.isPending ? "A gerar…" : "Gerar novo token"}
                 </button>
@@ -172,7 +172,7 @@ export default function LeadIntakeModal({ brand, onClose }) {
             )}
 
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 6 }}>Tags aplicadas a todos os leads que entram por aqui</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Tags aplicadas a todos os leads que entram por aqui</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {(tagsQuery.data || []).map((tag) => {
                   const active = (hook.default_tag_ids || []).includes(tag.id);
@@ -181,23 +181,23 @@ export default function LeadIntakeModal({ brand, onClose }) {
                       key={tag.id}
                       onClick={() => toggleTag(tag.id)}
                       style={{
-                        ...sans, fontSize: 11.5, fontWeight: 600, padding: "5px 10px", borderRadius: 999, cursor: "pointer",
+                        ...sans, fontSize: 12.5, fontWeight: 600, padding: "5px 10px", borderRadius: 999, cursor: "pointer",
                         border: `1px solid ${active ? tag.color : c.line}`,
                         color: active ? "#fff" : c.mist,
-                        background: active ? tag.color : "#fff",
+                        background: active ? tag.color : c.folha,
                       }}
                     >
                       {tag.name}
                     </button>
                   );
                 })}
-                {!tagsQuery.data?.length && <span style={{ ...sans, fontSize: 11.5, color: c.mist }}>Ainda não há tags nesta marca.</span>}
+                {!tagsQuery.data?.length && <span style={{ ...sans, fontSize: 12.5, color: c.mist }}>Ainda não há tags nesta marca.</span>}
               </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
               <div>
-                <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Origem por omissão</div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Origem por omissão</div>
                 <input
                   style={inputStyle}
                   defaultValue={hook.default_source}
@@ -210,7 +210,7 @@ export default function LeadIntakeModal({ brand, onClose }) {
                 />
               </div>
               <div>
-                <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Indicativo por omissão (telefones com 9 dígitos)</div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Indicativo por omissão (telefones com 9 dígitos)</div>
                 <input
                   style={inputStyle}
                   defaultValue={hook.default_country_code}
@@ -226,16 +226,16 @@ export default function LeadIntakeModal({ brand, onClose }) {
             </div>
 
             <div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginBottom: 5 }}>Exemplo</div>
-              <pre style={{ ...sans, fontFamily: "monospace", fontSize: 11, background: c.bossSoft, color: c.ink, borderRadius: 8, padding: 10, margin: 0, overflowX: "auto", whiteSpace: "pre" }}>{example}</pre>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mist, marginTop: 8, lineHeight: 1.6 }}>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Exemplo</div>
+              <pre style={{ ...sans, fontFamily: "monospace", fontSize: 12.5, background: c.bossSoft, color: c.ink, borderRadius: 6, padding: 10, margin: 0, overflowX: "auto", whiteSpace: "pre" }}>{example}</pre>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 8, lineHeight: 1.6 }}>
                 Campos: <code>name</code>, <code>email</code>, <code>phone</code> (é preciso email ou telefone), <code>birth_date</code>, <code>source</code>, <code>tags</code>, <code>consent</code> (ou <code>consent_whatsapp</code> / <code>consent_email</code> / <code>consent_sms</code>), <code>cf_&lt;campo&gt;</code> para campos personalizados, <code>referrer_email</code> / <code>referrer_phone</code> para indicações. Sem consentimento marcado, o lead entra sem autorização de envio.
               </div>
             </div>
           </>
         )}
 
-        {error && <div style={{ ...sans, fontSize: 12.5, color: c.rose }}>{error}</div>}
+        {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
 
         <button onClick={onClose} style={{ ...btnGhost, alignSelf: "flex-start" }}>Fechar</button>
       </div>

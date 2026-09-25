@@ -5,9 +5,19 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="google" content="notranslate" />
-    <title>big-boss-app</title>
+    <title>Big Boss</title>
+    <meta name="theme-color" content="#30154C" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- aplica a escolha claro/escuro antes de a página desenhar (sem clarão) -->
+    <script>try{var t=localStorage.getItem("bb-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Big Boss: títulos Bodoni Moda, subtítulos Marcellus, corpo Quicksand (fontes livres, OFL) -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400..800&family=Marcellus&family=Quicksand:wght@400..700&display=swap"
+    />
+    <!-- Fontes que as páginas públicas de cada marca podem escolher -->
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Montserrat:wght@400;600;700&family=Playfair+Display:wght@400;600;700&family=Poppins:wght@400;600;700&display=swap"
