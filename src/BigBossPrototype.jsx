@@ -284,36 +284,32 @@ const FONTS = `
   background: var(--bb-regua-marca); border-radius: 0 2px 2px 0;
 }
 
+.bb-sidebar-toggle, .bb-sidebar-backdrop { display: none; }
+
 @media (max-width: 860px) {
   .bb-app { flex-direction: column; }
+
+  /* menu lateral recolhível: escondido por omissão, abre por cima do conteúdo */
   .bb-sidebar {
-    width: 100% !important;
-    min-height: 0 !important;
-    flex-direction: row !important;
-    align-items: center;
-    position: sticky;
-    top: 0;
-    z-index: 30;
-    overflow-x: auto;
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: 264px !important; min-height: 0 !important;
+    z-index: 60; overflow-y: auto;
+    transform: translateX(-100%); visibility: hidden;
+    transition: transform 200ms ease, visibility 0s linear 200ms;
   }
-  .bb-sidebar-logo { padding: 10px 12px !important; flex-shrink: 0; }
-  .bb-sidebar-logo img { height: 22px !important; }
-  .bb-sidebar-nav {
-    flex: none !important;
-    display: flex !important;
-    flex-direction: row !important;
-    padding: 6px 8px !important;
-    overflow-x: auto;
-    gap: 2px;
+  .bb-sidebar.bb-open { transform: none; visibility: visible; transition: transform 200ms ease; }
+  .bb-sidebar-backdrop {
+    display: block; position: fixed; inset: 0; z-index: 55; padding: 0; border: 0;
+    background: rgba(8, 5, 14, 0.6); opacity: 0; pointer-events: none; transition: opacity 200ms ease;
   }
-  .bb-sidebar .bb-nav-item {
-    flex-direction: column; gap: 3px; width: auto; font-size: 12.5px; padding: 6px 10px; white-space: nowrap; margin-bottom: 0;
+  .bb-sidebar-backdrop.bb-open { opacity: 1; pointer-events: auto; }
+  .bb-sidebar-toggle {
+    display: flex; align-items: center; justify-content: center;
+    position: fixed; top: 12px; left: 0; z-index: 61; width: 34px; height: 44px; padding: 0;
+    border: 0; border-radius: 0 8px 8px 0; background: var(--bb-regua); color: var(--bb-regua-texto); cursor: pointer;
+    transition: left 200ms ease;
   }
-  .bb-sidebar .bb-nav-item[aria-current="page"]::before {
-    left: 8px; right: 8px; top: auto; bottom: 0; width: auto; height: 3px; border-radius: 2px 2px 0 0;
-  }
-  .bb-sidebar-footer { display: none !important; }
-  .bb-topbar-logout { display: flex !important; }
+  .bb-sidebar-toggle.bb-open { left: 264px; }
 
   .bb-page { padding: 16px 16px 90px !important; max-width: 100% !important; }
   .bb-topbar { padding: 12px 16px 0 !important; }
@@ -2372,9 +2368,30 @@ function visibleNav(role) {
 --------------------------------------------------------- */
 function Sidebar({ active, onNavigate, session, roleInfo, onLogout }) {
   const { t } = useT();
+  // No telemóvel o menu é uma gaveta lateral: começa recolhida e abre com a seta.
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
   return (
+    <>
+    <button
+      type="button"
+      className={`bb-sidebar-toggle${open ? " bb-open" : ""}`}
+      onClick={() => setOpen((v) => !v)}
+      aria-label={open ? "Recolher o menu" : "Abrir o menu"}
+      aria-expanded={open}
+      aria-controls="bb-menu-lateral"
+    >
+      {open ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+    </button>
+    <div className={`bb-sidebar-backdrop${open ? " bb-open" : ""}`} onClick={() => setOpen(false)} aria-hidden="true" />
     <aside
-      className="bb-sidebar"
+      id="bb-menu-lateral"
+      className={`bb-sidebar${open ? " bb-open" : ""}`}
       style={{ width: 240, minHeight: "100vh", display: "flex", flexDirection: "column", flexShrink: 0 }}
     >
       <div className="bb-sidebar-logo" style={{ padding: "26px 22px 20px", display: "flex", alignItems: "center" }}>
@@ -2391,7 +2408,7 @@ function Sidebar({ active, onNavigate, session, roleInfo, onLogout }) {
             <button
               key={item.key}
               className="bb-nav-item"
-              onClick={() => onNavigate(item.key)}
+              onClick={() => { onNavigate(item.key); setOpen(false); }}
               aria-current={active === item.key ? "page" : undefined}
             >
               <Icon size={17} strokeWidth={1.8} />
@@ -2429,6 +2446,7 @@ function Sidebar({ active, onNavigate, session, roleInfo, onLogout }) {
         </div>
       </div>
     </aside>
+    </>
   );
 }
 
