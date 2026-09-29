@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
-import { ArrowLeft, Send, MessageCircle, CheckCircle2, AlertCircle, Plus, Trash2, FileText, RefreshCw, UserPlus } from "lucide-react";
+import { ArrowLeft, Send, MessageCircle, CheckCircle2, AlertCircle, Plus, Trash2, FileText, RefreshCw, UserPlus, Calculator, Info } from "lucide-react";
 
 /* ---------------------------------------------------------
    WHATSAPP — Inbox ligado à Meta Cloud API (WhatsApp Business)
@@ -106,7 +106,28 @@ function useWaUsage(brandId) {
       const since = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
       const { data, error } = await supabase.from("messaging_usage_daily").select("num_messages, cost, currency").eq("brand_id", brandId).eq("channel", "whatsapp").gte("date", since);
       if (error) throw error;
-      return (data || []).reduce((acc, r) => ({ numMessages: acc.numMessages + r.num_messages, cost: acc.cost + Number(r.cost), currency: r.currency || acc.currency }), { numMessages: 0, cost: 0, currency: "USD" });
+      return (data || []).reduce((acc, r) => ({ numMessages: acc.numMessages + r.num_messages, cost: acc.cost + Number(r.cost), currency: r.currency || acc.currency }), { numMessages: 0, cost: 0, currency: "EUR" });
+    },
+  });
+}
+
+// Últimos 90 dias, dia a dia — para a Calculadora estimar uma média diária
+// real (em vez de só o total dos últimos 30) e sugerir quanto saldo pôr.
+function useWaUsageTrend(brandId) {
+  return useQuery({
+    queryKey: ["messaging_usage_trend", brandId, "whatsapp"],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const since = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+      const { data, error } = await supabase
+        .from("messaging_usage_daily")
+        .select("date, num_messages, cost, currency")
+        .eq("brand_id", brandId)
+        .eq("channel", "whatsapp")
+        .gte("date", since)
+        .order("date", { ascending: true });
+      if (error) throw error;
+      return data || [];
     },
   });
 }
@@ -1022,9 +1043,184 @@ function Inbox({ brandId }) {
 }
 
 /* ---------------------------------------------------------
+   CUSTOS — calculadora de saldo do WhatsApp (Twilio + Meta)
+   Ajuda a agência e o cliente a perceberem quanto saldo pôr na conta
+   Twilio para o WhatsApp não parar — a mensalidade da Big Boss cobre a
+   plataforma, mas os envios em si são pagos à parte, diretamente à
+   Twilio/Meta, consoante o volume de mensagens.
+--------------------------------------------------------- */
+const money = (v, currency = "EUR") => new Intl.NumberFormat("pt-PT", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v || 0);
+// As taxas por mensagem são frações de cêntimo — formatadas como moeda a
+// 2 casas, 0,0034 e 0,005 arredondam as duas para "0,00"/"0,01". Mostra-as
+// com mais casas decimais só nesta linha de detalhe.
+const rateMoney = (v) => `${(v || 0).toFixed(4)}€`;
+
+// Preços de exemplo (mercado dos EUA, categoria "utilitário", tal como no
+// simulador oficial da Meta) — servem de ponto de partida, mas variam por
+// país e por categoria de template (marketing/utilitário/autenticação) e
+// mudam com o tempo. O valor real é o que aparece em
+// Twilio Console → Monitor → Usage, por isso os campos ficam editáveis.
+const DEFAULT_META_RATE = 0.0034;
+const DEFAULT_TWILIO_RATE = 0.005;
+
+function RateField({ label, value, onChange, hint }) {
+  return (
+    <div>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>{label}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <input
+          type="number"
+          step="0.0001"
+          min="0"
+          value={value}
+          onChange={(e) => onChange(Math.max(0, parseFloat(e.target.value) || 0))}
+          style={{ ...sans, width: 100, fontSize: 14, color: c.ink, background: c.folha, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "7px 9px", outline: "none" }}
+        />
+        <span style={{ ...sans, fontSize: 14, color: c.mistLight }}>€</span>
+        <span style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>/ mensagem</span>
+      </div>
+      {hint && <div style={{ ...sans, fontSize: 11.5, color: c.mistLight, marginTop: 4 }}>{hint}</div>}
+    </div>
+  );
+}
+
+function VolumeSlider({ label, value, onChange, max = 10000 }) {
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 6 }}>
+        <div style={{ ...sans, fontSize: 13.5, color: c.ink, fontWeight: 600 }}>{label}</div>
+        <input
+          type="number"
+          min="0"
+          value={value}
+          onChange={(e) => onChange(Math.max(0, parseInt(e.target.value, 10) || 0))}
+          style={{ ...sans, width: 90, fontSize: 14, color: c.ink, background: c.folha, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 9px", outline: "none", textAlign: "right" }}
+        />
+      </div>
+      <input
+        type="range"
+        min="0"
+        max={max}
+        step={Math.max(1, Math.round(max / 200))}
+        value={Math.min(value, max)}
+        onChange={(e) => onChange(parseInt(e.target.value, 10))}
+        style={{ width: "100%", accentColor: c.boss }}
+      />
+      <div style={{ display: "flex", justifyContent: "space-between", ...sans, fontSize: 11.5, color: c.mistLight, marginTop: 2 }}>
+        <span>0</span><span>{max.toLocaleString("pt-PT")}+</span>
+      </div>
+    </div>
+  );
+}
+
+function CostsPanel({ brandId }) {
+  const usageQuery = useWaUsage(brandId);
+  const trendQuery = useWaUsageTrend(brandId);
+  const [inWindow, setInWindow] = useState(0);
+  const [outWindow, setOutWindow] = useState(0);
+  const [metaRate, setMetaRate] = useState(DEFAULT_META_RATE);
+  const [twilioRate, setTwilioRate] = useState(DEFAULT_TWILIO_RATE);
+  const [prefilled, setPrefilled] = useState(false);
+
+  // Pré-preenche uma vez com o real dos últimos 30 dias — como ainda não
+  // guardamos se cada mensagem foi dentro ou fora da janela de 24h, entra
+  // tudo como "fora" (é o caso mais comum em automações/campanhas); ajusta-se
+  // à mão a seguir.
+  useEffect(() => {
+    if (!prefilled && usageQuery.data && usageQuery.data.numMessages > 0) {
+      setOutWindow(usageQuery.data.numMessages);
+      setPrefilled(true);
+    }
+  }, [prefilled, usageQuery.data]);
+
+  const metaCost = outWindow * metaRate;
+  const twilioCost = (inWindow + outWindow) * twilioRate;
+  const total = metaCost + twilioCost;
+
+  const trend = trendQuery.data || [];
+  const daysWithData = trend.length;
+  const trendCost = trend.reduce((sum, r) => sum + Number(r.cost), 0);
+  const dailyAvg = daysWithData > 0 ? trendCost / daysWithData : 0;
+  const suggestedTopUp = dailyAvg * 30 * 1.2; // média real × 30 dias + 20% de margem
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 720 }}>
+      <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
+        <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 6 }}>Gasto real (Twilio)</div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 16, lineHeight: 1.5 }}>
+          A mensalidade cobre a plataforma — o envio de cada mensagem é pago à parte, diretamente à Twilio. Este é o valor que a Twilio já cobrou, sincronizado uma vez por dia.
+        </div>
+        {usageQuery.isLoading ? (
+          <div style={{ ...sans, fontSize: 13.5, color: c.mist }}>A carregar…</div>
+        ) : usageQuery.data && usageQuery.data.numMessages > 0 ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14 }}>
+            <div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 3 }}>Últimos 30 dias</div>
+              <div style={{ ...display, fontSize: 22, color: c.ink }}>{money(usageQuery.data.cost, usageQuery.data.currency)}</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>{usageQuery.data.numMessages.toLocaleString("pt-PT")} mensagens</div>
+            </div>
+            <div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 3 }}>Média diária ({daysWithData} dias com registo)</div>
+              <div style={{ ...display, fontSize: 22, color: c.ink }}>{money(dailyAvg, usageQuery.data.currency)}</div>
+            </div>
+            <div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 3 }}>Saldo sugerido p/ 30 dias</div>
+              <div style={{ ...display, fontSize: 22, color: c.bossText }}>{money(suggestedTopUp, usageQuery.data.currency)}</div>
+              <div style={{ ...sans, fontSize: 11.5, color: c.mistLight }}>média real × 30 dias + 20% de margem</div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ ...sans, fontSize: 13.5, color: c.mistLight }}>
+            Ainda sem histórico de gasto real (a sincronização é diária). Usa o simulador abaixo para estimar antes de teres dados.
+          </div>
+        )}
+      </div>
+
+      <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <Calculator size={16} color={c.bossText} />
+          <div style={{ ...serif, fontSize: 15.5, color: c.ink }}>Simulador</div>
+        </div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 18, lineHeight: 1.5 }}>
+          Ajusta o número de mensagens por mês para veres o custo estimado. "Fora da janela" são mensagens que a marca começa (automações, campanhas, "Nova conversa") — só essas têm taxa da Meta. "Dentro da janela" são respostas a quem escreveu nas últimas 24h — sem taxa da Meta, só da Twilio.
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <VolumeSlider label="Mensagens dentro da janela de 24h (respostas)" value={inWindow} onChange={setInWindow} max={10000} />
+          <VolumeSlider label="Mensagens fora da janela (templates)" value={outWindow} onChange={setOutWindow} max={10000} />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, margin: "20px 0" }}>
+          <RateField label="Taxa da Meta (fora da janela)" value={metaRate} onChange={setMetaRate} hint="Valores de partida em euros a partir do exemplo dos EUA — a tua taxa real varia por país e categoria." />
+          <RateField label="Taxa da Twilio (todas as mensagens)" value={twilioRate} onChange={setTwilioRate} />
+        </div>
+
+        <div style={{ background: c.paper, borderRadius: 6, padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", ...sans, fontSize: 13.5, color: c.ink }}>
+            <span>Taxa Meta — {outWindow.toLocaleString("pt-PT")} msgs × {rateMoney(metaRate)}</span><span>{money(metaCost)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", ...sans, fontSize: 13.5, color: c.ink }}>
+            <span>Taxa Twilio — {(inWindow + outWindow).toLocaleString("pt-PT")} msgs × {rateMoney(twilioRate)}</span><span>{money(twilioCost)}</span>
+          </div>
+          <div style={{ borderTop: `1px solid ${c.line}`, marginTop: 4, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span style={{ ...sans, fontSize: 14, fontWeight: 700, color: c.ink }}>Total mensal estimado</span>
+            <span style={{ ...display, fontSize: 26, color: c.bossText }}>{money(total)}</span>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 14, ...sans, fontSize: 11.5, color: c.mistLight, lineHeight: 1.5 }}>
+          <Info size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+          Estimativa, não uma fatura. As taxas de partida acima estão em euros, mas o número em si vem do simulador da Meta para os EUA — confirma a tua taxa real (Portugal/UE) em Twilio Console → Monitor → Usage, ou no simulador da própria Meta (Meta Business Suite → Faturação → WhatsApp Manager). Não inclui outros custos Twilio (número, funcionalidades extra).
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
    MÓDULO
 --------------------------------------------------------- */
-const TABS = [{ k: "inbox", l: "Inbox" }, { k: "templates", l: "Templates" }, { k: "campanhas", l: "Campanhas" }];
+const TABS = [{ k: "inbox", l: "Inbox" }, { k: "templates", l: "Templates" }, { k: "campanhas", l: "Campanhas" }, { k: "custos", l: "Custos" }];
 
 export default function WhatsappModule({ brand, onBack }) {
   const accountQuery = useWhatsappAccount(brand.id);
@@ -1076,6 +1272,7 @@ export default function WhatsappModule({ brand, onBack }) {
           {tab === "inbox" && <Inbox brandId={brand.id} />}
           {tab === "templates" && <TemplatesPanel brandId={brand.id} provider={accountQuery.data.provider} />}
           {tab === "campanhas" && <WaCampaignsPanel brandId={brand.id} />}
+          {tab === "custos" && <CostsPanel brandId={brand.id} />}
 
           {showStart && <StartConversationModal brandId={brand.id} onClose={() => setShowStart(false)} />}
         </>
