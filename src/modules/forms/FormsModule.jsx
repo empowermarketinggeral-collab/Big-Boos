@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, PAGE_FONT_OPTIONS, PAGE_COLOR_SWATCHES, DEFAULT_PAGE_STYLE, display } from "../../shared/theme.jsx";
-import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, FileText, Link2, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, FileText, HelpCircle, Link2, CheckCircle2 } from "lucide-react";
 
 /* ---------------------------------------------------------
    FORMULÁRIOS / QUESTIONÁRIOS / LEAD MAGNETS
@@ -21,6 +21,7 @@ const FORM_TYPES = [
   { value: "form", label: "Formulário" },
   { value: "questionario", label: "Questionário" },
   { value: "lead_magnet", label: "Lead magnet" },
+  { value: "quiz", label: "Quiz" },
 ];
 
 const FIELD_TYPES = [
@@ -29,7 +30,13 @@ const FIELD_TYPES = [
   { value: "phone", label: "Telefone" },
   { value: "textarea", label: "Texto longo" },
   { value: "select", label: "Escolha (lista)" },
+  { value: "choice", label: "Escolha (botões)" },
 ];
+
+// Quiz: cada pergunta de escolha tem opções com pontos — "certo/errado com
+// valor fixo" é só o caso em que uma opção tem pontos e as outras 0;
+// "várias pontuações diferentes" é o caso geral, mesmo mecanismo.
+const newChoiceOption = () => ({ id: `o${Date.now()}${Math.random().toString(36).slice(2, 6)}`, label: "Nova opção", points: 0 });
 
 
 const MAPS_TO_OPTIONS = [
@@ -170,7 +177,52 @@ function NewFormModal({ brandId, onClose, onCreated }) {
 /* ---------------------------------------------------------
    EDITOR
 --------------------------------------------------------- */
-function FieldRow({ field, onChange, onRemove, onMove, isFirst, isLast }) {
+// Opções de uma pergunta de escolha por botões ({id, label, points}).
+// Os pontos só aparecem quando o formulário é um quiz — noutros
+// formulários a pergunta funciona só como escolha, sem pontuação.
+function ChoiceOptionsEditor({ options, onChange, showPoints }) {
+  const opts = options && options.length ? options : [];
+  const update = (id, patch) => onChange(opts.map((o) => (o.id === id ? { ...o, ...patch } : o)));
+  const remove = (id) => onChange(opts.filter((o) => o.id !== id));
+  const add = () => onChange([...opts, newChoiceOption()]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {opts.map((o) => (
+        <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <input
+            value={o.label}
+            onChange={(e) => update(o.id, { label: e.target.value })}
+            placeholder="Texto da opção"
+            style={{ ...sans, flex: 1, fontSize: 13.5, color: c.ink, background: c.folha, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 9px", outline: "none" }}
+          />
+          {showPoints && (
+            <input
+              type="number"
+              value={o.points ?? 0}
+              onChange={(e) => update(o.id, { points: parseInt(e.target.value, 10) || 0 })}
+              title="Pontos desta opção"
+              style={{ ...sans, width: 64, fontSize: 13.5, color: c.ink, background: c.folha, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 9px", outline: "none", flexShrink: 0 }}
+            />
+          )}
+          <button onClick={() => remove(o.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.rose, padding: 3, flexShrink: 0 }}>
+            <Trash2 size={13} />
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={add}
+        style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 600, color: c.bossText, background: "none", border: "none", cursor: "pointer", padding: "4px 0", alignSelf: "flex-start" }}
+      >
+        <Plus size={12} /> Opção
+      </button>
+      {opts.length === 0 && <div style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>Ainda sem opções.</div>}
+    </div>
+  );
+}
+
+function FieldRow({ field, onChange, onRemove, onMove, isFirst, isLast, isQuiz }) {
   // Estado próprio para o texto das opções — se o valor do input vier
   // sempre de field.options.join(", "), cada vírgula/espaço a mais
   // desaparece assim que se escreve (porque split+join "limpa" logo
@@ -229,6 +281,13 @@ function FieldRow({ field, onChange, onRemove, onMove, isFirst, isLast }) {
           style={{ ...sans, fontSize: 12.5, color: c.ink, background: c.folha, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 9px", outline: "none" }}
         />
       )}
+      {field.type === "choice" && (
+        <ChoiceOptionsEditor
+          options={field.options}
+          showPoints={isQuiz}
+          onChange={(options) => onChange({ ...field, options })}
+        />
+      )}
     </div>
   );
 }
@@ -242,6 +301,7 @@ function FormEditor({ brand, form, onBack }) {
   const [tagIds, setTagIds] = useState(form.on_submit_tags || []);
   const [fields, setFields] = useState(form.fields || []);
   const [style, setStyle] = useState({ ...DEFAULT_PAGE_STYLE, ...(form.style || {}) });
+  const [resultBands, setResultBands] = useState(form.result_bands || []);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -265,6 +325,11 @@ function FormEditor({ brand, form, onBack }) {
   };
   const toggleTag = (id) => setTagIds((t) => (t.includes(id) ? t.filter((x) => x !== id) : [...t, id]));
 
+  const isQuiz = type === "quiz";
+  const addBand = () => setResultBands((b) => [...b, { id: `b${Date.now()}`, min: 0, max: 10, title: "Nova faixa", description: "" }]);
+  const changeBand = (id, patch) => setResultBands((b) => b.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  const removeBand = (id) => setResultBands((b) => b.filter((x) => x.id !== id));
+
   const save = async () => {
     setError("");
     try {
@@ -277,6 +342,7 @@ function FormEditor({ brand, form, onBack }) {
           on_submit_tags: tagIds,
           fields,
           style,
+          result_bands: resultBands,
         },
       });
       setSaved(true);
@@ -421,18 +487,76 @@ function FormEditor({ brand, form, onBack }) {
                 onMove={(dir) => moveField(f.id, dir)}
                 isFirst={i === 0}
                 isLast={i === fields.length - 1}
+                isQuiz={isQuiz}
               />
             ))}
             {fields.length === 0 && <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "16px 0" }}>Ainda sem campos.</div>}
           </div>
         </div>
 
+        {isQuiz && (
+          <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <div style={{ ...serif, fontSize: 15.5, color: c.ink }}>Faixas de resultado</div>
+              <button onClick={addBand} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 13.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
+                <Plus size={13} /> Faixa
+              </button>
+            </div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 14 }}>
+              Conforme a pontuação total de quem responde, mostra-se a faixa em que o resultado cai.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {resultBands.map((band) => (
+                <div key={band.id} style={{ background: c.paper, borderRadius: 6, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <input
+                      type="number"
+                      value={band.min}
+                      onChange={(e) => changeBand(band.id, { min: parseInt(e.target.value, 10) || 0 })}
+                      title="Pontuação mínima"
+                      style={{ ...sans, width: 64, fontSize: 13.5, color: c.ink, background: c.folha, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 9px", outline: "none", flexShrink: 0 }}
+                    />
+                    <span style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>a</span>
+                    <input
+                      type="number"
+                      value={band.max}
+                      onChange={(e) => changeBand(band.id, { max: parseInt(e.target.value, 10) || 0 })}
+                      title="Pontuação máxima"
+                      style={{ ...sans, width: 64, fontSize: 13.5, color: c.ink, background: c.folha, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 9px", outline: "none", flexShrink: 0 }}
+                    />
+                    <input
+                      value={band.title}
+                      onChange={(e) => changeBand(band.id, { title: e.target.value })}
+                      placeholder="Título da faixa"
+                      style={{ ...sans, flex: 1, fontSize: 13.5, color: c.ink, background: c.folha, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 9px", outline: "none" }}
+                    />
+                    <button onClick={() => removeBand(band.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.rose, padding: 3, flexShrink: 0 }}>
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  <textarea
+                    rows={2}
+                    value={band.description}
+                    onChange={(e) => changeBand(band.id, { description: e.target.value })}
+                    placeholder="O que esta faixa significa para quem responde"
+                    style={{ ...sans, fontSize: 13.5, color: c.ink, background: c.folha, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "8px 10px", outline: "none", resize: "vertical" }}
+                  />
+                </div>
+              ))}
+              {resultBands.length === 0 && <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>Ainda sem faixas — sem elas, o quiz mostra só a pontuação.</div>}
+            </div>
+          </div>
+        )}
+
         <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
           <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Respostas ({submissionsQuery.data?.length || 0})</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {(submissionsQuery.data || []).map((s) => (
               <div key={s.id} style={{ background: c.paper, borderRadius: 6, padding: "10px 12px" }}>
-                <div style={{ ...sans, fontSize: 12.5, color: c.mistLight, marginBottom: 5 }}>{new Date(s.submitted_at).toLocaleString("pt-PT")}</div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mistLight, marginBottom: 5 }}>
+                  {new Date(s.submitted_at).toLocaleString("pt-PT")}
+                  {isQuiz && s.score != null && <> · <strong style={{ color: c.bossText }}>{s.score} pontos</strong></>}
+                </div>
                 {fields.map((f) => (
                   s.answers?.[f.id] ? (
                     <div key={f.id} style={{ ...sans, fontSize: 13.5, color: c.ink, marginBottom: 2 }}>
@@ -485,7 +609,7 @@ export default function FormsModule({ brand, onBack }) {
         {forms.map((f) => (
           <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px", cursor: "pointer" }} onClick={() => setOpenId(f.id)}>
             <div style={{ width: 34, height: 34, borderRadius: 6, background: c.bossSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <FileText size={16} color={c.bossText} strokeWidth={1.8} />
+              {f.type === "quiz" ? <HelpCircle size={16} color={c.bossText} strokeWidth={1.8} /> : <FileText size={16} color={c.bossText} strokeWidth={1.8} />}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ ...serif, fontSize: 15, color: c.ink }}>{f.name}</div>
@@ -554,6 +678,21 @@ function PublicField({ field, value, onChange, font }) {
       </div>
     );
   }
+  if (field.type === "choice") {
+    return (
+      <div>
+        {label}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {(field.options || []).map((o) => (
+            <label key={o.id} style={{ ...sans, fontFamily, fontSize: 14.5, color: "#2A2438", display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }}>
+              <input type="radio" name={field.id} required={field.required} checked={value === o.id} onChange={() => onChange(o.id)} />
+              {o.label}
+            </label>
+          ))}
+        </div>
+      </div>
+    );
+  }
   const htmlType = field.type === "email" ? "email" : field.type === "phone" ? "tel" : "text";
   return <div>{label}<input type={htmlType} required={field.required} value={value || ""} onChange={(e) => onChange(e.target.value)} style={inputStyleLocal} /></div>;
 }
@@ -564,6 +703,7 @@ export function PublicFormPage() {
   const [answers, setAnswers] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [quizResult, setQuizResult] = useState(null); // { score, band } — só para type === "quiz"
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -589,6 +729,21 @@ export function PublicFormPage() {
     if (!state.form) return;
     setSubmitting(true);
     setError("");
+
+    // O quiz calcula a pontuação no servidor (nunca no que o browser manda)
+    // — ver submit_quiz_response em supabase/73_quizzes.sql.
+    if (state.form.type === "quiz") {
+      const { data, error: err } = await supabase.rpc("submit_quiz_response", { p_form_id: state.form.id, p_answers: answers });
+      setSubmitting(false);
+      if (err) {
+        setError("Não foi possível enviar. Tenta novamente.");
+        return;
+      }
+      setQuizResult({ score: data?.score ?? 0, band: data?.band || null });
+      setSubmitted(true);
+      return;
+    }
+
     const { error: err } = await supabase.from("form_submissions").insert({
       brand_id: state.form.brand_id,
       form_id: state.form.id,
@@ -617,7 +772,24 @@ export function PublicFormPage() {
           {formStyle.logoUrl && (
             <img src={formStyle.logoUrl} alt="" style={{ maxHeight: 48, maxWidth: "60%", display: "block", marginBottom: 18 }} />
           )}
-          {submitted ? (
+          {submitted && form.type === "quiz" ? (
+            <div style={{ textAlign: "center", padding: "20px 0" }}>
+              <div style={{ ...sans, ...bodyFont, fontSize: 13.5, fontWeight: 600, color: formStyle.accentColor, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
+                A tua pontuação
+              </div>
+              <div style={{ ...serif, ...titleFont, fontSize: 44, color: c.ink, marginBottom: 14 }}>{quizResult?.score ?? 0}</div>
+              {quizResult?.band ? (
+                <>
+                  <div style={{ ...serif, ...titleFont, fontSize: 19, color: c.ink, marginBottom: 8 }}>{quizResult.band.title}</div>
+                  {quizResult.band.description && (
+                    <div style={{ ...sans, ...bodyFont, fontSize: 15, color: c.mist, lineHeight: 1.6 }}>{quizResult.band.description}</div>
+                  )}
+                </>
+              ) : (
+                <div style={{ ...sans, ...bodyFont, fontSize: 15, color: c.mist, lineHeight: 1.6 }}>{form.thank_you_message || "Obrigado por responderes!"}</div>
+              )}
+            </div>
+          ) : submitted ? (
             <div style={{ textAlign: "center", padding: "20px 0" }}>
               <CheckCircle2 size={32} color={formStyle.accentColor} style={{ marginBottom: 12 }} />
               <div style={{ ...serif, ...titleFont, fontSize: 19, color: c.ink, marginBottom: 8 }}>Obrigado!</div>
@@ -642,7 +814,7 @@ export function PublicFormPage() {
                 disabled={submitting}
                 style={{ ...sans, ...bodyFont, width: "100%", marginTop: 22, fontSize: 15, fontWeight: 600, color: "#fff", background: formStyle.accentColor, border: "none", borderRadius: 6, padding: "12px", cursor: "pointer" }}
               >
-                {submitting ? "A enviar…" : "Enviar"}
+                {submitting ? "A enviar…" : form.type === "quiz" ? "Ver resultado" : "Enviar"}
               </button>
             </form>
           )}

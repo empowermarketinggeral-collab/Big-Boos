@@ -52,6 +52,13 @@ const FIXTURES = {
   ],
   automation_steps: [],
   brand_lead_webhooks: [{ brand_id: B1, token: "0".repeat(64), enabled: true, default_tag_ids: ["t1"], default_source: "landing_page", default_country_code: "351" }],
+  notifications: [
+    {
+      id: "n1", agency_id: AGENCY_ID, brand_id: B1, area: "automacoes", read_by: [],
+      message: '2 execução(ões) da automação "Boas-vindas, novo lead" falharam:\n— +351912000001: Falha ao enviar WhatsApp para +351912000001: número inválido\n— +351913000002: Contacto "Rita Almeida" sem telefone.',
+      created_at: iso(-0.02), brands: { name: "Clínica Aurora" },
+    },
+  ],
   contents: [
     { id: "ct1", brand_id: B1, type: "reel", platform: ["instagram"], title: "Antes e depois: limpeza de pele", approval_status: "pending", scheduled_date: day(3), client_note: null, media_urls: [], caption: "Resultado real, sem filtros.", created_at: iso(-2) },
     { id: "ct2", brand_id: B1, type: "carrossel", platform: ["instagram", "facebook"], title: "5 erros de pedicure", approval_status: "pending", scheduled_date: day(5), client_note: null, media_urls: [], caption: "Guarda para a próxima marcação.", created_at: iso(-3) },
@@ -60,7 +67,25 @@ const FIXTURES = {
   scripts: [
     { id: "sc1", brand_id: B1, title: "Roteiro: bastidores da formação", content: "Cena 1: chegada das alunas.", status: "pending", client_note: null, created_at: iso(-1) },
   ],
-  forms: [],
+  forms: [
+    {
+      id: "fm1", brand_id: B1, name: "Que profissional de estética és?", slug: "quiz-demo", type: "quiz", status: "published",
+      thank_you_message: "Obrigada por responderes!", file_delivery_url: null, on_submit_tags: [], style: {},
+      fields: [
+        { id: "q1", label: "O teu nome", type: "text", required: true, mapsTo: "name" },
+        { id: "q2", label: "Quantas formações já tiraste?", type: "choice", required: true, options: [
+          { id: "o1", label: "Nenhuma ainda", points: 0 },
+          { id: "o2", label: "1 a 2", points: 5 },
+          { id: "o3", label: "3 ou mais", points: 10 },
+        ] },
+      ],
+      result_bands: [
+        { id: "b1", min: 0, max: 4, title: "Estás a começar", description: "Ainda tens tudo por explorar — perfeito para a formação inicial." },
+        { id: "b2", min: 5, max: 10, title: "Já tens experiência", description: "Podes avançar direto para as formações avançadas." },
+      ],
+      created_at: iso(-6),
+    },
+  ],
   plans: [],
 };
 
@@ -101,6 +126,18 @@ export const supabase = {
     // aprovar de facto, para ver a animação do selo
     if (name === "approve_content") { const r = FIXTURES.contents.find((x) => x.id === args.p_id); if (r) r.approval_status = args.p_status; }
     if (name === "approve_script") { const r = FIXTURES.scripts.find((x) => x.id === args.p_id); if (r) r.status = args.p_status; }
+    if (name === "submit_quiz_response") {
+      const form = FIXTURES.forms.find((f) => f.id === args.p_form_id);
+      let score = 0;
+      for (const field of form?.fields || []) {
+        if (field.type !== "choice") continue;
+        const answer = args.p_answers?.[field.id];
+        const opt = (field.options || []).find((o) => o.id === answer);
+        if (opt) score += opt.points || 0;
+      }
+      const band = (form?.result_bands || []).find((b) => score >= b.min && score <= b.max) || null;
+      return Promise.resolve({ data: { submissionId: "sub-demo", score, band }, error: null });
+    }
     return Promise.resolve({ data: /^(can_|is_)/.test(name) ? true : null, error: null });
   },
   channel: () => channelStub,

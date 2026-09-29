@@ -88,7 +88,7 @@ async function sendWhatsappText(admin, brandId, toPhone, body, template = null, 
   });
   await admin.from("whatsapp_conversations").update({ last_message_at: new Date().toISOString() }).eq("id", conversation.id);
 
-  if (!ok) throw new Error(errMsg || "Falha ao enviar WhatsApp.");
+  if (!ok) throw new Error(`Falha ao enviar WhatsApp para ${toPhone}: ${errMsg || "erro desconhecido"}`);
 }
 
 async function sendSmsText(admin, brandId, toPhone, body, contactId) {
@@ -109,7 +109,7 @@ async function sendSmsText(admin, brandId, toPhone, body, contactId) {
     brand_id: brandId, contact_id: contactId || null, to_number: toPhone, body, direction: "outbound",
     provider_ref: data?.sid || null, status: res.ok ? "sent" : "failed",
   });
-  if (!res.ok) throw new Error(data?.message || "Falha ao enviar SMS.");
+  if (!res.ok) throw new Error(`Falha ao enviar SMS para ${toPhone}: ${data?.message || "erro desconhecido"}`);
 }
 
 async function sendEmailViaResend(admin, brandId, toEmail, subject, html) {
@@ -217,7 +217,7 @@ async function runAction(admin, brandId, step, contact) {
       return;
     }
     case "send_whatsapp": {
-      if (!contact?.phone) throw new Error("O contacto não tem telefone.");
+      if (!contact?.phone) throw new Error(`Contacto "${contact?.name || contact?.id || "desconhecido"}" sem telefone.`);
       if (config.templateName) {
         const { data: tpl } = await admin
           .from("whatsapp_templates")
@@ -238,7 +238,7 @@ async function runAction(admin, brandId, step, contact) {
       return;
     }
     case "send_sms": {
-      if (!contact?.phone) throw new Error("O contacto não tem telefone.");
+      if (!contact?.phone) throw new Error(`Contacto "${contact?.name || contact?.id || "desconhecido"}" sem telefone.`);
       await sendSmsText(admin, brandId, contact.phone, renderTemplate(config.body || "", contact), contact.id);
       return;
     }
@@ -374,7 +374,13 @@ Deno.serve(async () => {
     await processRun(admin, run);
   }
 
-  return new Response(JSON.stringify({ processed: dueRuns?.length || 0 }), {
+  // Agrupa as execuções que falharam neste ciclo (e nos anteriores, se
+  // ainda por notificar) numa notificação por automação — ver
+  // supabase/72_automation_failure_notifications.sql.
+  const { data: notified, error: notifyError } = await admin.rpc("notify_automation_failures");
+  if (notifyError) console.error("automations-run: falha ao agrupar notificações", notifyError.message);
+
+  return new Response(JSON.stringify({ processed: dueRuns?.length || 0, notificationsCreated: notified ?? 0 }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });

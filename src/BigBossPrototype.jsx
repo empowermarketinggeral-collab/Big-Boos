@@ -2470,9 +2470,12 @@ function useNotifications(session, enabled) {
     queryKey: ["notifications", session?.id],
     enabled,
     queryFn: async () => {
-      const [contentsRes, scriptsRes] = await Promise.all([
+      const [contentsRes, scriptsRes, realRes] = await Promise.all([
         supabase.from("contents").select("id, approval_status, client_note, created_at, brands(name)").order("created_at", { ascending: false }).limit(8),
         supabase.from("scripts").select("id, status, client_note, created_at, brands(name)").order("created_at", { ascending: false }).limit(8),
+        // notifications reais (ex.: falhas de automação) — ver supabase/72_automation_failure_notifications.sql.
+        // A RLS já filtra ao que a equipa/marca desta conta pode ver.
+        supabase.from("notifications").select("id, area, message, read_by, created_at, brands(name)").order("created_at", { ascending: false }).limit(8),
       ]);
       const items = [];
       (contentsRes.data || []).forEach((r) => {
@@ -2491,9 +2494,33 @@ function useNotifications(session, enabled) {
           createdAt: r.created_at,
         });
       });
+      (realRes.data || []).forEach((r) => {
+        items.push({
+          id: `notif-${r.id}`,
+          rawId: r.id,
+          brandName: r.brands?.name || "",
+          kind: r.area === "automacoes" ? "automation_failure" : "generic",
+          message: r.message,
+          read: (r.read_by || []).includes(session?.id),
+          createdAt: r.created_at,
+        });
+      });
       items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      return items.slice(0, 6);
+      return items.slice(0, 8);
     },
+  });
+}
+
+function useMarkNotificationsRead(session) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids) => {
+      if (!ids.length) return;
+      // read_by é um array; cada leitor acrescenta-se a si próprio (RPC evita apagar quem já leu).
+      const { error } = await supabase.rpc("mark_notifications_read", { p_ids: ids });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications", session?.id] }),
   });
 }
 
@@ -2501,7 +2528,14 @@ function TopBar({ onLogout, session }) {
   const [open, setOpen] = useState(false);
   const { t, lang } = useT();
   const notificationsQuery = useNotifications(session, open);
+  const markRead = useMarkNotificationsRead(session);
   const notifications = notificationsQuery.data || [];
+  const unreadIds = notifications.filter((n) => n.rawId && !n.read).map((n) => n.rawId);
+  const hasUnread = unreadIds.length > 0;
+  useEffect(() => {
+    if (open && unreadIds.length) markRead.mutate(unreadIds);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, notificationsQuery.dataUpdatedAt]);
   return (
     <div className="bb-topbar" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, padding: "18px 40px 0", position: "relative" }}>
       <ThemeToggle compact />
@@ -2525,7 +2559,7 @@ function TopBar({ onLogout, session }) {
         }}
       >
         <Bell size={15} color={c.mist} strokeWidth={1.8} />
-        {notifications.length > 0 && (
+        {(hasUnread || (notifications.length > 0 && notifications.every((n) => !n.rawId))) && (
           <span style={{ position: "absolute", top: 6, right: 7, width: 6, height: 6, borderRadius: 999, background: c.roseSolid }} />
         )}
       </button>
@@ -2548,9 +2582,15 @@ function TopBar({ onLogout, session }) {
               <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, padding: "12px 16px" }}>{t("topbar.noNotifications")}</div>
             )}
             {notifications.map((n) => (
-              <div key={n.id} style={{ padding: "12px 16px", borderBottom: `1px solid ${c.line}` }}>
-                <div style={{ ...sans, fontSize: 14, color: c.ink, lineHeight: 1.5 }}>
-                  {n.brandName ? `${n.brandName} — ` : ""}{t(`notif.${n.kind}`)}
+              <div
+                key={n.id}
+                style={{
+                  padding: "12px 16px", borderBottom: `1px solid ${c.line}`,
+                  background: n.rawId && !n.read ? c.bossSoft : "transparent",
+                }}
+              >
+                <div style={{ ...sans, fontSize: 14, color: c.ink, lineHeight: 1.5, whiteSpace: "pre-line" }}>
+                  {n.brandName ? `${n.brandName} — ` : ""}{n.message || t(`notif.${n.kind}`)}
                 </div>
                 <div style={{ ...sans, fontSize: 12.5, color: c.mistLight, marginTop: 3 }}>{relativeTime(n.createdAt, lang)}</div>
               </div>
