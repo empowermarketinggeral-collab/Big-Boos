@@ -222,6 +222,50 @@ function ChoiceOptionsEditor({ options, onChange, showPoints }) {
   );
 }
 
+// Secção: não é pergunta, só separa o formulário em partes com título e
+// subtítulo próprios. Vive em `fields` com type "section" (label = título,
+// description = subtítulo); o trigger de submissão e o cálculo do quiz
+// ignoram-na porque não tem mapsTo nem opções.
+function MoveRemoveButtons({ onMove, onRemove, isFirst, isLast }) {
+  return (
+    <>
+      <button onClick={onMove ? () => onMove(-1) : undefined} disabled={isFirst} style={{ background: "none", border: "none", cursor: isFirst ? "default" : "pointer", color: isFirst ? c.line : c.mist, padding: 3 }}>
+        <ChevronUp size={13} />
+      </button>
+      <button onClick={onMove ? () => onMove(1) : undefined} disabled={isLast} style={{ background: "none", border: "none", cursor: isLast ? "default" : "pointer", color: isLast ? c.line : c.mist, padding: 3 }}>
+        <ChevronDown size={13} />
+      </button>
+      <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: c.rose, padding: 3 }}>
+        <Trash2 size={13} />
+      </button>
+    </>
+  );
+}
+
+function SectionRow({ field, onChange, onRemove, onMove, isFirst, isLast }) {
+  return (
+    <div style={{ background: c.folha, border: `1px solid ${c.lineStrong}`, borderLeft: `3px solid ${c.bossText}`, borderRadius: 3, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8, marginTop: isFirst ? 0 : 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.bossText, flexShrink: 0 }}>Secção</span>
+        <input
+          value={field.label}
+          onChange={(e) => onChange({ ...field, label: e.target.value })}
+          placeholder="Título da secção"
+          style={{ ...serif, flex: 1, minWidth: 0, fontSize: 15, color: c.ink, background: c.folha, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 9px", outline: "none" }}
+        />
+        <MoveRemoveButtons onMove={onMove} onRemove={onRemove} isFirst={isFirst} isLast={isLast} />
+      </div>
+      <textarea
+        rows={2}
+        value={field.description || ""}
+        onChange={(e) => onChange({ ...field, description: e.target.value })}
+        placeholder="Subtítulo da secção (opcional)"
+        style={{ ...sans, fontSize: 13.5, color: c.ink, background: c.folha, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 9px", outline: "none", resize: "vertical" }}
+      />
+    </div>
+  );
+}
+
 function FieldRow({ field, onChange, onRemove, onMove, isFirst, isLast, isQuiz }) {
   // Estado próprio para o texto das opções — se o valor do input vier
   // sempre de field.options.join(", "), cada vírgula/espaço a mais
@@ -245,15 +289,7 @@ function FieldRow({ field, onChange, onRemove, onMove, isFirst, isLast, isQuiz }
         >
           {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
-        <button onClick={onMove ? () => onMove(-1) : undefined} disabled={isFirst} style={{ background: "none", border: "none", cursor: isFirst ? "default" : "pointer", color: isFirst ? c.line : c.mist, padding: 3 }}>
-          <ChevronUp size={13} />
-        </button>
-        <button onClick={onMove ? () => onMove(1) : undefined} disabled={isLast} style={{ background: "none", border: "none", cursor: isLast ? "default" : "pointer", color: isLast ? c.line : c.mist, padding: 3 }}>
-          <ChevronDown size={13} />
-        </button>
-        <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: c.rose, padding: 3 }}>
-          <Trash2 size={13} />
-        </button>
+        <MoveRemoveButtons onMove={onMove} onRemove={onRemove} isFirst={isFirst} isLast={isLast} />
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <label style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", alignItems: "center", gap: 5 }}>
@@ -311,6 +347,7 @@ function FormEditor({ brand, form, onBack }) {
   const updateForm = useUpdateForm(brand.id);
 
   const addField = () => setFields((f) => [...f, { id: `f${Date.now()}`, label: "Nova pergunta", type: "text", required: false }]);
+  const addSection = () => setFields((f) => [...f, { id: `s${Date.now()}`, label: "Nova secção", description: "", type: "section" }]);
   const changeField = (id, patch) => setFields((f) => f.map((x) => (x.id === id ? patch : x)));
   const removeField = (id) => setFields((f) => f.filter((x) => x.id !== id));
   const moveField = (id, dir) => {
@@ -471,14 +508,46 @@ function FormEditor({ brand, form, onBack }) {
         </div>
 
         <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 6 }}>Início</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 14 }}>
+            O que aparece no topo da página, antes das perguntas. Sem título, usa-se o nome do formulário.
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Título</div>
+              <input style={inputStyle} value={style.introTitle || ""} onChange={(e) => setStyle((s) => ({ ...s, introTitle: e.target.value }))} placeholder={name} />
+            </div>
+            <div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Subtítulo</div>
+              <textarea rows={2} style={{ ...inputStyle, resize: "vertical" }} value={style.introSubtitle || ""} onChange={(e) => setStyle((s) => ({ ...s, introSubtitle: e.target.value }))} placeholder="Ex: Responde em 2 minutos e recebe o guia no email." />
+            </div>
+          </div>
+        </div>
+
+        <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
             <div style={{ ...serif, fontSize: 15.5, color: c.ink }}>Campos</div>
-            <button onClick={addField} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 13.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
-              <Plus size={13} /> Campo
-            </button>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={addSection} style={{ ...btnGhost, display: "flex", alignItems: "center", gap: 5, fontSize: 13.5, padding: "7px 12px" }}>
+                <Plus size={13} /> Secção
+              </button>
+              <button onClick={addField} style={{ ...sans, display: "flex", alignItems: "center", gap: 5, fontSize: 13.5, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>
+                <Plus size={13} /> Campo
+              </button>
+            </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {fields.map((f, i) => (
+            {fields.map((f, i) => f.type === "section" ? (
+              <SectionRow
+                key={f.id}
+                field={f}
+                onChange={(patch) => changeField(f.id, patch)}
+                onRemove={() => removeField(f.id)}
+                onMove={(dir) => moveField(f.id, dir)}
+                isFirst={i === 0}
+                isLast={i === fields.length - 1}
+              />
+            ) : (
               <FieldRow
                 key={f.id}
                 field={f}
@@ -558,7 +627,7 @@ function FormEditor({ brand, form, onBack }) {
                   {isQuiz && s.score != null && <> · <strong style={{ color: c.bossText }}>{s.score} pontos</strong></>}
                 </div>
                 {fields.map((f) => (
-                  s.answers?.[f.id] ? (
+                  f.type !== "section" && s.answers?.[f.id] ? (
                     <div key={f.id} style={{ ...sans, fontSize: 13.5, color: c.ink, marginBottom: 2 }}>
                       <strong>{f.label}:</strong> {String(s.answers[f.id])}
                     </div>
@@ -802,9 +871,19 @@ export function PublicFormPage() {
             </div>
           ) : (
             <form onSubmit={submit}>
-              <h1 style={{ ...serif, ...titleFont, fontSize: 21, color: c.ink, marginBottom: 20 }}>{form.name}</h1>
+              <h1 style={{ ...serif, ...titleFont, fontSize: 23, color: c.ink, margin: 0, marginBottom: formStyle.introSubtitle ? 8 : 20 }}>{formStyle.introTitle || form.name}</h1>
+              {formStyle.introSubtitle && (
+                <div style={{ ...sans, ...bodyFont, fontSize: 15, color: c.mist, lineHeight: 1.6, whiteSpace: "pre-line", marginBottom: 22 }}>{formStyle.introSubtitle}</div>
+              )}
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {(form.fields || []).map((f) => (
+                {(form.fields || []).map((f, i) => f.type === "section" ? (
+                  <div key={f.id} style={{ borderTop: i === 0 ? "none" : `1px solid ${c.line}`, paddingTop: i === 0 ? 0 : 20, marginTop: i === 0 ? 0 : 8 }}>
+                    <h2 style={{ ...serif, ...titleFont, fontSize: 18, color: c.ink, margin: 0 }}>{f.label}</h2>
+                    {f.description && (
+                      <div style={{ ...sans, ...bodyFont, fontSize: 14, color: c.mist, lineHeight: 1.55, whiteSpace: "pre-line", marginTop: 5 }}>{f.description}</div>
+                    )}
+                  </div>
+                ) : (
                   <PublicField key={f.id} field={f} value={answers[f.id]} onChange={(v) => setAnswers((a) => ({ ...a, [f.id]: v }))} font={formStyle.font} />
                 ))}
               </div>
