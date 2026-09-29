@@ -13,6 +13,9 @@
 // (client_pack_consume) e a marcação fica confirmada sem sinal. Se a
 // marcação for cancelada, um trigger devolve a sessão.
 //
+// PROFISSIONAL: staffId de um profissional ou "any" (sem preferência).
+// Só profissionais atribuídos ao serviço, dentro do seu horário semanal.
+//
 // SINAL/DEPÓSITO: se a marca pedir sinal (booking_payment_settings),
 // a marcação nasce como "pending_payment" e devolve um paymentUrl do
 // Stripe Checkout — só fica "confirmed" quando o webhook recebe
@@ -21,7 +24,7 @@
 // é o stripe-brand-webhook; sem isso usa a chave global
 // (STRIPE_SECRET_KEY) e o stripe-webhook. "Clientes novos" = sem
 // nenhuma marcação confirmada ou concluída (inclui o histórico
-// importado). pending_payment também ocupa o horário; a
+// importado) e sem a tag de cliente antiga (is_returning_customer). pending_payment também ocupa o horário; a
 // booking-reminders cancela as abandonadas há mais de 30 minutos.
 //
 // "Verify JWT" DESLIGADO: a página pública chama sem sessão.
@@ -141,6 +144,39 @@ async function sendConfirmation(admin, brandId, contactId, name, phone, email, s
   if (confirmationSetting.channel === "email" && email) await sendEmail(admin, brandId, email, "Marcação confirmada", text);
 }
 
+// Hora de Lisboa de um instante: dia da semana, dia e minutos desde a meia-noite.
+const WEEKDAYS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+function lisbonClock(date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ, hourCycle: "h23", weekday: "short", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+  }).formatToParts(date);
+  const get = (type) => parts.find((p) => p.type === type).value;
+  return { weekday: WEEKDAYS[get("weekday")], day: `${get("year")}-${get("month")}-${get("day")}`, minutes: Number(get("hour")) * 60 + Number(get("minute")) };
+}
+
+// O profissional trabalha nesse intervalo (horário semanal), não está de
+// folga e não tem outra marcação (pending_payment também ocupa o horário,
+// para duas pessoas não reservarem o mesmo slot enquanto uma paga).
+async function staffFree(admin, brandId, staffId, start, end) {
+  const s = lisbonClock(start);
+  const e = lisbonClock(end);
+  const endMinutes = e.day === s.day ? e.minutes : 24 * 60 + e.minutes;
+  const toMin = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+  const { data: rules } = await admin.from("booking_availability").select("start_time, end_time").eq("brand_id", brandId).eq("staff_id", staffId).eq("weekday", s.weekday);
+  if (!(rules || []).some((r) => toMin(r.start_time) <= s.minutes && endMinutes <= toMin(r.end_time))) return false;
+
+  const { data: clash } = await admin
+    .from("booking_appointments").select("id")
+    .eq("brand_id", brandId).eq("staff_id", staffId).in("status", ["confirmed", "pending_payment"])
+    .lt("starts_at", end.toISOString()).gt("ends_at", start.toISOString()).limit(1);
+  if (clash && clash.length > 0) return false;
+
+  const { data: timeOff } = await admin
+    .from("booking_time_off").select("id")
+    .eq("staff_id", staffId).lt("starts_at", end.toISOString()).gt("ends_at", start.toISOString()).limit(1);
+  return !(timeOff && timeOff.length > 0);
+}
+
 // Chave Stripe da própria marca (Vault); sem ela, a global da plataforma.
 async function stripeKeyFor(admin, brandId) {
   const { data: account } = await admin.from("brand_stripe_accounts").select("secret_key_ref").eq("brand_id", brandId).maybeSingle();
@@ -191,18 +227,14 @@ Deno.serve(async (req) => {
   const name = client ? client.name : String(body.name || "").trim().slice(0, 120);
   const phone = client ? client.phone || "" : normalizePhone(body.phone);
   const email = client ? client.email || "" : String(body.email || "").trim().slice(0, 200);
-  if (!name) return json({ error: "Escreve o teu nome." }, 400);
-  if (!client && body.phone && !phone) return json({ error: "O telefone não parece válido." }, 400);
-  if (!phone && !email) return json({ error: "Escreve o telefone ou o email." }, 400);
-  if (clientPackId && !client) return json({ error: "Entra na tua conta para usar um pack." }, 401);
+  if (!name) return json({ error: "Indique o seu nome." }, 400);
+  if (!client && body.phone && !phone) return json({ error: "O telemóvel não parece válido." }, 400);
+  if (!phone && !email) return json({ error: "Indique o telemóvel ou o email." }, 400);
+  if (clientPackId && !client) return json({ error: "Entre na sua conta para usar um pack." }, 401);
 
   const { data: service } = await admin.from("booking_services").select("name, duration_minutes, price, status").eq("id", serviceId).eq("brand_id", brandId).maybeSingle();
   if (!service || service.status !== "active") {
     return json({ error: "Serviço não encontrado." }, 404);
-  }
-  const { data: staff } = await admin.from("booking_staff").select("id, status").eq("id", staffId).eq("brand_id", brandId).maybeSingle();
-  if (!staff || staff.status !== "active") {
-    return json({ error: "Profissional não encontrado." }, 404);
   }
 
   let selectedUpsells = [];
@@ -220,30 +252,20 @@ Deno.serve(async (req) => {
     return json({ error: "Esse horário já passou." }, 400);
   }
 
-  // pending_payment também bloqueia o horário — evita duas pessoas a
-  // reservarem o mesmo slot enquanto uma está a meio do pagamento.
-  const { data: clash } = await admin
-    .from("booking_appointments")
-    .select("id")
-    .eq("brand_id", brandId)
-    .eq("staff_id", staffId)
-    .in("status", ["confirmed", "pending_payment"])
-    .lt("starts_at", end.toISOString())
-    .gt("ends_at", start.toISOString())
-    .limit(1);
-  if (clash && clash.length > 0) {
-    return json({ error: "Esse horário acabou de ficar indisponível. Escolhe outro." }, 409);
+  // Profissionais que fazem o serviço (booking_service_staff; sem ninguém
+  // atribuído = qualquer um). "any" = sem preferência: fica a primeira livre.
+  const { data: activeStaff } = await admin.from("booking_staff").select("id").eq("brand_id", brandId).eq("status", "active").order("created_at");
+  const { data: assigned } = await admin.from("booking_service_staff").select("staff_id").eq("service_id", serviceId);
+  const assignedIds = (assigned || []).map((a) => a.staff_id);
+  const eligible = (activeStaff || []).map((st) => st.id).filter((id) => !assignedIds.length || assignedIds.includes(id));
+  const candidates = staffId === "any" ? eligible : eligible.filter((id) => id === staffId);
+  if (!candidates.length) return json({ error: "Esta profissional não faz este serviço." }, 409);
+  let chosenStaffId = null;
+  for (const id of candidates) {
+    if (await staffFree(admin, brandId, id, start, end)) { chosenStaffId = id; break; }
   }
-
-  const { data: timeOffClash } = await admin
-    .from("booking_time_off")
-    .select("id")
-    .eq("staff_id", staffId)
-    .lt("starts_at", end.toISOString())
-    .gt("ends_at", start.toISOString())
-    .limit(1);
-  if (timeOffClash && timeOffClash.length > 0) {
-    return json({ error: "Este profissional não está disponível nesse período." }, 409);
+  if (!chosenStaffId) {
+    return json({ error: "Esse horário acabou de ficar indisponível. Escolha outro." }, 409);
   }
 
   let contactId = client?.id || null;
@@ -284,12 +306,10 @@ Deno.serve(async (req) => {
       if (paymentSettings.scope === "all") {
         depositRequired = true;
       } else {
-        const { data: prior } = await admin
-          .from("booking_appointments")
-          .select("id")
-          .eq("brand_id", brandId).eq("contact_id", contactId).in("status", ["confirmed", "completed"])
-          .limit(1);
-        depositRequired = !(prior && prior.length > 0);
+        // Já teve marcação confirmada/concluída, ou tem a tag de cliente
+        // antiga (booking_payment_settings.exempt_tag_id) = não paga sinal.
+        const { data: returning } = await admin.rpc("is_returning_customer", { p_brand: brandId, p_contact: contactId });
+        depositRequired = returning !== true;
       }
     }
   }
@@ -297,7 +317,7 @@ Deno.serve(async (req) => {
   if (depositRequired && !(depositAmount > 0)) depositRequired = false; // serviço sem preço: não há sinal a cobrar
 
   const { data: appt, error: apptError } = await admin.from("booking_appointments").insert({
-    brand_id: brandId, service_id: serviceId, staff_id: staffId, contact_id: contactId,
+    brand_id: brandId, service_id: serviceId, staff_id: chosenStaffId, contact_id: contactId,
     customer_name: name, customer_phone: phone || null, customer_email: email || null,
     starts_at: start.toISOString(), ends_at: end.toISOString(),
     status: depositRequired ? "pending_payment" : "confirmed",

@@ -223,6 +223,7 @@ function AuthScreen({ page, style }) {
         if (err) throw err;
       } else if (mode === "signup") {
         if (!name.trim()) throw new Error("Indique o seu nome.");
+        if (phone.replace(/D/g, "").length < 9) throw new Error("Indique o seu telemóvel: é por ele que encontramos o seu histórico.");
         if (password.length < 6) throw new Error("A palavra-passe tem de ter pelo menos 6 caracteres.");
         const { data, error: err } = await supabase.auth.signUp({
           email: email.trim(), password,
@@ -262,7 +263,7 @@ function AuthScreen({ page, style }) {
           </>
         )}
         <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" inputMode="email" />
-        {mode === "signup" && <div style={{ fontSize: 13.5, color: T.muted, marginTop: -8 }}>Se já é cliente, use o email que nos deu: assim vê logo o seu histórico.</div>}
+        {mode === "signup" && <div style={{ fontSize: 13.5, color: T.muted, marginTop: -8 }}>Se já é cliente, use o telemóvel que nos deu: assim vê o seu histórico.</div>}
         {mode !== "forgot" && (
           <Field label="Palavra-passe" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} />
         )}
@@ -310,14 +311,15 @@ function NewPasswordScreen({ page, style, onDone }) {
 /* ---------------------------------------------------------
    DADOS
 --------------------------------------------------------- */
-function usePortal(brandId, session) {
+function usePortal(brandId, session, skipPhone) {
   return useQuery({
-    queryKey: ["client_portal", brandId, session?.user?.id],
+    queryKey: ["client_portal", brandId, session?.user?.id, skipPhone],
     enabled: !!brandId && !!session,
     retry: false,
     queryFn: async () => {
       const meta = session.user.user_metadata || {};
-      const { error: linkError } = await supabase.rpc("client_portal_link", { p_brand: brandId, p_name: meta.name || null, p_phone: meta.phone || null });
+      const { error: linkError } = await supabase.rpc("client_portal_link", { p_brand: brandId, p_name: meta.name || null, p_phone: meta.phone || null, p_skip_phone: skipPhone });
+      if (linkError?.message?.includes("phone_verification_required")) return { needsPhoneVerification: true };
       if (linkError) {
         const code = Object.keys(LINK_ERRORS).find((k) => linkError.message?.includes(k));
         throw new Error(code ? LINK_ERRORS[code] : linkError.message);
@@ -864,6 +866,51 @@ function ProfileTab({ page, data, email, sub, setSub, refresh }) {
 }
 
 /* ---------------------------------------------------------
+   JÁ É CLIENTE? — confirma o telemóvel por SMS para ligar à ficha
+--------------------------------------------------------- */
+function PhoneVerifyScreen({ page, style, onLinked, onSkip }) {
+  const [sentTo, setSentTo] = useState("");
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const call = async (payload) => {
+    setError(""); setBusy(true);
+    try {
+      return await invokeFunction("client-phone-verify", { brandId: page.brand.id, ...payload });
+    } catch (err) {
+      setError(err.message);
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  };
+  const send = async () => { const r = await call({ action: "send" }); if (r?.linked) onLinked(); else if (r?.sentTo) setSentTo(r.sentTo); };
+  const verify = async (e) => { e.preventDefault(); const r = await call({ action: "verify", code }); if (r?.linked) onLinked(); };
+
+  return (
+    <Frame page={page} style={style}>
+      <PageTitle title="Já é nossa cliente" subtitle="Encontrámos uma ficha com o seu telemóvel. Confirme que é seu para ver o seu histórico e os seus packs." />
+      <div style={{ ...card, padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+        {!sentTo ? (
+          <AccentButton onClick={send} disabled={busy}>{busy ? "A enviar…" : "Enviar código por SMS"}</AccentButton>
+        ) : (
+          <form onSubmit={verify} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ fontSize: 15, color: T.ink }}>Enviámos um código para {sentTo}.</div>
+            <Field label="Código" value={code} onChange={(e) => setCode(e.target.value.replace(/D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" />
+            <AccentButton type="submit" disabled={busy || code.length !== 6}>{busy ? "A confirmar…" : "Confirmar"}</AccentButton>
+            <button type="button" onClick={send} disabled={busy} style={{ ...linkBtn, color: T.muted, fontSize: 14.5 }}>Enviar outro código</button>
+          </form>
+        )}
+        {error && <div style={{ fontSize: 14.5, color: c.rose }}>{error}</div>}
+      </div>
+      <div style={{ textAlign: "center", marginTop: 20 }}>
+        <button type="button" onClick={onSkip} style={{ ...linkBtn, color: T.muted, fontSize: 14.5 }}>Este número não é meu, continuar sem histórico</button>
+      </div>
+    </Frame>
+  );
+}
+
+/* ---------------------------------------------------------
    DENTRO DA APP
 --------------------------------------------------------- */
 const TABS = [
@@ -903,7 +950,8 @@ function Portal({ page, style, session }) {
   const [tab, setTabState] = useState(TABS.some((t) => t.key === params.get("tab")) ? params.get("tab") : "home");
   const [sub, setSub] = useState(null);
   const [paidNotice, setPaidNotice] = useState(params.has("pago"));
-  const portalQuery = usePortal(page.brand.id, session);
+  const [skipPhone, setSkipPhone] = useState(false);
+  const portalQuery = usePortal(page.brand.id, session, skipPhone);
   const refresh = () => qc.invalidateQueries({ queryKey: ["client_portal"] });
   const go = (key, subView = null) => { setTabState(key); setSub(subView); };
 
@@ -929,6 +977,9 @@ function Portal({ page, style, session }) {
     );
   }
   const data = portalQuery.data;
+  if (data?.needsPhoneVerification) {
+    return <PhoneVerifyScreen page={page} style={style} onLinked={refresh} onSkip={() => setSkipPhone(true)} />;
+  }
 
   return (
     <Frame page={page} style={style} nav={<BottomNav tab={tab} onChange={(k) => go(k)} />}>

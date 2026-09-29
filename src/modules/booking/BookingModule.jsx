@@ -169,6 +169,37 @@ function useDeleteUpsell(serviceId) {
 }
 
 /* ---------------------------------------------------------
+   DATA — quem faz cada serviço (booking_service_staff).
+   Serviço sem ninguém = qualquer profissional pode fazê-lo.
+--------------------------------------------------------- */
+function useServiceStaff(brandId) {
+  return useQuery({
+    queryKey: ["booking_service_staff", brandId],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("booking_service_staff").select("service_id, staff_id").eq("brand_id", brandId);
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+// Troca todas as ligações de um serviço (column = "service_id") ou de um profissional (column = "staff_id").
+function useSetServiceStaff(brandId) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ column, id, otherIds }) => {
+      const other = column === "service_id" ? "staff_id" : "service_id";
+      const { error: delError } = await supabase.from("booking_service_staff").delete().eq("brand_id", brandId).eq(column, id);
+      if (delError) throw delError;
+      if (!otherIds.length) return;
+      const { error } = await supabase.from("booking_service_staff").insert(otherIds.map((o) => ({ brand_id: brandId, [column]: id, [other]: o })));
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["booking_service_staff", brandId] }),
+  });
+}
+
+/* ---------------------------------------------------------
    DATA — disponibilidade + férias, por profissional
 --------------------------------------------------------- */
 function useAvailability(staffId) {
@@ -322,16 +353,16 @@ function usePaymentSettings(brandId) {
     queryFn: async () => {
       const { data, error } = await supabase.from("booking_payment_settings").select("*").eq("brand_id", brandId).maybeSingle();
       if (error) throw error;
-      return data || { enabled: false, percentage: 100, scope: "all" };
+      return data || { enabled: false, percentage: 100, scope: "all", exempt_tag_id: null };
     },
   });
 }
 function useSavePaymentSettings(brandId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ enabled, percentage, scope }) => {
+    mutationFn: async ({ enabled, percentage, scope, exemptTagId }) => {
       const { error } = await supabase.from("booking_payment_settings").upsert(
-        { brand_id: brandId, enabled, percentage, scope, updated_at: new Date().toISOString() },
+        { brand_id: brandId, enabled, percentage, scope, exempt_tag_id: exemptTagId || null, updated_at: new Date().toISOString() },
         { onConflict: "brand_id" }
       );
       if (error) throw error;
@@ -365,7 +396,42 @@ function useUpdateBookingStyle(brandId) {
 /* ---------------------------------------------------------
    PROFISSIONAIS
 --------------------------------------------------------- */
+function StaffServicesPicker({ services, selected, onChange }) {
+  const active = services.filter((sv) => sv.status !== "archived");
+  const groups = [...new Set(active.map((sv) => sv.category || "Sem categoria"))];
+  const toggle = (ids, on) => onChange(on ? [...new Set([...selected, ...ids])] : selected.filter((x) => !ids.includes(x)));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 320, overflowY: "auto", border: `1px solid ${c.line}`, borderRadius: 6, padding: 10 }}>
+      {groups.map((g) => {
+        const ids = active.filter((sv) => (sv.category || "Sem categoria") === g).map((sv) => sv.id);
+        const all = ids.every((id) => selected.includes(id));
+        return (
+          <div key={g}>
+            <label style={{ ...sans, fontSize: 13.5, fontWeight: 700, color: c.ink, display: "flex", alignItems: "center", gap: 7 }}>
+              <input type="checkbox" checked={all} onChange={(e) => toggle(ids, e.target.checked)} /> {g} (todos)
+            </label>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, margin: "4px 0 0 22px" }}>
+              {active.filter((sv) => (sv.category || "Sem categoria") === g).map((sv) => (
+                <label key={sv.id} style={{ ...sans, fontSize: 13.5, color: c.ink, display: "flex", alignItems: "center", gap: 7 }}>
+                  <input type="checkbox" checked={selected.includes(sv.id)} onChange={(e) => toggle([sv.id], e.target.checked)} /> {sv.name}
+                </label>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      {!active.length && <div style={{ ...sans, fontSize: 13.5, color: c.mistLight }}>Cria primeiro os serviços.</div>}
+    </div>
+  );
+}
+
 function StaffFormModal({ brandId, staff, onClose }) {
+  const servicesQuery = useServices(brandId);
+  const linksQuery = useServiceStaff(brandId);
+  const setLinks = useSetServiceStaff(brandId);
+  const [serviceIds, setServiceIds] = useState(null);
+  const initialServiceIds = (linksQuery.data || []).filter((l) => l.staff_id === staff?.id).map((l) => l.service_id);
+  const chosenServiceIds = serviceIds ?? initialServiceIds;
   const [savedId, setSavedId] = useState(staff?.id || null);
   const [name, setName] = useState(staff?.name || "");
   const [email, setEmail] = useState(staff?.email || "");
@@ -401,7 +467,8 @@ function StaffFormModal({ brandId, staff, onClose }) {
   const save = async () => {
     if (!name.trim()) { setError("O nome é obrigatório."); return; }
     try {
-      await saveStaff.mutateAsync({ id: savedId, name: name.trim(), email: email.trim(), photoUrl });
+      const saved = await saveStaff.mutateAsync({ id: savedId, name: name.trim(), email: email.trim(), photoUrl });
+      if (serviceIds !== null) await setLinks.mutateAsync({ column: "staff_id", id: savedId || saved.id, otherIds: serviceIds });
       onClose();
     } catch (err) {
       setError(err.message || "Não foi possível guardar.");
@@ -409,7 +476,7 @@ function StaffFormModal({ brandId, staff, onClose }) {
   };
 
   return (
-    <Modal title={staff ? "Editar profissional" : "Novo profissional"} onClose={onClose} width={360}>
+    <Modal title={staff ? "Editar profissional" : "Novo profissional"} onClose={onClose} width={480}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 56, height: 56, borderRadius: "50%", overflow: "hidden", background: c.paper, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -422,8 +489,13 @@ function StaffFormModal({ brandId, staff, onClose }) {
         </div>
         <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome" />
         <input style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (opcional)" />
+        <div>
+          <div style={{ ...sans, fontSize: 13.5, fontWeight: 700, color: c.ink, marginBottom: 4 }}>Serviços que faz</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 8 }}>Só aparece para marcação nos serviços escolhidos. Um serviço sem nenhuma profissional escolhida fica com todas.</div>
+          {linksQuery.isSuccess && <StaffServicesPicker services={servicesQuery.data || []} selected={chosenServiceIds} onChange={setServiceIds} />}
+        </div>
         {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
-        <button onClick={save} disabled={saveStaff.isPending} style={{ ...btnPrimary, width: "fit-content" }}>{saveStaff.isPending ? "A guardar…" : "Guardar"}</button>
+        <button onClick={save} disabled={saveStaff.isPending || setLinks.isPending} style={{ ...btnPrimary, width: "fit-content" }}>{saveStaff.isPending ? "A guardar…" : "Guardar"}</button>
       </div>
     </Modal>
   );
@@ -477,7 +549,10 @@ function StaffSection({ brand, selectedStaffId, onSelectStaff }) {
 /* ---------------------------------------------------------
    SERVIÇOS + UPSELLS
 --------------------------------------------------------- */
-function ServiceFormModal({ brandId, service, categories, onClose }) {
+function ServiceFormModal({ brandId, service, categories, staff, links, onClose }) {
+  const setLinks = useSetServiceStaff(brandId);
+  const [staffIds, setStaffIds] = useState(() => (links || []).filter((l) => l.service_id === service?.id).map((l) => l.staff_id));
+  const toggleStaff = (id) => setStaffIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
   const [name, setName] = useState(service?.name || "");
   const [category, setCategory] = useState(service?.category || "");
   const [priceMax, setPriceMax] = useState(service?.price_max ?? "");
@@ -499,6 +574,7 @@ function ServiceFormModal({ brandId, service, categories, onClose }) {
     if (!name.trim()) { setError("O nome é obrigatório."); return; }
     try {
       const id = await saveService.mutateAsync({ id: savedId, name: name.trim(), description, price, durationMinutes, priceMax, category, careRecommendations });
+      await setLinks.mutateAsync({ column: "service_id", id, otherIds: staffIds });
       setSavedId(id);
     } catch (err) {
       setError(err.message || "Não foi possível guardar.");
@@ -523,6 +599,18 @@ function ServiceFormModal({ brandId, service, categories, onClose }) {
           <label style={{ ...sans, fontSize: 12.5, color: c.mist }}>Até (€, opcional)<input type="number" style={{ ...inputStyle, marginTop: 4 }} value={priceMax} onChange={(e) => setPriceMax(e.target.value)} /></label>
           <label style={{ ...sans, fontSize: 12.5, color: c.mist }}>Duração (min)<input type="number" style={{ ...inputStyle, marginTop: 4 }} value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} /></label>
         </div>
+        {staff.length > 0 && (
+          <div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Quem faz este serviço (nenhuma escolhida = todas)</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {staff.map((st) => (
+                <label key={st.id} style={{ ...sans, fontSize: 13.5, color: c.ink, display: "flex", alignItems: "center", gap: 6, background: c.paper, borderRadius: 999, padding: "5px 12px" }}>
+                  <input type="checkbox" checked={staffIds.includes(st.id)} onChange={() => toggleStaff(st.id)} /> {st.name}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
         <textarea rows={3} style={{ ...inputStyle, resize: "vertical" }} value={careRecommendations} onChange={(e) => setCareRecommendations(e.target.value)} placeholder="Recomendações de cuidado depois do serviço (a cliente vê na app)" />
         {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
         <button onClick={save} disabled={saveService.isPending} style={{ ...btnPrimary, width: "fit-content" }}>
@@ -555,6 +643,11 @@ function ServiceFormModal({ brandId, service, categories, onClose }) {
 
 function ServicesSection({ brand }) {
   const servicesQuery = useServices(brand.id);
+  const staffQuery = useStaff(brand.id);
+  const linksQuery = useServiceStaff(brand.id);
+  const staffList = (staffQuery.data || []).filter((st) => st.status !== "archived");
+  const links = linksQuery.data || [];
+  const staffNames = (serviceId) => links.filter((l) => l.service_id === serviceId).map((l) => staffList.find((st) => st.id === l.staff_id)?.name).filter(Boolean);
   const deleteService = useDeleteService(brand.id);
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -579,6 +672,11 @@ function ServicesSection({ brand }) {
               <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
                 {money(s.price)}{s.price_max ? ` a ${money(s.price_max)}` : ""}, {s.duration_minutes} min{s.status === "archived" ? ", arquivado (só histórico)" : ""}
               </div>
+              {s.status !== "archived" && staffList.length > 1 && (
+                <div style={{ ...sans, fontSize: 12.5, marginTop: 2, color: staffNames(s.id).length ? c.mist : c.amber }}>
+                  {staffNames(s.id).length ? staffNames(s.id).join(", ") : "Todas as profissionais"}
+                </div>
+              )}
             </div>
             <button onClick={() => { setEditing(s); setShowForm(true); }} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 4 }}><Pencil size={13} /></button>
             <button onClick={() => deleteService.mutate(s.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 4 }}><Trash2 size={13} /></button>
@@ -587,7 +685,7 @@ function ServicesSection({ brand }) {
         ))}
         {!servicesQuery.data?.length && <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "16px 0" }}>Ainda sem serviços.</div>}
       </div>
-      {showForm && <ServiceFormModal brandId={brand.id} service={editing} categories={categories} onClose={() => setShowForm(false)} />}
+      {showForm && <ServiceFormModal brandId={brand.id} service={editing} categories={categories} staff={staffList} links={links} onClose={() => setShowForm(false)} />}
     </div>
   );
 }
@@ -1013,9 +1111,17 @@ function RemindersSection({ brand }) {
 function PaymentSettingsSection({ brand }) {
   const settingsQuery = usePaymentSettings(brand.id);
   const save = useSavePaymentSettings(brand.id);
-  const s = settingsQuery.data || { enabled: false, percentage: 100, scope: "all" };
+  const s = settingsQuery.data || { enabled: false, percentage: 100, scope: "all", exempt_tag_id: null };
+  const tagsQuery = useQuery({
+    queryKey: ["brand_tags", brand.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("tags").select("id, name").eq("brand_id", brand.id).order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
 
-  const persist = (patch) => save.mutate({ enabled: s.enabled, percentage: s.percentage, scope: s.scope, ...patch });
+  const persist = (patch) => save.mutate({ enabled: s.enabled, percentage: s.percentage, scope: s.scope, exemptTagId: s.exempt_tag_id, ...patch });
 
   return (
     <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
@@ -1046,6 +1152,15 @@ function PaymentSettingsSection({ brand }) {
               <option value="new_customers">Só clientes novos (sem marcação anterior)</option>
             </select>
           </div>
+          {s.scope === "new_customers" && (
+            <div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Clientes com esta tag contam como clientes antigas (não pagam sinal)</div>
+              <select value={s.exempt_tag_id || ""} onChange={(e) => persist({ exemptTagId: e.target.value || null })} style={{ ...inputStyle, maxWidth: 260 }}>
+                <option value="">Nenhuma</option>
+                {(tagsQuery.data || []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          )}
         </div>
       )}
     </div>

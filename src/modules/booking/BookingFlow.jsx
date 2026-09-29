@@ -95,7 +95,7 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
   const { brand, services = [], staff = [], upsells: allUpsells = [], deposit } = page;
 
   const [serviceId, setServiceId] = useState("");
-  const [staffId, setStaffId] = useState(staff[0]?.id || "");
+  const [staffId, setStaffId] = useState("any");
   const [selectedUpsellIds, setSelectedUpsellIds] = useState([]);
   const [date, setDate] = useState("");
   const [slots, setSlots] = useState([]);
@@ -109,6 +109,8 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
   const [error, setError] = useState("");
 
   const service = services.find((s) => s.id === serviceId);
+  // Só quem faz este serviço (sem ninguém atribuído = qualquer profissional).
+  const serviceStaff = service?.staff_ids?.length ? staff.filter((st) => service.staff_ids.includes(st.id)) : staff;
   const upsells = allUpsells.filter((u) => u.service_id === serviceId);
   const chosenUpsells = upsells.filter((u) => selectedUpsellIds.includes(u.id));
   const extraMinutes = chosenUpsells.reduce((sum, u) => sum + (u.extra_duration_minutes || 0), 0);
@@ -124,7 +126,12 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
     return out;
   }, []);
 
-  useEffect(() => { setSelectedUpsellIds([]); setPackId(""); setDate(""); setChosenSlot(null); }, [serviceId]);
+  useEffect(() => {
+    setSelectedUpsellIds([]); setPackId(""); setDate(""); setChosenSlot(null);
+    const s = services.find((x) => x.id === serviceId);
+    const ids = s?.staff_ids?.length ? s.staff_ids : staff.map((st) => st.id);
+    setStaffId(ids.length === 1 ? ids[0] : "any");
+  }, [serviceId, services, staff]);
 
   useEffect(() => {
     if (!serviceId || !staffId || !date) { setSlots([]); return; }
@@ -218,11 +225,14 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
         </div>
       )}
 
-      {staff.length > 1 && (
+      {serviceStaff.length > 1 && (
         <div>
           <div style={label}>Com quem</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {staff.map((s) => (
+            <Choice selected={staffId === "any"} onClick={() => setStaffId("any")} style={{ width: "auto", padding: "9px 16px", borderRadius: 999 }}>
+              <span style={{ fontSize: 15, fontWeight: 500 }}>Sem preferência</span>
+            </Choice>
+            {serviceStaff.map((s) => (
               <Choice key={s.id} selected={s.id === staffId} onClick={() => setStaffId(s.id)} style={{ width: "auto", padding: "9px 16px", display: "flex", alignItems: "center", gap: 8, borderRadius: 999 }}>
                 {s.photo_url && <img src={s.photo_url} alt="" style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover" }} />}
                 <span style={{ fontSize: 15, fontWeight: 500 }}>{s.name}</span>

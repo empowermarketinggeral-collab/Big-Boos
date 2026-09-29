@@ -103,21 +103,35 @@ function useImportContacts(brandId) {
   return useMutation({
     mutationFn: async (rows) => {
       let created = 0, skipped = 0, failed = 0;
+      // Tags da coluna "Tags" do ficheiro: reaproveita as que já existem (pelo nome) e cria as que faltam.
+      const { data: existingTags } = await supabase.from("tags").select("id, name").eq("brand_id", brandId);
+      const tagIds = new Map((existingTags || []).map((t) => [t.name.toLowerCase(), t.id]));
+      const tagIdFor = async (name) => {
+        const key = name.toLowerCase();
+        if (tagIds.has(key)) return tagIds.get(key);
+        const { data } = await supabase.from("tags").insert({ brand_id: brandId, name }).select("id").single();
+        if (data) tagIds.set(key, data.id);
+        return data?.id || null;
+      };
       for (const row of rows) {
         if (!row.name) { skipped++; continue; }
-        const { error } = await supabase.from("contacts").insert({
+        const { data: contact, error } = await supabase.from("contacts").insert({
           brand_id: brandId,
           name: row.name,
           email: row.email || null,
           phone: row.phone || null,
           ...(row.birthDate ? { birth_date: row.birthDate } : {}),
           source: "importacao",
-        });
+        }).select("id").single();
         if (error) {
           if (error.code === "23505") skipped++;
           else failed++;
-        } else {
-          created++;
+          continue;
+        }
+        created++;
+        for (const tagName of row.tags || []) {
+          const tagId = await tagIdFor(tagName);
+          if (tagId) await supabase.from("contact_tags").insert({ brand_id: brandId, contact_id: contact.id, tag_id: tagId });
         }
       }
       return { created, skipped, failed };
@@ -149,6 +163,7 @@ function csvToContactRows(text) {
     email: findColumn(header, ["email", "e-mail", "correio eletronico", "e-mail 1 - value"]),
     phone: findColumn(header, ["telefone", "telemovel", "phone", "telemóvel", "mobile", "contacto", "whatsapp", "phone 1 - value"]),
     birth: findColumn(header, ["data de nascimento", "nascimento", "aniversario", "birthday", "birth date", "birth_date"]),
+    tags: findColumn(header, ["tags", "tag", "etiquetas", "etiqueta"]),
   };
   const cell = (r, i) => (i >= 0 ? String(r[i] || "").trim() : "");
   return rows
@@ -161,6 +176,7 @@ function csvToContactRows(text) {
         email: cell(r, idx.email).toLowerCase(),
         phone: normalizePhone(rawPhone) || rawPhone,
         birthDate: toIsoDate(cell(r, idx.birth)),
+        tags: cell(r, idx.tags).split(/[,;]/).map((t) => t.trim()).filter(Boolean),
       };
     });
 }
