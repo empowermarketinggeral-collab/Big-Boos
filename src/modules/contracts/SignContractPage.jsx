@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { invokeFunction } from "../../lib/supabaseClient.js";
 import { c, sans, serif, inputStyle, btnPrimary, display } from "../../shared/theme.jsx";
-import { CheckCircle2, Download, FileSignature } from "lucide-react";
+import { Download, FileSignature } from "lucide-react";
 import ContractDocument from "./ContractDocument.jsx";
+import ApprovalSeal from "../../design/ApprovalSeal.jsx";
 import SignaturePad from "./SignaturePad.jsx";
 import { downloadContractPdf, formatDateTime, renderContractHtml } from "./contractDoc.js";
 
@@ -23,6 +24,7 @@ export default function SignContractPage() {
   const [signing, setSigning] = useState(false);
   const [formError, setFormError] = useState("");
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [justSigned, setJustSigned] = useState(false); // o selo só acende no momento em que assinas
 
   useEffect(() => {
     document.title = "Assinar contrato";
@@ -56,6 +58,7 @@ export default function SignContractPage() {
     try {
       await invokeFunction("contract-sign", { action: "sign", token, name: name.trim(), signatureImage: signature, agree: true });
       await load();
+      setJustSigned(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setFormError(err.message || "Não foi possível assinar.");
@@ -105,7 +108,7 @@ export default function SignContractPage() {
 
       {signed ? (
         <div style={{ display: "flex", alignItems: "center", gap: 10, background: c.sageSoft, border: `1px solid ${c.sage}`, borderRadius: 3, padding: "12px 16px", marginBottom: 16, flexWrap: "wrap" }}>
-          <CheckCircle2 size={18} color={c.sage} />
+          <ApprovalSeal size={34} ring lit={justSigned} />
           <div style={{ fontSize: 14.5, color: c.ink, flex: 1, minWidth: 200 }}>
             Contrato assinado por ambas as partes{contract.completed_at ? ` em ${formatDateTime(contract.completed_at)}` : ""}.
           </div>

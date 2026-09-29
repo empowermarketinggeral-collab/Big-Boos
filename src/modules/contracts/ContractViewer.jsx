@@ -4,13 +4,15 @@ import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
 import { c, sans, Modal, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, Download, Send, Ban, Eye } from "lucide-react";
 import ContractDocument from "./ContractDocument.jsx";
+import ApprovalSeal from "../../design/ApprovalSeal.jsx";
 import { CONTRACT_STATUS, downloadContractPdf, formatDateTime, renderContractHtml } from "./contractDoc.js";
 import { useAgencyName, useContractSigners, invalidateContracts } from "./contractsData.js";
 
 export function StatusPill({ status }) {
   const s = CONTRACT_STATUS[status] || CONTRACT_STATUS.draft;
   return (
-    <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: s.color, background: `color-mix(in srgb, ${s.color} 10%, transparent)`, borderRadius: 999, padding: "3px 10px", whiteSpace: "nowrap" }}>
+    <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: s.color, background: `color-mix(in srgb, ${s.color} 10%, transparent)`, borderRadius: 999, padding: "3px 10px", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}>
+      {status === "signed" && <ApprovalSeal size={13} />}
       {s.label}
     </span>
   );

@@ -52,7 +52,14 @@ const FIXTURES = {
   ],
   automation_steps: [],
   brand_lead_webhooks: [{ brand_id: B1, token: "0".repeat(64), enabled: true, default_tag_ids: ["t1"], default_source: "landing_page", default_country_code: "351" }],
-  contents: [],
+  contents: [
+    { id: "ct1", brand_id: B1, type: "reel", platform: ["instagram"], title: "Antes e depois: limpeza de pele", approval_status: "pending", scheduled_date: day(3), client_note: null, media_urls: [], caption: "Resultado real, sem filtros.", created_at: iso(-2) },
+    { id: "ct2", brand_id: B1, type: "carrossel", platform: ["instagram", "facebook"], title: "5 erros de pedicure", approval_status: "pending", scheduled_date: day(5), client_note: null, media_urls: [], caption: "Guarda para a próxima marcação.", created_at: iso(-3) },
+    { id: "ct3", brand_id: B1, type: "post", platform: ["facebook"], title: "Nova linha Podocare", approval_status: "approved", scheduled_date: day(7), client_note: null, media_urls: [], caption: "Já disponível.", created_at: iso(-5) },
+  ],
+  scripts: [
+    { id: "sc1", brand_id: B1, title: "Roteiro: bastidores da formação", content: "Cena 1: chegada das alunas.", status: "pending", client_note: null, created_at: iso(-1) },
+  ],
   forms: [],
   plans: [],
 };
@@ -90,7 +97,12 @@ const showLogin = typeof location !== "undefined" && new URLSearchParams(locatio
 
 export const supabase = {
   from: (table) => makeBuilder(table),
-  rpc: (name) => Promise.resolve({ data: /^(can_|is_)/.test(name) ? true : null, error: null }),
+  rpc: (name, args = {}) => {
+    // aprovar de facto, para ver a animação do selo
+    if (name === "approve_content") { const r = FIXTURES.contents.find((x) => x.id === args.p_id); if (r) r.approval_status = args.p_status; }
+    if (name === "approve_script") { const r = FIXTURES.scripts.find((x) => x.id === args.p_id); if (r) r.status = args.p_status; }
+    return Promise.resolve({ data: /^(can_|is_)/.test(name) ? true : null, error: null });
+  },
   channel: () => channelStub,
   removeChannel: () => {},
   auth: {
@@ -114,6 +126,21 @@ export const supabase = {
   functions: { invoke: async () => ({ data: {}, error: null }) },
 };
 
-export async function invokeFunction() {
+// Página de assinatura de demonstração (/assinar/<64 hex>): ler, assinar e voltar a ler.
+let mockSigned = false;
+export async function invokeFunction(name, body = {}) {
+  if (name === "contract-sign") {
+    if (body.action === "sign") { mockSigned = true; return { ok: true }; }
+    const sig = (role, name2, email, signed) => ({ role, name: name2, email, signature_image: null, signed_at: signed ? iso(-1) : null, signed_ip: signed ? "203.0.113.7" : null, signed_body_hash: null });
+    return {
+      contract: {
+        id: "k9", title: "Contrato de prestação de serviços", status: mockSigned ? "signed" : "sent", body_hash: "abc123",
+        body_html: "<h1>Contrato de prestação de serviços</h1><p>Entre a agência Empower Boss e a Clínica Aurora, acordam-se a gestão das redes sociais e o acompanhamento mensal dos resultados.</p><h2>Cláusula 1.ª</h2><p>O prestador publica doze peças por mês.</p><p>{{assinatura_agencia}}</p><p>{{assinatura_cliente}}</p>",
+        sent_at: iso(-2), completed_at: mockSigned ? iso(0) : null, counterparty_name: "Marta Ferreira", counterparty_email: "marta@clinica.pt", agency_name: "Empower Marketing",
+      },
+      signers: [sig("agency", "Ana Silva", "ana@empower.pt", true), sig("counterparty", mockSigned ? "Marta Ferreira" : "Marta Ferreira", "marta@clinica.pt", mockSigned)],
+      canSign: !mockSigned,
+    };
+  }
   return {};
 }

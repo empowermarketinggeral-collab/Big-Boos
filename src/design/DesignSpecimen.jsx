@@ -3,6 +3,7 @@ import {
   LayoutGrid, Briefcase, Handshake, FileText, FileSignature, CreditCard, Users, Settings, Search, Sun, Moon, Monitor, Plus, AlertCircle, CheckCircle2,
 } from "lucide-react";
 import "./tokens.css";
+import ApprovalSeal from "./ApprovalSeal.jsx";
 import "./specimen.css";
 
 /* ---------------------------------------------------------
@@ -17,7 +18,7 @@ const STATE_LABEL = { rascunho: "Rascunho", pendente: "Para aprovar", aprovado: 
 function Tag({ estado, lit }) {
   return (
     <span className={`bbx-tag bbx-tag-${estado}`}>
-      {estado === "aprovado" ? <span className={`bbx-seal bbx-seal-sm${lit ? " lit" : ""}`} aria-hidden="true" /> : <i />}
+      {estado === "aprovado" ? <ApprovalSeal size={16} lit={lit} /> : <i />}
       {STATE_LABEL[estado]}
     </span>
   );
@@ -384,7 +385,7 @@ export default function DesignSpecimen() {
                 <button className="bbx-btn bbx-btn-primary" type="button" onClick={() => setSigned(true)} disabled={signed}>{signed ? "Contrato assinado" : "Assinar contrato"}</button>
                 {signed && (
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 10, color: "#1F7A4D", fontWeight: 700 }}>
-                    <span className="bbx-seal bbx-seal-lg lit" style={{ background: "#B0820D" }} aria-hidden="true" /> Assinado pela agência
+                    <ApprovalSeal size={56} ring lit color="#B0820D" /> Assinado pela agência
                   </span>
                 )}
                 {signed && <button className="bbx-btn bbx-btn-ghost bbx-btn-sm" type="button" onClick={() => setSigned(false)}>Repor o exemplo</button>}

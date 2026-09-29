@@ -2,6 +2,7 @@ import { useState } from "react";
 import { invokeFunction } from "../../lib/supabaseClient.js";
 import { c, sans, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
 import SignaturePad from "./SignaturePad.jsx";
+import ApprovalSeal from "../../design/ApprovalSeal.jsx";
 
 /* ---------------------------------------------------------
    "Assinar e enviar": a agência desenha a assinatura, o texto fica
@@ -39,6 +40,9 @@ export default function SendContractModal({ contract, onClose, onSent }) {
   if (result) {
     return (
       <Modal title="Contrato enviado" onClose={() => onSent()} width={440}>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+          <ApprovalSeal size={64} ring lit />
+        </div>
         <div style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.6, marginBottom: 16 }}>
           O contrato ficou assinado pela agência e bloqueado (já não se pode editar).
           {result.emailSent ? (

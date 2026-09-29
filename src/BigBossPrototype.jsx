@@ -30,6 +30,7 @@ import BrandContractsModule from "./modules/contracts/BrandContractsModule.jsx";
 import PaymentReminderBanner from "./modules/billing/PaymentReminderBanner.jsx";
 import ThemeToggle from "./design/ThemeToggle.jsx";
 import BrandLogo from "./design/BrandLogo.jsx";
+import ApprovalSeal from "./design/ApprovalSeal.jsx";
 import { c, sans, serif, StatusDot, Eyebrow, ChartCard, CAN_MANAGE_ROLES, Modal, btnPrimary, btnGhost, display } from "./shared/theme.jsx";
 
 /* ---------------------------------------------------------
@@ -3129,7 +3130,7 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
 /* ---------------------------------------------------------
    CONTEÚDOS — demonstra fluxo de aprovação + nota
 --------------------------------------------------------- */
-function StatusPill({ status }) {
+function StatusPill({ status, lit = false }) {
   const { t } = useT();
   const map = {
     approved: { label: t("content.status.approved"), bg: c.sageSoft, color: c.sage, Icon: CheckCircle2 },
@@ -3154,7 +3155,7 @@ function StatusPill({ status }) {
         padding: "4px 10px",
       }}
     >
-      <Icon size={12} /> {label}
+      {status === "approved" ? <ApprovalSeal size={14} lit={lit} /> : <Icon size={12} />} {label}
     </span>
   );
 }
@@ -3590,6 +3591,7 @@ function ConteudosView({ brand, onBack, session }) {
   const [showForm, setShowForm] = useState(false);
   const [formInitialDate, setFormInitialDate] = useState(null);
 
+  const [litId, setLitId] = useState(null); // último conteúdo aprovado: o selo acende e o cartão brilha
   const contentsQuery = useContents(brand.id, true);
   const approveContent = useApproveContent(brand.id);
   const updateContentMedia = useUpdateContentMedia(brand.id);
@@ -3597,7 +3599,8 @@ function ConteudosView({ brand, onBack, session }) {
   const content = contentsQuery.data || [];
   const canManage = CAN_MANAGE_ROLES.includes(session.role);
 
-  const approve = (id) => approveContent.mutate({ id, status: "approved" });
+  const approve = (id) =>
+    approveContent.mutate({ id, status: "approved" }, { onSuccess: () => { setLitId(id); setTimeout(() => setLitId(null), 3000); } });
   const confirmReject = (id) => {
     approveContent.mutate({ id, status: "rejected", note: rejectNote });
     setRejectingId(null);
@@ -3703,6 +3706,7 @@ function ConteudosView({ brand, onBack, session }) {
           return (
             <div
               key={item.id}
+              className={litId === item.id ? "bb-flash" : undefined}
               style={{
                 background: c.folha,
                 border: `1px solid ${c.line}`,
@@ -3717,6 +3721,7 @@ function ConteudosView({ brand, onBack, session }) {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
+                  gap: 14,
                   padding: "16px 18px",
                   background: "none",
                   border: "none",
@@ -3751,7 +3756,7 @@ function ConteudosView({ brand, onBack, session }) {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
                   <span style={{ ...sans, fontSize: 13.5, color: c.mist }}>{item.date}</span>
-                  <StatusPill status={item.status} />
+                  <StatusPill status={item.status} lit={litId === item.id} />
                 </div>
               </button>
 
@@ -3832,7 +3837,7 @@ function ConteudosView({ brand, onBack, session }) {
                         onClick={() => approve(item.id)}
                         disabled={approveContent.isPending}
                         style={{
-                          ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.sageSolid,
+                          ...sans, fontSize: 14, fontWeight: 600, color: c.onBoss, background: c.boss,
                           border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer",
                           display: "flex", alignItems: "center", gap: 6,
                         }}
@@ -3951,11 +3956,13 @@ function RoteirosView({ brand, onBack, session }) {
   const [showForm, setShowForm] = useState(false);
 
   const scriptsQuery = useScripts(brand.id, true);
+  const [litId, setLitId] = useState(null);
   const approveScript = useApproveScript(brand.id);
   const scripts = scriptsQuery.data || [];
   const canManage = CAN_MANAGE_ROLES.includes(session.role);
 
-  const approve = (id) => approveScript.mutate({ id, status: "approved" });
+  const approve = (id) =>
+    approveScript.mutate({ id, status: "approved" }, { onSuccess: () => { setLitId(id); setTimeout(() => setLitId(null), 3000); } });
   const confirmReject = (id) => {
     approveScript.mutate({ id, status: "rejected", note: rejectNote });
     setRejectingId(null);
@@ -3999,7 +4006,7 @@ function RoteirosView({ brand, onBack, session }) {
         {scripts.map((s) => {
           const isOpen = openId === s.id;
           return (
-            <div key={s.id} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, overflow: "hidden" }}>
+            <div key={s.id} className={litId === s.id ? "bb-flash" : undefined} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, overflow: "hidden" }}>
               <button
                 onClick={() => setOpenId(isOpen ? null : s.id)}
                 style={{
@@ -4007,6 +4014,7 @@ function RoteirosView({ brand, onBack, session }) {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
+                  gap: 14,
                   padding: "16px 18px",
                   background: "none",
                   border: "none",
@@ -4015,7 +4023,7 @@ function RoteirosView({ brand, onBack, session }) {
                 }}
               >
                 <div style={{ ...serif, fontSize: 15, color: c.ink }}>{s.title}</div>
-                <StatusPill status={s.status} />
+                <StatusPill status={s.status} lit={litId === s.id} />
               </button>
               {isOpen && (
                 <div style={{ padding: "0 18px 20px" }}>
@@ -4045,7 +4053,7 @@ function RoteirosView({ brand, onBack, session }) {
                         onClick={() => approve(s.id)}
                         disabled={approveScript.isPending}
                         style={{
-                          ...sans, fontSize: 14, fontWeight: 600, color: "#fff", background: c.sageSolid,
+                          ...sans, fontSize: 14, fontWeight: 600, color: c.onBoss, background: c.boss,
                           border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer",
                           display: "flex", alignItems: "center", gap: 6,
                         }}

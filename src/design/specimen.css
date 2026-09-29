@@ -70,12 +70,6 @@
 :root[data-theme="dark"] .bbx-logo-empilhado { background-image: url(/brand/empilhado/bigboss-empilhado-sobre-roxo.svg); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bbx-logo-empilhado { background-image: url(/brand/empilhado/bigboss-empilhado-sobre-roxo.svg); } }
 .bbx-logo-compacto-roxo { height: 26px; aspect-ratio: 660.35 / 112.5; background-image: url(/brand/compacto/bigboss-compacto-sobre-roxo.svg); }
-/* o selo usa a forma do logótipo, pintada com o dourado do tema */
-.bbx-seal { display: inline-block; flex: none; background: var(--bb-dourado); -webkit-mask: url(/brand/aprovado/selo-aprovado-pequeno.svg) center / contain no-repeat; mask: url(/brand/aprovado/selo-aprovado-pequeno.svg) center / contain no-repeat; }
-.bbx-seal-sm { width: 16px; height: 16px; }
-.bbx-seal-lg { width: 56px; height: 56px; -webkit-mask-image: url(/brand/aprovado/selo-aprovado.svg); mask-image: url(/brand/aprovado/selo-aprovado.svg); }
-.bbx-seal.lit { animation: bbx-star-in 340ms cubic-bezier(0.2, 1.5, 0.4, 1) both; }
-@keyframes bbx-star-in { from { opacity: 0; transform: scale(2.6) rotate(-28deg); } to { opacity: 1; transform: none; } }
 .bbx-row.flash { animation: bbx-flash 1000ms ease-out; }
 @keyframes bbx-flash { from { background: var(--bb-boss-suave); } to { background: transparent; } }
 
