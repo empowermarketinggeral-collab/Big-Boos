@@ -213,26 +213,6 @@ function useAvailability(staffId) {
     },
   });
 }
-function useAddAvailability(brandId, staffId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ weekday, startTime, endTime }) => {
-      const { error } = await supabase.from("booking_availability").insert({ brand_id: brandId, staff_id: staffId, weekday, start_time: startTime, end_time: endTime });
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["booking_availability", staffId] }),
-  });
-}
-function useRemoveAvailability(staffId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id) => {
-      const { error } = await supabase.from("booking_availability").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["booking_availability", staffId] }),
-  });
-}
 function useTimeOff(staffId) {
   return useQuery({
     queryKey: ["booking_time_off", staffId],
@@ -526,7 +506,7 @@ function StaffSection({ brand, selectedStaffId, onSelectStaff }) {
             onClick={() => onSelectStaff(s.id)}
             style={{
               display: "flex", alignItems: "center", gap: 7, borderRadius: 999, padding: "6px 6px 6px 12px", cursor: "pointer",
-              background: selectedStaffId === s.id ? c.boss : c.paper, color: selectedStaffId === s.id ? "#fff" : c.ink,
+              background: selectedStaffId === s.id ? c.boss : c.paper, color: selectedStaffId === s.id ? c.onBoss : c.ink,
             }}
           >
             {s.photo_url ? (
@@ -691,86 +671,214 @@ function ServicesSection({ brand }) {
 }
 
 /* ---------------------------------------------------------
-   DISPONIBILIDADE + FÉRIAS (por profissional selecionado)
+   HORÁRIO + FÉRIAS (por profissional)
+   Cada dia da semana está "a trabalhar" (com um ou mais intervalos,
+   ex: 09:00–13:00 e 14:00–19:00) ou de folga. O horário edita-se
+   todo de uma vez e "Guardar horário" substitui o que estava gravado
+   para essa profissional (booking_availability).
 --------------------------------------------------------- */
-function AddAvailabilityRow({ brandId, staffId, weekday }) {
-  const [start, setStart] = useState("09:00");
-  const [end, setEnd] = useState("18:00");
-  const addAvailability = useAddAvailability(brandId, staffId);
+const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0]; // segunda primeiro
+const timeInput = { ...sans, fontSize: 14, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 8px", background: c.folha, color: c.ink };
+
+function useReplaceAvailability(brandId, staffId) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (days) => {
+      const rows = [];
+      for (const [weekday, day] of Object.entries(days)) {
+        if (!day.works) continue;
+        for (const iv of day.intervals) {
+          if (!iv.start || !iv.end) continue;
+          if (iv.end <= iv.start) throw new Error(`${WEEKDAYS[weekday]}: a hora de fim tem de ser depois da de início.`);
+          rows.push({ brand_id: brandId, staff_id: staffId, weekday: Number(weekday), start_time: iv.start, end_time: iv.end });
+        }
+      }
+      const { error: delError } = await supabase.from("booking_availability").delete().eq("staff_id", staffId);
+      if (delError) throw delError;
+      if (rows.length) {
+        const { error } = await supabase.from("booking_availability").insert(rows);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["booking_availability", staffId] }),
+  });
+}
+
+function WeeklyScheduleEditor({ brandId, staffId, staffName }) {
+  const availabilityQuery = useAvailability(staffId);
+  const replace = useReplaceAvailability(brandId, staffId);
+  const [days, setDays] = useState(null);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  // Rascunho a partir do que está gravado.
+  useEffect(() => {
+    if (!availabilityQuery.isSuccess) return;
+    const next = {};
+    for (let wd = 0; wd < 7; wd++) {
+      const rules = availabilityQuery.data.filter((r) => r.weekday === wd).sort((a, b) => a.start_time.localeCompare(b.start_time));
+      next[wd] = rules.length
+        ? { works: true, intervals: rules.map((r) => ({ start: r.start_time.slice(0, 5), end: r.end_time.slice(0, 5) })) }
+        : { works: false, intervals: [{ start: "09:00", end: "19:00" }] };
+    }
+    setDays(next);
+  }, [availabilityQuery.isSuccess, availabilityQuery.data]);
+
+  if (!days) return <div style={{ ...sans, fontSize: 14, color: c.mist }}>A carregar…</div>;
+
+  const edit = (wd, fn) => { setSaved(false); setDays((d) => ({ ...d, [wd]: fn(d[wd]) })); };
+  const setIv = (wd, i, key, value) => edit(wd, (day) => ({ ...day, intervals: day.intervals.map((iv, j) => (j === i ? { ...iv, [key]: value } : iv)) }));
+  const copyMonday = () => {
+    setSaved(false);
+    setDays((d) => {
+      const next = { ...d };
+      for (const wd of [2, 3, 4, 5, 6, 0]) if (next[wd].works) next[wd] = { works: true, intervals: d[1].intervals.map((iv) => ({ ...iv })) };
+      return next;
+    });
+  };
+  const save = async () => {
+    setError("");
+    try {
+      await replace.mutateAsync(days);
+      setSaved(true);
+    } catch (err) {
+      setError(err.message || "Não foi possível guardar.");
+    }
+  };
+
   return (
-    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-      <input type="time" value={start} onChange={(e) => setStart(e.target.value)} style={{ ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "5px 7px" }} />
-      <span style={{ ...sans, fontSize: 13.5, color: c.mist }}>–</span>
-      <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={{ ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "5px 7px" }} />
-      <button onClick={() => addAvailability.mutate({ weekday, startTime: start, endTime: end })} disabled={addAvailability.isPending} style={{ background: "none", border: "none", cursor: "pointer", color: c.bossText, padding: 4 }}><Plus size={14} /></button>
+    <div>
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {WEEK_ORDER.map((wd) => {
+          const day = days[wd];
+          return (
+            <div key={wd} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 0", borderTop: `1px solid ${c.line}`, flexWrap: "wrap" }}>
+              <div style={{ ...sans, fontSize: 14, fontWeight: 700, color: c.ink, width: 72, paddingTop: 7 }}>{WEEKDAYS[wd]}</div>
+              <div style={{ display: "flex", background: c.paper, borderRadius: 999, padding: 3, height: "fit-content" }}>
+                {[[true, "Trabalha"], [false, "Folga"]].map(([value, lbl]) => (
+                  <button
+                    key={lbl}
+                    type="button"
+                    onClick={() => edit(wd, (dd) => ({ ...dd, works: value }))}
+                    style={{ ...sans, fontSize: 13, fontWeight: 700, border: "none", borderRadius: 999, padding: "5px 12px", cursor: "pointer", background: day.works === value ? (value ? c.boss : c.folha) : "transparent", color: day.works === value ? (value ? c.onBoss : c.ink) : c.mist }}
+                  >
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+              {day.works && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: "1 1 220px" }}>
+                  {day.intervals.map((iv, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <input type="time" value={iv.start} onChange={(e) => setIv(wd, i, "start", e.target.value)} style={timeInput} />
+                      <span style={{ ...sans, fontSize: 13.5, color: c.mist }}>até</span>
+                      <input type="time" value={iv.end} onChange={(e) => setIv(wd, i, "end", e.target.value)} style={timeInput} />
+                      {day.intervals.length > 1 && (
+                        <button type="button" onClick={() => edit(wd, (dd) => ({ ...dd, intervals: dd.intervals.filter((_, j) => j !== i) }))} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 4 }} aria-label="Remover intervalo"><Trash2 size={13} /></button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => edit(wd, (dd) => ({ ...dd, intervals: [...dd.intervals, { start: "14:00", end: "19:00" }] }))}
+                    style={{ ...sans, fontSize: 12.5, color: c.bossText, background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left", width: "fit-content" }}
+                  >
+                    + Outro intervalo (ex: depois do almoço)
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", borderTop: `1px solid ${c.line}`, paddingTop: 14 }}>
+        <button type="button" onClick={save} disabled={replace.isPending} style={btnPrimary}>{replace.isPending ? "A guardar…" : `Guardar horário de ${staffName}`}</button>
+        {days[1].works && <button type="button" onClick={copyMonday} style={btnGhost}>Copiar segunda para os outros dias de trabalho</button>}
+        {saved && <span style={{ ...sans, fontSize: 13.5, color: c.sage, display: "flex", alignItems: "center", gap: 5 }}><CheckCircle2 size={14} /> Guardado</span>}
+      </div>
+      {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginTop: 10 }}>{error}</div>}
     </div>
   );
 }
 
-function AvailabilitySection({ brand, staffId }) {
-  const availabilityQuery = useAvailability(staffId);
-  const removeAvailability = useRemoveAvailability(staffId);
+function TimeOffEditor({ brandId, staffId, staffName }) {
   const timeOffQuery = useTimeOff(staffId);
-  const addTimeOff = useAddTimeOff(brand.id, staffId);
+  const addTimeOff = useAddTimeOff(brandId, staffId);
   const removeTimeOff = useRemoveTimeOff(staffId);
   const [offStart, setOffStart] = useState("");
   const [offEnd, setOffEnd] = useState("");
   const [offReason, setOffReason] = useState("");
-  const rules = availabilityQuery.data || [];
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = (timeOffQuery.data || []).filter((t) => t.ends_at.slice(0, 10) >= today);
+  const add = () => {
+    if (!offStart) return;
+    const end = offEnd && offEnd >= offStart ? offEnd : offStart;
+    addTimeOff.mutate({ startsAt: new Date(`${offStart}T00:00:00`).toISOString(), endsAt: new Date(`${end}T23:59:59`).toISOString(), reason: offReason });
+    setOffStart(""); setOffEnd(""); setOffReason("");
+  };
+  const fmt = (iso) => new Date(iso).toLocaleDateString("pt-PT", { weekday: "short", day: "numeric", month: "short" });
 
-  if (!staffId) return null;
+  return (
+    <div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+        {upcoming.map((t) => {
+          const sameDay = new Date(t.starts_at).toDateString() === new Date(t.ends_at).toDateString();
+          return (
+            <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, background: c.paper, borderRadius: 6, padding: "8px 12px" }}>
+              <div style={{ flex: 1, ...sans, fontSize: 13.5, color: c.ink }}>
+                {sameDay ? fmt(t.starts_at) : `${fmt(t.starts_at)} a ${fmt(t.ends_at)}`}{t.reason ? `, ${t.reason}` : ""}
+              </div>
+              <button onClick={() => removeTimeOff.mutate(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 2 }} aria-label="Remover"><Trash2 size={12} /></button>
+            </div>
+          );
+        })}
+        {!upcoming.length && <div style={{ ...sans, fontSize: 13.5, color: c.mistLight }}>{staffName} não tem férias nem folgas marcadas.</div>}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, alignItems: "end" }}>
+        <label style={{ ...sans, fontSize: 12.5, color: c.mist }}>De<input type="date" min={today} value={offStart} onChange={(e) => setOffStart(e.target.value)} style={{ ...inputStyle, marginTop: 4 }} /></label>
+        <label style={{ ...sans, fontSize: 12.5, color: c.mist }}>Até (vazio = só esse dia)<input type="date" min={offStart || today} value={offEnd} onChange={(e) => setOffEnd(e.target.value)} style={{ ...inputStyle, marginTop: 4 }} /></label>
+        <label style={{ ...sans, fontSize: 12.5, color: c.mist }}>Motivo (opcional)<input value={offReason} onChange={(e) => setOffReason(e.target.value)} placeholder="Férias, formação…" style={{ ...inputStyle, marginTop: 4 }} /></label>
+        <button type="button" onClick={add} disabled={!offStart || addTimeOff.isPending} style={{ ...btnGhost, height: 40 }}><Plus size={12} /> Bloquear</button>
+      </div>
+    </div>
+  );
+}
+
+function AvailabilitySection({ brand, staffId, onSelectStaff }) {
+  const staffQuery = useStaff(brand.id);
+  const staff = (staffQuery.data || []).filter((s) => s.status !== "archived");
+  const current = staff.find((s) => s.id === staffId);
+  if (!staff.length) return null;
+
+  const picker = (
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+      {staff.map((s) => (
+        <button
+          key={s.id}
+          type="button"
+          onClick={() => onSelectStaff(s.id)}
+          style={{ ...sans, fontSize: 13.5, fontWeight: 700, borderRadius: 999, padding: "7px 14px", cursor: "pointer", border: `1px solid ${s.id === staffId ? c.boss : c.lineStrong}`, background: s.id === staffId ? c.boss : c.folha, color: s.id === staffId ? c.onBoss : c.ink }}
+        >
+          {s.name}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <>
       <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
-        <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 4 }}>Disponibilidade semanal</div>
-        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 14 }}>Repete-se todas as semanas, para este profissional.</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {WEEKDAYS.map((label, weekday) => (
-            <div key={weekday} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-              <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: c.ink, width: 80, flexShrink: 0, paddingTop: 5 }}>{label}</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
-                {rules.filter((r) => r.weekday === weekday).map((r) => (
-                  <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ ...sans, fontSize: 13.5, color: c.ink, background: c.paper, borderRadius: 6, padding: "4px 9px" }}>{r.start_time.slice(0, 5)} – {r.end_time.slice(0, 5)}</span>
-                    <button onClick={() => removeAvailability.mutate(r.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 2 }}><Trash2 size={12} /></button>
-                  </div>
-                ))}
-                <AddAvailabilityRow brandId={brand.id} staffId={staffId} weekday={weekday} />
-              </div>
-            </div>
-          ))}
-        </div>
+        <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 4 }}>Horário semanal{current ? ` de ${current.name}` : ""}</div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 14 }}>Escolha a profissional. O horário repete-se todas as semanas; nos dias de folga não aparecem horas para marcar.</div>
+        {picker}
+        {current && <WeeklyScheduleEditor key={current.id} brandId={brand.id} staffId={current.id} staffName={current.name} />}
       </div>
 
       <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
-        <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 4 }}>Períodos indisponíveis</div>
-        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 14 }}>Férias, folgas — bloqueia marcações neste intervalo, para este profissional.</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-          {(timeOffQuery.data || []).map((t) => (
-            <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, background: c.paper, borderRadius: 6, padding: "8px 12px" }}>
-              <div style={{ flex: 1, ...sans, fontSize: 13.5, color: c.ink }}>
-                {new Date(t.starts_at).toLocaleDateString("pt-PT")} – {new Date(t.ends_at).toLocaleDateString("pt-PT")}{t.reason ? `, ${t.reason}` : ""}
-              </div>
-              <button onClick={() => removeTimeOff.mutate(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 2 }}><Trash2 size={12} /></button>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-          <input type="date" value={offStart} onChange={(e) => setOffStart(e.target.value)} style={{ ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 8px" }} />
-          <input type="date" value={offEnd} onChange={(e) => setOffEnd(e.target.value)} style={{ ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 8px" }} />
-          <input value={offReason} onChange={(e) => setOffReason(e.target.value)} placeholder="Motivo (opcional)" style={{ ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "6px 8px", flex: 1, minWidth: 120 }} />
-          <button
-            onClick={() => {
-              if (!offStart || !offEnd) return;
-              addTimeOff.mutate({ startsAt: new Date(`${offStart}T00:00:00`).toISOString(), endsAt: new Date(`${offEnd}T23:59:59`).toISOString(), reason: offReason });
-              setOffStart(""); setOffEnd(""); setOffReason("");
-            }}
-            style={{ ...btnGhost, padding: "6px 12px" }}
-          >
-            <Plus size={12} /> Adicionar
-          </button>
-        </div>
+        <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 4 }}>Férias e folgas pontuais{current ? ` de ${current.name}` : ""}</div>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 14 }}>Dias em que não pode receber marcações, fora do horário normal (férias, formação, um dia de folga).</div>
+        {picker}
+        {current && <TimeOffEditor key={current.id} brandId={brand.id} staffId={current.id} staffName={current.name} />}
       </div>
     </>
   );
@@ -1218,7 +1326,7 @@ export default function BookingModule({ brand, onBack }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 640 }}>
         <StaffSection brand={brand} selectedStaffId={selectedStaffId} onSelectStaff={setSelectedStaffId} />
         <ServicesSection brand={brand} />
-        <AvailabilitySection brand={brand} staffId={selectedStaffId} />
+        <AvailabilitySection brand={brand} staffId={selectedStaffId} onSelectStaff={setSelectedStaffId} />
         <AppointmentsSection brand={brand} staff={staffQuery.data || []} />
         <ClientAppSection brand={brand} slug={slug} />
         <PacksSection brand={brand} services={servicesQuery.data || []} />
