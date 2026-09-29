@@ -74,6 +74,11 @@ const FIXTURES = {
       fields: [
         { id: "s1", type: "section", label: "Sobre ti", description: "Para sabermos a quem enviar o resultado." },
         { id: "q1", label: "O teu nome", type: "text", required: true, mapsTo: "name" },
+        { id: "q3", label: "Que áreas te interessam?", type: "choice", multiple: true, required: true, options: [
+          { id: "o4", label: "Estética facial", points: 1 },
+          { id: "o5", label: "Unhas", points: 1 },
+          { id: "o6", label: "Massagem", points: 1 },
+        ] },
         { id: "s2", type: "section", label: "A tua experiência", description: "" },
         { id: "q2", label: "Quantas formações já tiraste?", type: "choice", required: true, options: [
           { id: "o1", label: "Nenhuma ainda", points: 0 },
@@ -170,8 +175,8 @@ export const supabase = {
       for (const field of form?.fields || []) {
         if (field.type !== "choice") continue;
         const answer = args.p_answers?.[field.id];
-        const opt = (field.options || []).find((o) => o.id === answer);
-        if (opt) score += opt.points || 0;
+        const ids = field.multiple && Array.isArray(answer) ? [...new Set(answer)] : typeof answer === "string" ? [answer] : [];
+        for (const opt of field.options || []) if (ids.includes(opt.id)) score += opt.points || 0;
       }
       const band = (form?.result_bands || []).find((b) => score >= b.min && score <= b.max) || null;
       return Promise.resolve({ data: { submissionId: "sub-demo", score, band }, error: null });

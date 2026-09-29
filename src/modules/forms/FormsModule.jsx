@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, PAGE_FONT_OPTIONS, PAGE_COLOR_SWATCHES, DEFAULT_PAGE_STYLE, display } from "../../shared/theme.jsx";
-import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, FileText, HelpCircle, Link2, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, FileText, HelpCircle, Link2, CheckCircle2, Upload } from "lucide-react";
 
 /* ---------------------------------------------------------
    FORMULÁRIOS / QUESTIONÁRIOS / LEAD MAGNETS
@@ -48,6 +48,20 @@ const MAPS_TO_OPTIONS = [
 
 const slugify = (s) =>
   (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+// Logótipo do formulário: vai para o bucket público brand-logos, com o id
+// da marca no primeiro segmento do caminho (as políticas de storage
+// verificam isso). Só JPG, PNG e SVG.
+const LOGO_TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/svg+xml": "svg" };
+
+async function uploadFormLogo(brandId, formId, file) {
+  const ext = LOGO_TYPES[file.type];
+  if (!ext) throw new Error("O logótipo tem de ser JPG, PNG ou SVG.");
+  const path = `${brandId}/forms/${formId}-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from("brand-logos").upload(path, file, { contentType: file.type, upsert: true });
+  if (error) throw error;
+  return supabase.storage.from("brand-logos").getPublicUrl(path).data.publicUrl;
+}
 
 const publicFormUrl = (slug) => `${window.location.origin}/formulario/${slug}`;
 
@@ -296,6 +310,12 @@ function FieldRow({ field, onChange, onRemove, onMove, isFirst, isLast, isQuiz }
           <input type="checkbox" checked={!!field.required} onChange={(e) => onChange({ ...field, required: e.target.checked })} />
           Obrigatório
         </label>
+        {field.type === "choice" && (
+          <label style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", alignItems: "center", gap: 5 }}>
+            <input type="checkbox" checked={!!field.multiple} onChange={(e) => onChange({ ...field, multiple: e.target.checked || undefined })} />
+            Várias respostas
+          </label>
+        )}
         {(field.type === "text" || field.type === "email" || field.type === "phone") && (
           <select
             value={field.mapsTo || ""}
@@ -341,6 +361,7 @@ function FormEditor({ brand, form, onBack }) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const tagsQuery = useTags(brand.id);
   const submissionsQuery = useSubmissions(form.id);
@@ -386,6 +407,22 @@ function FormEditor({ brand, form, onBack }) {
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
       setError(err.message || "Não foi possível guardar.");
+    }
+  };
+
+  const pickLogo = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setError("");
+    setUploadingLogo(true);
+    try {
+      const logoUrl = await uploadFormLogo(brand.id, form.id, file);
+      setStyle((s) => ({ ...s, logoUrl }));
+    } catch (err) {
+      setError(err.message || "Não foi possível enviar o logótipo.");
+    } finally {
+      setUploadingLogo(false);
     }
   };
 
@@ -501,8 +538,24 @@ function FormEditor({ brand, form, onBack }) {
               </select>
             </div>
             <div>
-              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Logótipo (link da imagem, opcional)</div>
-              <input style={inputStyle} value={style.logoUrl} onChange={(e) => setStyle((s) => ({ ...s, logoUrl: e.target.value }))} placeholder="https://…" />
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Logótipo (JPG, PNG ou SVG, opcional)</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                {style.logoUrl && (
+                  <div style={{ background: c.paper, border: `1px solid ${c.line}`, borderRadius: 3, padding: 8, display: "flex", alignItems: "center" }}>
+                    <img src={style.logoUrl} alt="" style={{ maxHeight: 40, maxWidth: 160, display: "block" }} />
+                  </div>
+                )}
+                <label style={{ ...btnGhost, display: "flex", alignItems: "center", gap: 6, cursor: uploadingLogo ? "default" : "pointer" }}>
+                  <Upload size={13} /> {uploadingLogo ? "A enviar…" : style.logoUrl ? "Trocar ficheiro" : "Escolher ficheiro"}
+                  <input type="file" accept=".jpg,.jpeg,.png,.svg,image/jpeg,image/png,image/svg+xml" onChange={pickLogo} disabled={uploadingLogo} style={{ display: "none" }} />
+                </label>
+                {style.logoUrl && (
+                  <button type="button" onClick={() => setStyle((s) => ({ ...s, logoUrl: "" }))} style={{ ...sans, fontSize: 12.5, color: c.rose, background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                    Remover
+                  </button>
+                )}
+              </div>
+              {style.logoUrl && <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 6 }}>Carrega em Guardar para aplicar.</div>}
             </div>
           </div>
         </div>
@@ -632,9 +685,9 @@ function FormEditor({ brand, form, onBack }) {
                   {isQuiz && s.score != null && <> · <strong style={{ color: c.bossText }}>{s.score} pontos</strong></>}
                 </div>
                 {fields.map((f) => (
-                  f.type !== "section" && s.answers?.[f.id] ? (
+                  f.type !== "section" && s.answers?.[f.id] && (!Array.isArray(s.answers[f.id]) || s.answers[f.id].length) ? (
                     <div key={f.id} style={{ ...sans, fontSize: 13.5, color: c.ink, marginBottom: 2 }}>
-                      <strong>{f.label}:</strong> {String(s.answers[f.id])}
+                      <strong>{f.label}:</strong> {answerText(f, s.answers[f.id])}
                     </div>
                   ) : null
                 ))}
@@ -729,6 +782,19 @@ export default function FormsModule({ brand, onBack }) {
 /* ---------------------------------------------------------
    PÁGINA PÚBLICA — /formulario/:slug
 --------------------------------------------------------- */
+// Resposta legível: nas perguntas por botões guarda-se o id da opção (ou a
+// lista de ids, com várias respostas) — mostra-se o texto da opção.
+function answerText(field, value) {
+  if (field.type === "choice") {
+    const ids = Array.isArray(value) ? value : [value];
+    return ids.map((id) => (field.options || []).find((o) => o.id === id)?.label || id).join(", ");
+  }
+  return Array.isArray(value) ? value.join(", ") : String(value);
+}
+
+const missingMultiChoice = (fields, answers) =>
+  fields.find((f) => f.type === "choice" && f.multiple && f.required && !(Array.isArray(answers[f.id]) && answers[f.id].length));
+
 // Divide os campos em passos: cada secção abre um passo novo; perguntas
 // antes da primeira secção formam um passo sem título. Sem secções (ou com
 // uma só parte) o formulário continua numa página.
@@ -764,6 +830,27 @@ function PublicField({ field, value, onChange, font }) {
           <option value="">Escolhe…</option>
           {(field.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
+      </div>
+    );
+  }
+  if (field.type === "choice" && field.multiple) {
+    // Várias respostas: guarda a lista de ids escolhidos. O "obrigatório"
+    // não usa o required nativo (obrigaria a marcar todas) — é validado
+    // no submit (ver missingMultiChoice).
+    const selected = Array.isArray(value) ? value : [];
+    const toggle = (id) => onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
+    return (
+      <div>
+        {label}
+        <div style={{ ...sans, fontFamily, fontSize: 12.5, color: c.mist, marginTop: -2, marginBottom: 8 }}>Podes escolher várias.</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {(field.options || []).map((o) => (
+            <label key={o.id} style={{ ...sans, fontFamily, fontSize: 14.5, color: "#2A2438", display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }}>
+              <input type="checkbox" checked={selected.includes(o.id)} onChange={() => toggle(o.id)} />
+              {o.label}
+            </label>
+          ))}
+        </div>
       </div>
     );
   }
@@ -819,7 +906,15 @@ export function PublicFormPage() {
     if (!state.form) return;
     // Passo a passo: o browser só valida os campos do passo visível, por
     // isso "Seguinte" usa o mesmo submit e só envia no último passo.
-    const totalSteps = splitSteps(state.form.fields).length;
+    const allSteps = splitSteps(state.form.fields);
+    const totalSteps = allSteps.length;
+    const visibleFields = totalSteps > 1 ? allSteps[Math.min(stepIndex, totalSteps - 1)].fields : (state.form.fields || []);
+    const missing = missingMultiChoice(visibleFields, answers);
+    if (missing) {
+      setError(`Escolhe pelo menos uma opção em «${missing.label}».`);
+      return;
+    }
+    setError("");
     if (stepIndex < totalSteps - 1) {
       setStepIndex((i) => i + 1);
       window.scrollTo({ top: 0 });
