@@ -98,8 +98,9 @@ async function notify(admin, appt, setting, defaultText) {
   const vars = {
     nome: appt.customer_name,
     servico: appt.booking_services?.name || "",
-    data: new Date(appt.starts_at).toLocaleDateString("pt-PT"),
-    hora: new Date(appt.starts_at).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }),
+    // O servidor corre em UTC: sem o fuso, no verão a hora saía errada.
+    data: new Date(appt.starts_at).toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" }),
+    hora: new Date(appt.starts_at).toLocaleTimeString("pt-PT", { timeZone: "Europe/Lisbon", hour: "2-digit", minute: "2-digit" }),
   };
   const text = fillTemplate(setting.message_template, vars) || defaultText(vars);
   if (setting.channel === "whatsapp" && appt.customer_phone) await sendWhatsappText(admin, appt.brand_id, appt.customer_phone, text);
@@ -127,13 +128,12 @@ Deno.serve(async () => {
   let sent24h = 0, sent1h = 0, sentPostVisit = 0;
 
   // Marcações "pending_payment" (sinal por pagar) abandonadas há mais
-  // de 30 minutos — cancela e liberta o horário. Quem pagar depois de
-  // cancelado só recebe o erro do Stripe (não há reembolso automático
-  // aqui, porque o checkout já teria expirado do lado do Stripe antes
-  // de chegar a este ponto na prática).
+  // de 35 minutos — cancela e liberta o horário. A booking-create fecha
+  // o checkout do Stripe aos 31 minutos, por isso ninguém consegue
+  // pagar uma marcação que já foi cancelada aqui.
   let expiredPending = 0;
   {
-    const cutoff = new Date(now - 30 * 60000).toISOString();
+    const cutoff = new Date(now - 35 * 60000).toISOString();
     const { data: expired } = await admin
       .from("booking_appointments")
       .select("id")

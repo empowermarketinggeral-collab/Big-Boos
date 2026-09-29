@@ -1,8 +1,12 @@
 // EMPOWER OS — calcula os horários livres de um serviço com um
 // profissional específico, num dia.
-// Chamado publicamente (sem login) pela página de marcação.
-// Nunca devolve dados de outras marcações (nome/telefone/email) —
-// só os intervalos de tempo já ocupados, para não expor clientes.
+// Chamado publicamente (sem login) pela página de marcação e pela app
+// das clientes. Nunca devolve dados de outras marcações
+// (nome/telefone/email) — só os intervalos já ocupados.
+//
+// As horas da disponibilidade (ex: 09:00–18:00) são hora de Lisboa. O
+// servidor corre em UTC, por isso cada hora é convertida com o fuso
+// certo (senão no verão os horários saíam uma hora mais tarde).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -13,6 +17,24 @@ const corsHeaders = {
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+
+const TZ = "Europe/Lisbon";
+
+// Diferença (ms) entre a hora de Lisboa e UTC nesse instante.
+function tzOffsetMs(date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).formatToParts(date);
+  const get = (type) => Number(parts.find((p) => p.type === type).value);
+  return Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second")) - date.getTime();
+}
+
+// "2026-10-03" + 09:30 em Lisboa → instante UTC (ms)
+function lisbonToUtc(dateStr, hours, minutes) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const guess = Date.UTC(y, m - 1, d, hours, minutes);
+  return guess - tzOffsetMs(new Date(guess));
 }
 
 Deno.serve(async (req) => {
@@ -29,9 +51,12 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: "Corpo do pedido inválido." }, 400);
   }
-  const { brandId, serviceId, staffId, date, upsellIds } = body; // date: "YYYY-MM-DD" no fuso do browser
+  const { brandId, serviceId, staffId, date, upsellIds } = body; // date: "YYYY-MM-DD", dia em Lisboa
   if (!brandId || !serviceId || !staffId || !date) {
     return json({ error: "Faltam campos obrigatórios." }, 400);
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return json({ error: "Data inválida." }, 400);
   }
 
   const { data: service } = await admin.from("booking_services").select("duration_minutes, status").eq("id", serviceId).eq("brand_id", brandId).maybeSingle();
@@ -46,15 +71,16 @@ Deno.serve(async (req) => {
   }
   const durationMs = (service.duration_minutes + extraMinutes) * 60000;
 
-  const dayStart = new Date(`${date}T00:00:00`);
-  const weekday = dayStart.getDay();
+  const [yy, mm, dd] = date.split("-").map(Number);
+  const weekday = new Date(Date.UTC(yy, mm - 1, dd)).getUTCDay();
 
   const { data: rules } = await admin.from("booking_availability").select("start_time, end_time").eq("brand_id", brandId).eq("staff_id", staffId).eq("weekday", weekday);
   if (!rules || rules.length === 0) {
     return json({ slots: [] });
   }
 
-  const dayEnd = new Date(`${date}T23:59:59`);
+  const dayStart = new Date(lisbonToUtc(date, 0, 0));
+  const dayEnd = new Date(lisbonToUtc(date, 23, 59) + 59999);
 
   const { data: existing } = await admin
     .from("booking_appointments")
@@ -62,8 +88,8 @@ Deno.serve(async (req) => {
     .eq("brand_id", brandId)
     .eq("staff_id", staffId)
     .in("status", ["confirmed", "pending_payment"])
-    .gte("starts_at", dayStart.toISOString())
-    .lte("starts_at", dayEnd.toISOString());
+    .lt("starts_at", dayEnd.toISOString())
+    .gt("ends_at", dayStart.toISOString());
 
   const { data: timeOff } = await admin
     .from("booking_time_off")
@@ -81,22 +107,20 @@ Deno.serve(async (req) => {
   for (const rule of rules) {
     const [sh, sm] = rule.start_time.split(":").map(Number);
     const [eh, em] = rule.end_time.split(":").map(Number);
-    let cursor = new Date(date + "T00:00:00");
-    cursor.setHours(sh, sm, 0, 0);
-    const windowEnd = new Date(date + "T00:00:00");
-    windowEnd.setHours(eh, em, 0, 0);
+    let cursor = lisbonToUtc(date, sh, sm);
+    const windowEnd = lisbonToUtc(date, eh, em);
 
-    while (cursor.getTime() + durationMs <= windowEnd.getTime()) {
-      const slotStart = cursor.getTime();
+    while (cursor + durationMs <= windowEnd) {
+      const slotStart = cursor;
       const slotEnd = slotStart + durationMs;
       const overlaps = busy.some((b) => slotStart < b.end && slotEnd > b.start);
-      const inFuture = slotStart > Date.now();
-      if (!overlaps && inFuture) {
+      if (!overlaps && slotStart > Date.now()) {
         slots.push(new Date(slotStart).toISOString());
       }
-      cursor = new Date(cursor.getTime() + durationMs);
+      cursor += durationMs;
     }
   }
+  slots.sort();
 
   return json({ slots });
 });

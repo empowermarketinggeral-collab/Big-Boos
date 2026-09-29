@@ -150,6 +150,8 @@ export const PAGE_FONT_OPTIONS = [
   { key: "Poppins", label: "Poppins — arredondada" },
   { key: "Playfair Display", label: "Playfair Display — elegante" },
   { key: "Montserrat", label: "Montserrat — geométrica" },
+  { key: "Jost", label: "Jost — limpa e leve" },
+  { key: "Bodoni Moda", label: "Bodoni Moda — clássica (títulos)" },
 ];
 export const PAGE_COLOR_SWATCHES = ["#7C52A8", "#30154C", "#1F7A4D", "#B0820D", "#B3261E", "#3B5FC2"];
 export const DEFAULT_PAGE_STYLE = { accentColor: "#7C52A8", font: "Inter", logoUrl: "" };

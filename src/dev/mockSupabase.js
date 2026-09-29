@@ -89,6 +89,42 @@ const FIXTURES = {
   plans: [],
 };
 
+// App das clientes (/app/aurora) e página pública (/agendar/aurora)
+const PUBLIC_PAGE = {
+  brand: { id: B1, name: "Dreams Studio", slug: "aurora", logo_url: null, client_app_enabled: true,
+    style: { accentColor: "#C2A431", accentInk: "#1A0D0E", background: "#F6F1EA", surface: "#FFFDFA", ink: "#1A0D0E", titleFont: "Bodoni Moda", font: "Jost", tagline: "Cuidado com continuidade", contactPhone: "+351912345678" } },
+  services: [
+    { id: "s1", category: "Cabelo", name: "Brushing", description: "Secagem e modelação simples.", price: 10, duration_minutes: 30 },
+    { id: "s2", category: "Massagem", name: "Massagem Relaxante de Aromas", description: "Massagem com óleos essenciais selecionados.", price: 37.5, price_max: 70, duration_minutes: 45 },
+    { id: "s3", category: "Cabelo", name: "Coloração", description: "Coloração total ou do crescimento do cabelo.", price: 25, price_max: 44, duration_minutes: 90 },
+    { id: "s4", category: "Mãos", name: "Verniz Gel", description: "Manicure com aplicação de verniz gel.", price: 19, duration_minutes: 60 },
+    { id: "s5", category: "Rosto", name: "Lifting de Pestanas", description: "Curvatura e definição natural das pestanas.", price: 25, duration_minutes: 60 },
+    { id: "s6", category: "Cabelo", name: "Avaliação Capilar Gratuita", description: null, price: 0, duration_minutes: 30 },
+  ],
+  staff: [{ id: "st1", name: "Joana", photo_url: null }, { id: "st2", name: "Sofia", photo_url: null }],
+  upsells: [{ id: "u1", service_id: "s1", name: "Máscara de ouro", price: 15, extra_duration_minutes: 15 }],
+  packs: [
+    { id: "p1", name: "Pack 5 limpezas", description: "Ideal para um tratamento contínuo.", price: 225, sessions_count: 5, service_ids: ["s1"], validity_days: 180 },
+    { id: "p2", name: "Pack 10 massagens", description: null, price: 400, sessions_count: 10, service_ids: [], validity_days: null },
+  ],
+  deposit: { enabled: true, percentage: 50, scope: "new_customers" },
+  online_payments: true,
+};
+const PORTAL = {
+  contact: { id: "c1", name: "Marta Ferreira", email: "marta@clinica.pt", phone: "+351912345678", opted_in_whatsapp: true, opted_in_sms: false, opted_in_email: true },
+  appointments: [
+    { id: "a1", starts_at: iso(9), ends_at: iso(9.04), status: "confirmed", service: "Massagem relaxante", staff: "Sofia", total_price: 45, deposit_status: "not_required", upsells: [], paid_with_pack: true },
+    { id: "a2", starts_at: iso(3), ends_at: iso(3.04), status: "confirmed", service: "Limpeza de pele", staff: "Joana", total_price: 70, deposit_status: "paid", deposit_amount: 35, upsells: [{ name: "Máscara de ouro" }], paid_with_pack: false },
+    { id: "a3", starts_at: iso(-12), ends_at: iso(-11.96), status: "completed", service: "Limpeza de pele", staff: "Joana", total_price: 55, deposit_status: "not_required", upsells: [], paid_with_pack: false },
+    { id: "a4", starts_at: iso(-40), ends_at: iso(-39.96), status: "no_show", service: "Massagem relaxante", staff: "Sofia", total_price: 45, deposit_status: "not_required", upsells: [], paid_with_pack: false },
+    { id: "a5", starts_at: iso(-70), ends_at: iso(-69.96), status: "completed", service: "Massagem relaxante", staff: "Sofia", total_price: 45, deposit_status: "not_required", upsells: [], paid_with_pack: true },
+  ],
+  packs: [{ id: "cp1", name: "Pack Brushing, 10 sessões", description: "Paga 9, a 10.ª é oferta", service_ids: [], sessions_total: 10, sessions_used: 6, expires_at: iso(200), purchased_at: iso(-80) }],
+  careNotes: [{ category: "allergies", team_text: "Alergia a níquel.", client_text: null }],
+  recommendations: [{ service: "Limpeza de pele", text: "Evite exposição solar nas 48 horas seguintes. Use protetor solar FPS 50." }],
+  isNewCustomer: false,
+};
+
 function resolveData(state) {
   const rows = FIXTURES[state.table] || [];
   if (state.single || state.maybe) {
@@ -138,6 +174,8 @@ export const supabase = {
       const band = (form?.result_bands || []).find((b) => score >= b.min && score <= b.max) || null;
       return Promise.resolve({ data: { submissionId: "sub-demo", score, band }, error: null });
     }
+    if (name === "booking_public_page") return Promise.resolve({ data: args.p_slug === "aurora" ? PUBLIC_PAGE : null, error: null });
+    if (name === "client_portal_data") return Promise.resolve({ data: PORTAL, error: null });
     return Promise.resolve({ data: /^(can_|is_)/.test(name) ? true : null, error: null });
   },
   channel: () => channelStub,
@@ -178,6 +216,10 @@ export async function invokeFunction(name, body = {}) {
       signers: [sig("agency", "Ana Silva", "ana@empower.pt", true), sig("counterparty", mockSigned ? "Marta Ferreira" : "Marta Ferreira", "marta@clinica.pt", mockSigned)],
       canSign: !mockSigned,
     };
+  }
+  if (name === "booking-availability") {
+    const base = new Date(`${body.date}T09:00:00`);
+    return { slots: [0, 1, 2, 4, 5, 6, 7].map((h) => new Date(base.getTime() + h * 3600000).toISOString()) };
   }
   return {};
 }

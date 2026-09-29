@@ -5,6 +5,7 @@ import { PublicFormPage } from "./modules/forms/FormsModule.jsx";
 import { PublicBookingPage } from "./modules/booking/BookingModule.jsx";
 import SignupPage from "./modules/billing/SignupPage.jsx";
 import SignContractPage from "./modules/contracts/SignContractPage.jsx";
+import ClientApp from "./modules/clientapp/ClientApp.jsx";
 
 // Exemplar de design: só existe em desenvolvimento (não entra no build de produção).
 const DesignSpecimen = import.meta.env.DEV ? lazy(() => import("./design/DesignSpecimen.jsx")) : null;
@@ -22,6 +23,7 @@ function App() {
         <Route path="/mapa/:slug" element={<PublicGrowthMapPage />} />
         <Route path="/formulario/:slug" element={<PublicFormPage />} />
         <Route path="/agendar/:slug" element={<PublicBookingPage />} />
+        <Route path="/app/:slug" element={<ClientApp />} />
         <Route path="/registar" element={<SignupPage />} />
         <Route path="/assinar/:token" element={<SignContractPage />} />
         <Route path="*" element={<BigBossPrototype />} />

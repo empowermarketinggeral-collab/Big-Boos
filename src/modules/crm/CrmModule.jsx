@@ -6,6 +6,7 @@ import {
   ArrowLeft, Plus, X, Trash2, Pencil, Phone, Mail, Search, GripVertical, Download, Upload, Link2,
 } from "lucide-react";
 import LeadIntakeModal from "./LeadIntakeModal.jsx";
+import { parseCsv, findColumn, normalizePhone } from "../../shared/csv.js";
 import TagsView from "./TagsView.jsx";
 
 /* ---------------------------------------------------------
@@ -109,6 +110,7 @@ function useImportContacts(brandId) {
           name: row.name,
           email: row.email || null,
           phone: row.phone || null,
+          ...(row.birthDate ? { birth_date: row.birthDate } : {}),
           source: "importacao",
         });
         if (error) {
@@ -124,52 +126,43 @@ function useImportContacts(brandId) {
   });
 }
 
-function parseCsv(text) {
-  const rows = [];
-  let row = [], field = "", inQuotes = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (text[i + 1] === '"') { field += '"'; i++; }
-        else inQuotes = false;
-      } else {
-        field += ch;
-      }
-    } else if (ch === '"') {
-      inQuotes = true;
-    } else if (ch === ",") {
-      row.push(field); field = "";
-    } else if (ch === "\n" || ch === "\r") {
-      if (ch === "\r" && text[i + 1] === "\n") i++;
-      row.push(field); field = "";
-      if (row.length > 1 || row[0] !== "") rows.push(row);
-      row = [];
-    } else {
-      field += ch;
-    }
-  }
-  if (field !== "" || row.length) { row.push(field); rows.push(row); }
-  return rows;
+// Aceita os nomes de coluna mais comuns (Excel, Google Contacts, programas
+// de marcações). Telefones ficam em +351…, como no resto da plataforma, para
+// a mesma cliente ser reconhecida quando marca pelo link ou pela app.
+function toIsoDate(raw) {
+  const s = String(raw || "").trim();
+  let m = s.match(/^(d{4})-(d{2})-(d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^(d{1,2})[/.-](d{1,2})[/.-](d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  return null;
 }
 
 function csvToContactRows(text) {
   const rows = parseCsv(text);
   if (rows.length === 0) return [];
-  const header = rows[0].map((h) => h.trim().toLowerCase());
+  const header = rows[0];
   const idx = {
-    name: header.findIndex((h) => ["nome", "name"].includes(h)),
-    email: header.findIndex((h) => h === "email"),
-    phone: header.findIndex((h) => ["telefone", "telemóvel", "telemovel", "phone"].includes(h)),
+    name: findColumn(header, ["nome", "name", "nome completo", "cliente", "full name"]),
+    first: findColumn(header, ["primeiro nome", "first name", "given name"]),
+    last: findColumn(header, ["apelido", "ultimo nome", "last name", "family name", "sobrenome"]),
+    email: findColumn(header, ["email", "e-mail", "correio eletronico", "e-mail 1 - value"]),
+    phone: findColumn(header, ["telefone", "telemovel", "phone", "telemóvel", "mobile", "contacto", "whatsapp", "phone 1 - value"]),
+    birth: findColumn(header, ["data de nascimento", "nascimento", "aniversario", "birthday", "birth date", "birth_date"]),
   };
+  const cell = (r, i) => (i >= 0 ? String(r[i] || "").trim() : "");
   return rows
     .slice(1)
     .filter((r) => r.length > 1 || r[0])
-    .map((r) => ({
-      name: idx.name >= 0 ? (r[idx.name] || "").trim() : "",
-      email: idx.email >= 0 ? (r[idx.email] || "").trim() : "",
-      phone: idx.phone >= 0 ? (r[idx.phone] || "").trim() : "",
-    }));
+    .map((r) => {
+      const rawPhone = cell(r, idx.phone);
+      return {
+        name: cell(r, idx.name) || [cell(r, idx.first), cell(r, idx.last)].filter(Boolean).join(" "),
+        email: cell(r, idx.email).toLowerCase(),
+        phone: normalizePhone(rawPhone) || rawPhone,
+        birthDate: toIsoDate(cell(r, idx.birth)),
+      };
+    });
 }
 
 function contactsToCsv(contacts) {

@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
+import { supabase } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, PAGE_FONT_OPTIONS, PAGE_COLOR_SWATCHES, DEFAULT_PAGE_STYLE, display } from "../../shared/theme.jsx";
+import BookingFlow, { BrandHeader } from "./BookingFlow.jsx";
+import { usePublicBookingPage, brandThemeVars, brandStyle, T } from "./publicBooking.js";
+import ImportAgendaModal from "./ImportAgendaModal.jsx";
+import { ClientAppSection, StripeAccountSection, PacksSection } from "./ClientAppAdmin.jsx";
 import { ArrowLeft, Plus, Trash2, Pencil, Link2, CheckCircle2, Calendar as CalendarIcon, User, History, Upload, CreditCard } from "lucide-react";
 
 async function uploadStaffPhoto(brandId, staffId, file) {
@@ -89,7 +93,7 @@ function useServices(brandId) {
     queryKey: ["booking_services", brandId],
     enabled: !!brandId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("booking_services").select("*").eq("brand_id", brandId).order("created_at");
+      const { data, error } = await supabase.from("booking_services").select("*").eq("brand_id", brandId).order("sort_order").order("created_at");
       if (error) throw error;
       return data;
     },
@@ -98,8 +102,12 @@ function useServices(brandId) {
 function useSaveService(brandId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name, description, price, durationMinutes }) => {
-      const payload = { name, description, price: price === "" ? null : Number(price), duration_minutes: Number(durationMinutes) };
+    mutationFn: async ({ id, name, description, price, durationMinutes, priceMax, category, careRecommendations }) => {
+      const payload = {
+        name, description, price: price === "" ? null : Number(price), duration_minutes: Number(durationMinutes),
+        price_max: priceMax === "" || priceMax == null ? null : Number(priceMax),
+        category: category?.trim() || null, care_recommendations: careRecommendations?.trim() || null,
+      };
       if (id) {
         const { error } = await supabase.from("booking_services").update(payload).eq("id", id);
         if (error) throw error;
@@ -116,8 +124,12 @@ function useDeleteService(brandId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id) => {
+      // Com marcações (histórico) não se pode apagar: fica arquivado.
       const { error } = await supabase.from("booking_services").delete().eq("id", id);
-      if (error) throw error;
+      if (error?.code === "23503") {
+        const { error: archiveError } = await supabase.from("booking_services").update({ status: "archived" }).eq("id", id);
+        if (archiveError) throw archiveError;
+      } else if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["booking_services", brandId] }),
   });
@@ -238,16 +250,6 @@ function useAppointments(brandId) {
       if (error) throw error;
       return data;
     },
-  });
-}
-function useCancelAppointment(brandId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id) => {
-      const { error } = await supabase.from("booking_appointments").update({ status: "cancelled" }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["booking_appointments", brandId] }),
   });
 }
 function useContactHistory(brandId, contactId) {
@@ -475,8 +477,11 @@ function StaffSection({ brand, selectedStaffId, onSelectStaff }) {
 /* ---------------------------------------------------------
    SERVIÇOS + UPSELLS
 --------------------------------------------------------- */
-function ServiceFormModal({ brandId, service, onClose }) {
+function ServiceFormModal({ brandId, service, categories, onClose }) {
   const [name, setName] = useState(service?.name || "");
+  const [category, setCategory] = useState(service?.category || "");
+  const [priceMax, setPriceMax] = useState(service?.price_max ?? "");
+  const [careRecommendations, setCareRecommendations] = useState(service?.care_recommendations || "");
   const [description, setDescription] = useState(service?.description || "");
   const [price, setPrice] = useState(service?.price ?? "");
   const [durationMinutes, setDurationMinutes] = useState(service?.duration_minutes || 30);
@@ -493,7 +498,7 @@ function ServiceFormModal({ brandId, service, onClose }) {
   const save = async () => {
     if (!name.trim()) { setError("O nome é obrigatório."); return; }
     try {
-      const id = await saveService.mutateAsync({ id: service?.id, name: name.trim(), description, price, durationMinutes });
+      const id = await saveService.mutateAsync({ id: savedId, name: name.trim(), description, price, durationMinutes, priceMax, category, careRecommendations });
       setSavedId(id);
     } catch (err) {
       setError(err.message || "Não foi possível guardar.");
@@ -510,11 +515,15 @@ function ServiceFormModal({ brandId, service, onClose }) {
     <Modal title={service ? "Editar serviço" : "Novo serviço"} onClose={onClose} width={440}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome (ex: Corte de cabelo)" />
+        <input style={inputStyle} list="booking-service-categories" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Categoria (ex: Cabelo)" />
+        <datalist id="booking-service-categories">{categories.map((cat) => <option key={cat} value={cat} />)}</datalist>
         <textarea rows={2} style={{ ...inputStyle, resize: "vertical" }} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição (opcional)" />
-        <div style={{ display: "flex", gap: 10 }}>
-          <input type="number" style={inputStyle} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Preço (€)" />
-          <input type="number" style={inputStyle} value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} placeholder="Duração (min)" />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10 }}>
+          <label style={{ ...sans, fontSize: 12.5, color: c.mist }}>Preço (€)<input type="number" style={{ ...inputStyle, marginTop: 4 }} value={price} onChange={(e) => setPrice(e.target.value)} /></label>
+          <label style={{ ...sans, fontSize: 12.5, color: c.mist }}>Até (€, opcional)<input type="number" style={{ ...inputStyle, marginTop: 4 }} value={priceMax} onChange={(e) => setPriceMax(e.target.value)} /></label>
+          <label style={{ ...sans, fontSize: 12.5, color: c.mist }}>Duração (min)<input type="number" style={{ ...inputStyle, marginTop: 4 }} value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} /></label>
         </div>
+        <textarea rows={3} style={{ ...inputStyle, resize: "vertical" }} value={careRecommendations} onChange={(e) => setCareRecommendations(e.target.value)} placeholder="Recomendações de cuidado depois do serviço (a cliente vê na app)" />
         {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
         <button onClick={save} disabled={saveService.isPending} style={{ ...btnPrimary, width: "fit-content" }}>
           {saveService.isPending ? "A guardar…" : savedId ? "Guardar alterações" : "Criar serviço"}
@@ -549,6 +558,8 @@ function ServicesSection({ brand }) {
   const deleteService = useDeleteService(brand.id);
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const services = servicesQuery.data || [];
+  const categories = [...new Set(services.map((s) => s.category).filter(Boolean))];
 
   return (
     <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
@@ -556,20 +567,27 @@ function ServicesSection({ brand }) {
         <div style={{ ...serif, fontSize: 15.5, color: c.ink }}>Serviços</div>
         <button onClick={() => { setEditing(null); setShowForm(true); }} style={{ ...btnGhost, padding: "6px 12px" }}><Plus size={12} /> Serviço</button>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {(servicesQuery.data || []).map((s) => (
-          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, background: c.paper, borderRadius: 6, padding: "10px 14px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 520, overflowY: "auto" }}>
+        {services.map((s, i) => (
+          <div key={s.id}>
+          {(s.category || "Sem categoria") !== (services[i - 1]?.category || "Sem categoria") || i === 0 ? (
+            <div style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: c.mist, margin: i === 0 ? "0 0 6px" : "10px 0 6px" }}>{s.category || "Sem categoria"}</div>
+          ) : null}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, background: c.paper, borderRadius: 6, padding: "10px 14px", opacity: s.status === "archived" ? 0.55 : 1 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink }}>{s.name}</div>
-              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>{money(s.price)}, {s.duration_minutes} min</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
+                {money(s.price)}{s.price_max ? ` a ${money(s.price_max)}` : ""}, {s.duration_minutes} min{s.status === "archived" ? ", arquivado (só histórico)" : ""}
+              </div>
             </div>
             <button onClick={() => { setEditing(s); setShowForm(true); }} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 4 }}><Pencil size={13} /></button>
             <button onClick={() => deleteService.mutate(s.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 4 }}><Trash2 size={13} /></button>
           </div>
+          </div>
         ))}
         {!servicesQuery.data?.length && <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "16px 0" }}>Ainda sem serviços.</div>}
       </div>
-      {showForm && <ServiceFormModal brandId={brand.id} service={editing} onClose={() => setShowForm(false)} />}
+      {showForm && <ServiceFormModal brandId={brand.id} service={editing} categories={categories} onClose={() => setShowForm(false)} />}
     </div>
   );
 }
@@ -647,7 +665,7 @@ function AvailabilitySection({ brand, staffId }) {
           <button
             onClick={() => {
               if (!offStart || !offEnd) return;
-              addTimeOff.mutate({ startsAt: `${offStart}T00:00:00`, endsAt: `${offEnd}T23:59:59`, reason: offReason });
+              addTimeOff.mutate({ startsAt: new Date(`${offStart}T00:00:00`).toISOString(), endsAt: new Date(`${offEnd}T23:59:59`).toISOString(), reason: offReason });
               setOffStart(""); setOffEnd(""); setOffReason("");
             }}
             style={{ ...btnGhost, padding: "6px 12px" }}
@@ -663,16 +681,63 @@ function AvailabilitySection({ brand, staffId }) {
 /* ---------------------------------------------------------
    MARCAÇÕES + HISTÓRICO DO CLIENTE
 --------------------------------------------------------- */
+const CARE_NOTE_LABELS = { allergies: "Alergias", sensitivities: "Sensibilidades", contraindications: "Contraindicações" };
+
+function useCareNotes(brandId, contactId) {
+  return useQuery({
+    queryKey: ["contact_care_notes", contactId],
+    enabled: !!contactId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("contact_care_notes").select("*").eq("brand_id", brandId).eq("contact_id", contactId);
+      if (error) throw error;
+      return Object.fromEntries(data.map((n) => [n.category, n]));
+    },
+  });
+}
+
+// A equipa escreve team_text; o que a cliente escreveu na app só se lê aqui.
+function CareNoteEditor({ brandId, contactId, category, note }) {
+  const qc = useQueryClient();
+  const [text, setText] = useState(note?.team_text || "");
+  const save = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("contact_care_notes").upsert(
+        { contact_id: contactId, brand_id: brandId, category, team_text: text.trim() || null, updated_at: new Date().toISOString() },
+        { onConflict: "contact_id,category" }
+      );
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["contact_care_notes", contactId] }),
+  });
+  const dirty = (note?.team_text || "") !== text;
+  return (
+    <div style={{ background: c.paper, borderRadius: 6, padding: "10px 12px" }}>
+      <div style={{ ...sans, fontSize: 13.5, fontWeight: 700, color: c.ink, marginBottom: 6 }}>{CARE_NOTE_LABELS[category]}</div>
+      <textarea rows={2} style={{ ...inputStyle, resize: "vertical", fontSize: 13.5 }} value={text} onChange={(e) => setText(e.target.value)} placeholder="Registado pela equipa (a cliente vê na app)" />
+      {note?.client_text && <div style={{ ...sans, fontSize: 13, color: c.ink, marginTop: 6 }}><span style={{ color: c.mist }}>A cliente escreveu:</span> {note.client_text}</div>}
+      {dirty && <button onClick={() => save.mutate()} disabled={save.isPending} style={{ ...btnGhost, padding: "5px 12px", minHeight: 0, marginTop: 8, fontSize: 13 }}>{save.isPending ? "A guardar…" : "Guardar"}</button>}
+    </div>
+  );
+}
+
 function ContactHistoryModal({ brand, contactId, contactName, onClose }) {
   const historyQuery = useContactHistory(brand.id, contactId);
+  const notesQuery = useCareNotes(brand.id, contactId);
   return (
-    <Modal title={`Histórico — ${contactName}`} onClose={onClose} width={420}>
+    <Modal title={`Ficha de ${contactName}`} onClose={onClose} width={460}>
+      <div style={{ ...sans, fontSize: 13.5, fontWeight: 700, color: c.ink, marginBottom: 8 }}>Notas de cuidado</div>
+      {notesQuery.isSuccess && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+          {Object.keys(CARE_NOTE_LABELS).map((cat) => <CareNoteEditor key={cat} brandId={brand.id} contactId={contactId} category={cat} note={notesQuery.data[cat]} />)}
+        </div>
+      )}
+      <div style={{ ...sans, fontSize: 13.5, fontWeight: 700, color: c.ink, marginBottom: 8 }}>Marcações</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {(historyQuery.data || []).map((a) => (
           <div key={a.id} style={{ background: c.paper, borderRadius: 6, padding: "10px 12px" }}>
             <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: c.ink }}>{a.booking_services?.name}</div>
             <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
-              {new Date(a.starts_at).toLocaleString("pt-PT")}, {a.booking_staff?.name}, {a.status === "cancelled" ? "Cancelada" : a.status === "completed" ? "Concluída" : "Confirmada"}
+              {new Date(a.starts_at).toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" })}, {a.booking_staff?.name || "sem profissional"}, {STATUS_LABEL[a.status] || a.status}
             </div>
           </div>
         ))}
@@ -682,31 +747,87 @@ function ContactHistoryModal({ brand, contactId, contactName, onClose }) {
   );
 }
 
-function AppointmentsSection({ brand }) {
+const STATUS_LABEL = {
+  confirmed: "Confirmada", completed: "Concluída", cancelled: "Cancelada", no_show: "Faltou", pending_payment: "Sinal por pagar",
+};
+
+function useSetAppointmentStatus(brandId) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status }) => {
+      const { error } = await supabase.from("booking_appointments").update({ status }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["booking_appointments", brandId] });
+      qc.invalidateQueries({ queryKey: ["client_packs", brandId] });
+    },
+  });
+}
+
+function AppointmentsSection({ brand, staff }) {
   const appointmentsQuery = useAppointments(brand.id);
-  const cancelAppointment = useCancelAppointment(brand.id);
+  const setStatus = useSetAppointmentStatus(brand.id);
   const [historyFor, setHistoryFor] = useState(null);
-  const appointments = (appointmentsQuery.data || []).filter((a) => a.status === "confirmed");
+  const [tab, setTab] = useState("upcoming");
+  const [importing, setImporting] = useState(false);
+  const now = Date.now();
+  const all = appointmentsQuery.data || [];
+  const upcoming = all.filter((a) => new Date(a.ends_at).getTime() >= now && ["confirmed", "pending_payment"].includes(a.status));
+  const past = all
+    .filter((a) => new Date(a.ends_at).getTime() < now && !(a.status === "cancelled" && a.deposit_status === "failed"))
+    .reverse()
+    .slice(0, 150);
+  const list = tab === "upcoming" ? upcoming : past;
+  const small = { ...sans, fontSize: 12.5, background: "none", border: `1px solid ${c.line}`, borderRadius: 6, padding: "5px 10px", cursor: "pointer" };
 
   return (
     <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
-      <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Marcações</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+        <div style={{ ...serif, fontSize: 15.5, color: c.ink }}>Marcações</div>
+        <button onClick={() => setImporting(true)} style={{ ...btnGhost, padding: "6px 12px" }}><Upload size={12} /> Importar agenda</button>
+      </div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+        {[["upcoming", `Próximas (${upcoming.length})`], ["past", "Passadas"]].map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            style={{ ...sans, fontSize: 13.5, fontWeight: 600, borderRadius: 999, padding: "6px 14px", cursor: "pointer", border: "none", background: tab === key ? c.boss : c.paper, color: tab === key ? c.onBoss : c.ink }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {appointments.map((a) => (
-          <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 12, background: c.paper, borderRadius: 6, padding: "10px 14px" }}>
+        {list.map((a) => (
+          <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 12, background: c.paper, borderRadius: 6, padding: "10px 14px", flexWrap: "wrap" }}>
             <CalendarIcon size={15} color={c.bossText} style={{ flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <button onClick={() => setHistoryFor({ id: a.contact_id, name: a.customer_name })} style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink, background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 5 }}>
-                {a.booking_services?.name} — {a.customer_name} <History size={11} color={c.mist} />
+            <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+              <button onClick={() => a.contact_id && setHistoryFor({ id: a.contact_id, name: a.customer_name })} style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink, background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 5, textAlign: "left" }}>
+                {a.booking_services?.name}, {a.customer_name} <History size={11} color={c.mist} />
               </button>
-              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>{new Date(a.starts_at).toLocaleString("pt-PT")}, {a.booking_staff?.name || "—"}, {money(a.total_price)}</div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
+                {new Date(a.starts_at).toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" })}, {a.booking_staff?.name || "sem profissional"}
+                {a.client_pack_id ? ", pack" : a.total_price != null ? `, ${money(a.total_price)}` : ""}
+                {a.deposit_status === "paid" ? `, sinal pago ${money(a.deposit_amount)}` : ""}
+                {a.source === "app" ? ", marcada na app" : ""}
+                {tab === "past" || a.status === "pending_payment" ? `. ${STATUS_LABEL[a.status] || a.status}` : ""}
+              </div>
             </div>
-            <button onClick={() => cancelAppointment.mutate(a.id)} style={{ ...sans, fontSize: 12.5, color: c.rose, background: "none", border: `1px solid ${c.line}`, borderRadius: 7, padding: "5px 10px", cursor: "pointer" }}>Cancelar</button>
+            {tab === "upcoming" ? (
+              <button onClick={() => setStatus.mutate({ id: a.id, status: "cancelled" })} style={{ ...small, color: c.rose }}>Cancelar</button>
+            ) : a.status === "confirmed" || a.status === "completed" || a.status === "no_show" ? (
+              <div style={{ display: "flex", gap: 6 }}>
+                {a.status !== "completed" && <button onClick={() => setStatus.mutate({ id: a.id, status: "completed" })} style={{ ...small, color: c.sage }}>Concluída</button>}
+                {a.status !== "no_show" && <button onClick={() => setStatus.mutate({ id: a.id, status: "no_show" })} style={{ ...small, color: c.amber }}>Faltou</button>}
+              </div>
+            ) : null}
           </div>
         ))}
-        {!appointments.length && <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "16px 0" }}>Ainda sem marcações.</div>}
+        {!list.length && <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "16px 0" }}>{tab === "upcoming" ? "Sem marcações futuras." : "Sem marcações passadas."}</div>}
       </div>
       {historyFor && <ContactHistoryModal brand={brand} contactId={historyFor.id} contactName={historyFor.name} onClose={() => setHistoryFor(null)} />}
+      {importing && <ImportAgendaModal brand={brand} staff={staff} onClose={() => setImporting(false)} />}
     </div>
   );
 }
@@ -760,43 +881,110 @@ function ReminderRow({ brand, type, label, setting }) {
   );
 }
 
+function ColorField({ label, value, onChange, onReset }) {
+  return (
+    <label style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", flexDirection: "column", gap: 6 }}>
+      {label}
+      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <input type="color" value={value || "#ffffff"} onChange={(e) => onChange(e.target.value)} style={{ width: 38, height: 32, border: `1px solid ${c.lineStrong}`, borderRadius: 6, cursor: "pointer", padding: 0 }} />
+        <span style={{ ...sans, fontSize: 13, color: c.ink }}>{value || "Padrão"}</span>
+        {value && onReset && <button type="button" onClick={onReset} style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>repor</button>}
+      </span>
+    </label>
+  );
+}
+
+// Tema da página pública e da app das clientes (brands.booking_style).
 function AppearanceSection({ brand }) {
   const styleQuery = useBookingStyle(brand.id);
   const updateStyle = useUpdateBookingStyle(brand.id);
   const style = styleQuery.data || DEFAULT_PAGE_STYLE;
+  const [uploading, setUploading] = useState(false);
+  const set = (patch) => updateStyle.mutate({ ...style, ...patch });
+  const unset = (key) => { const next = { ...style }; delete next[key]; updateStyle.mutate(next); };
+  const small = { ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 };
+
+  const pickLogo = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${brand.id}/booking-logo-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("brand-logos").upload(path, file, { upsert: true });
+      if (error) throw error;
+      set({ logoUrl: supabase.storage.from("brand-logos").getPublicUrl(path).data.publicUrl });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
-      <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Aparência da página de marcação</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 4 }}>Aparência da marcação e da app</div>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 16 }}>Vale para a página pública de marcação e para a app das clientes.</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div>
-          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Cor de destaque</div>
+          <div style={small}>Cor dos botões</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             {PAGE_COLOR_SWATCHES.map((hex) => (
               <button
                 key={hex}
                 type="button"
-                onClick={() => updateStyle.mutate({ ...style, accentColor: hex })}
-                style={{ width: 26, height: 26, borderRadius: 999, cursor: "pointer", background: hex, flexShrink: 0, border: style.accentColor === hex ? `2px solid ${c.ink}` : "1px solid rgba(0,0,0,0.1)" }}
+                onClick={() => set({ accentColor: hex })}
+                style={{ width: 26, height: 26, borderRadius: 999, cursor: "pointer", background: hex, flexShrink: 0, border: style.accentColor === hex ? `2px solid ${c.ink}` : `1px solid ${c.line}` }}
               />
             ))}
-            <input
-              type="color"
-              value={style.accentColor}
-              onChange={(e) => updateStyle.mutate({ ...style, accentColor: e.target.value })}
-              style={{ width: 30, height: 26, border: `1px solid ${c.lineStrong}`, borderRadius: 6, cursor: "pointer", padding: 0, flexShrink: 0 }}
-            />
+            <input type="color" value={style.accentColor} onChange={(e) => set({ accentColor: e.target.value })} style={{ width: 30, height: 26, border: `1px solid ${c.lineStrong}`, borderRadius: 6, cursor: "pointer", padding: 0, flexShrink: 0 }} />
+            <span style={{ ...sans, fontSize: 13, color: c.ink }}>{style.accentColor}</span>
           </div>
         </div>
-        <div>
-          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Tipo de letra</div>
-          <select style={inputStyle} value={style.font} onChange={(e) => updateStyle.mutate({ ...style, font: e.target.value })}>
-            {PAGE_FONT_OPTIONS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-          </select>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14 }}>
+          <label style={{ ...small, marginBottom: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+            Texto nos botões
+            <select style={inputStyle} value={style.accentInk ? "custom" : "white"} onChange={(e) => (e.target.value === "white" ? unset("accentInk") : set({ accentInk: style.ink || "#1A0D0E" }))}>
+              <option value="white">Branco</option>
+              <option value="custom">Escuro (cor do texto)</option>
+            </select>
+          </label>
+          <ColorField label="Fundo" value={style.background} onChange={(v) => set({ background: v })} onReset={() => unset("background")} />
+          <ColorField label="Cartões" value={style.surface} onChange={(v) => set({ surface: v })} onReset={() => unset("surface")} />
+          <ColorField label="Texto" value={style.ink} onChange={(v) => set({ ink: v, ...(style.accentInk ? { accentInk: v } : {}) })} onReset={() => unset("ink")} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
+          <label style={{ ...small, marginBottom: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+            Letra dos títulos
+            <select style={inputStyle} value={style.titleFont || style.font} onChange={(e) => set({ titleFont: e.target.value })}>
+              {PAGE_FONT_OPTIONS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+            </select>
+          </label>
+          <label style={{ ...small, marginBottom: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+            Letra do texto
+            <select style={inputStyle} value={style.font} onChange={(e) => set({ font: e.target.value })}>
+              {PAGE_FONT_OPTIONS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+            </select>
+          </label>
         </div>
         <div>
-          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Logótipo (link da imagem, opcional)</div>
-          <input style={inputStyle} defaultValue={style.logoUrl} onBlur={(e) => updateStyle.mutate({ ...style, logoUrl: e.target.value })} placeholder="https://…" />
+          <div style={small}>Logótipo</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            {style.logoUrl && <img src={style.logoUrl} alt="" style={{ maxHeight: 40, maxWidth: 140, background: c.paper, borderRadius: 4, padding: 4 }} />}
+            <label style={{ ...btnGhost, padding: "6px 12px", cursor: "pointer" }}>
+              <Upload size={12} /> {uploading ? "A enviar…" : style.logoUrl ? "Trocar" : "Enviar imagem"}
+              <input type="file" accept="image/*" onChange={pickLogo} disabled={uploading} style={{ display: "none" }} />
+            </label>
+            {style.logoUrl && <button type="button" onClick={() => unset("logoUrl")} style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>remover</button>}
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
+          <label style={{ ...small, marginBottom: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+            Frase por baixo do nome (app)
+            <input style={inputStyle} defaultValue={style.tagline || ""} onBlur={(e) => set({ tagline: e.target.value.trim() })} placeholder="Cuidado com continuidade" />
+          </label>
+          <label style={{ ...small, marginBottom: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+            WhatsApp para "Falar connosco"
+            <input style={inputStyle} defaultValue={style.contactPhone || ""} onBlur={(e) => set({ contactPhone: e.target.value.trim() })} placeholder="+351 912 345 678" />
+          </label>
         </div>
       </div>
     </div>
@@ -873,6 +1061,8 @@ export default function BookingModule({ brand, onBack }) {
   const [slugInput, setSlugInput] = useState("");
   const [copied, setCopied] = useState(false);
   const [selectedStaffId, setSelectedStaffId] = useState(null);
+  const servicesQuery = useServices(brand.id);
+  const staffQuery = useStaff(brand.id);
 
   const slug = slugQuery.data || "";
   const effectiveSlug = slugInput || slug;
@@ -914,9 +1104,12 @@ export default function BookingModule({ brand, onBack }) {
         <StaffSection brand={brand} selectedStaffId={selectedStaffId} onSelectStaff={setSelectedStaffId} />
         <ServicesSection brand={brand} />
         <AvailabilitySection brand={brand} staffId={selectedStaffId} />
-        <AppointmentsSection brand={brand} />
+        <AppointmentsSection brand={brand} staff={staffQuery.data || []} />
+        <ClientAppSection brand={brand} slug={slug} />
+        <PacksSection brand={brand} services={servicesQuery.data || []} />
         <RemindersSection brand={brand} />
         <PaymentSettingsSection brand={brand} />
+        <StripeAccountSection brand={brand} />
         <AppearanceSection brand={brand} />
       </div>
     </div>
@@ -925,215 +1118,49 @@ export default function BookingModule({ brand, onBack }) {
 
 /* ---------------------------------------------------------
    PÁGINA PÚBLICA — /agendar/:slug
+   Lê tudo por booking_public_page (quem não tem sessão não pode ler
+   as tabelas diretamente) e usa o mesmo fluxo da app das clientes.
 --------------------------------------------------------- */
 export function PublicBookingPage() {
   const { slug } = useParams();
-  const [state, setState] = useState({ loading: true, error: null, brand: null, services: [], staff: [] });
-  const [serviceId, setServiceId] = useState("");
-  const [staffId, setStaffId] = useState("");
-  const [upsells, setUpsells] = useState([]);
-  const [selectedUpsellIds, setSelectedUpsellIds] = useState([]);
-  const [date, setDate] = useState("");
-  const [slots, setSlots] = useState([]);
-  const [loadingSlots, setLoadingSlots] = useState(false);
-  const [chosenSlot, setChosenSlot] = useState(null);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
-  const [error, setError] = useState("");
+  const pageQuery = usePublicBookingPage(slug);
+  const [booked, setBooked] = useState(null);
+  const paid = new URLSearchParams(window.location.search).has("pago");
+  const page = pageQuery.data;
+  const style = brandStyle(page?.brand?.style);
 
-  useEffect(() => {
-    let active = true;
-    supabase
-      .from("brands")
-      .select("id, name, booking_style")
-      .eq("booking_slug", slug)
-      .maybeSingle()
-      .then(async ({ data, error: err }) => {
-        if (!active) return;
-        if (err || !data) {
-          setState({ loading: false, error: "Página não encontrada.", brand: null, services: [], staff: [] });
-          return;
-        }
-        const [{ data: services }, { data: staffList }] = await Promise.all([
-          supabase.from("booking_services").select("*").eq("brand_id", data.id).eq("status", "active"),
-          supabase.from("booking_staff").select("id, name").eq("brand_id", data.id).eq("status", "active"),
-        ]);
-        if (!active) return;
-        setState({ loading: false, error: null, brand: data, services: services || [], staff: staffList || [] });
-        if (services?.length) setServiceId(services[0].id);
-        if (staffList?.length) setStaffId(staffList[0].id);
-      });
-    return () => { active = false; };
-  }, [slug]);
+  const shell = (children) => (
+    <div className="bb-force-light" style={{ minHeight: "100vh", ...brandThemeVars(page?.brand?.style), display: "flex", justifyContent: "center", padding: "40px 16px", boxSizing: "border-box" }}>
+      <div style={{ width: "100%", maxWidth: 520 }}>{children}</div>
+    </div>
+  );
 
-  useEffect(() => {
-    if (!serviceId) { setUpsells([]); return; }
-    let active = true;
-    supabase.from("booking_service_upsells").select("*").eq("service_id", serviceId).then(({ data }) => { if (active) setUpsells(data || []); });
-    setSelectedUpsellIds([]);
-    return () => { active = false; };
-  }, [serviceId]);
+  if (pageQuery.isLoading) return shell(<div style={{ ...T.body, color: T.muted, textAlign: "center" }}>A carregar…</div>);
+  if (pageQuery.isError || !page) return shell(<div style={{ ...T.body, color: T.muted, textAlign: "center" }}>Página não encontrada.</div>);
 
-  useEffect(() => {
-    if (!serviceId || !staffId || !date || !state.brand) { setSlots([]); return; }
-    let active = true;
-    setLoadingSlots(true);
-    setChosenSlot(null);
-    invokeFunction("booking-availability", { brandId: state.brand.id, serviceId, staffId, date, upsellIds: selectedUpsellIds })
-      .then((data) => { if (active) setSlots(data.slots || []); })
-      .catch(() => { if (active) setSlots([]); })
-      .finally(() => { if (active) setLoadingSlots(false); });
-    return () => { active = false; };
-  }, [serviceId, staffId, date, state.brand, selectedUpsellIds]);
+  const done = booked || paid;
 
-  const toggleUpsell = (id) => setSelectedUpsellIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
-
-  const confirm = async () => {
-    setError("");
-    if (!name.trim()) { setError("Escreve o teu nome."); return; }
-    if (!phone.trim() && !email.trim()) { setError("Escreve o telefone ou o email."); return; }
-    setSubmitting(true);
-    try {
-      const result = await invokeFunction("booking-create", {
-        brandId: state.brand.id, serviceId, staffId, startsAt: chosenSlot, upsellIds: selectedUpsellIds,
-        name: name.trim(), phone: phone.trim(), email: email.trim(),
-        successUrl: window.location.href, cancelUrl: window.location.href,
-      });
-      if (result.paymentUrl) {
-        // Não confirma ainda — a marca pede sinal. A marcação só fica
-        // confirmada quando o Stripe avisar que o pagamento passou.
-        window.location.href = result.paymentUrl;
-        return;
-      }
-      setConfirmed(true);
-    } catch (err) {
-      setError(err.message || "Não foi possível confirmar.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (state.loading) return <div className="bb-force-light" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", ...sans, color: c.mist }}>A carregar…</div>;
-  if (state.error) return <div className="bb-force-light" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", ...sans, color: c.mist }}>{state.error}</div>;
-
-  const service = state.services.find((s) => s.id === serviceId);
-  const minDate = new Date().toISOString().slice(0, 10);
-  const extraMinutes = upsells.filter((u) => selectedUpsellIds.includes(u.id)).reduce((sum, u) => sum + (u.extra_duration_minutes || 0), 0);
-  const totalPrice = (service?.price || 0) + upsells.filter((u) => selectedUpsellIds.includes(u.id)).reduce((sum, u) => sum + (u.price || 0), 0);
-  const bookingStyle = { ...DEFAULT_PAGE_STYLE, ...(state.brand.booking_style || {}) };
-  const titleFont = { fontFamily: `'${bookingStyle.font}', serif` };
-  const bodyFont = { fontFamily: `'${bookingStyle.font}', sans-serif` };
-
-  return (
-    <div className="bb-force-light" style={{ minHeight: "100vh", background: c.paper, display: "flex", justifyContent: "center", padding: "60px 20px", boxSizing: "border-box" }}>
-      <div style={{ width: "100%", maxWidth: 460 }}>
-        <div style={{ background: c.folha, borderRadius: 3, padding: "32px 28px", }}>
-          {bookingStyle.logoUrl && <img src={bookingStyle.logoUrl} alt="" style={{ maxHeight: 44, maxWidth: "60%", display: "block", marginBottom: 16 }} />}
-          {confirmed ? (
-            <div style={{ textAlign: "center", padding: "20px 0" }}>
-              <CheckCircle2 size={32} color={bookingStyle.accentColor} style={{ marginBottom: 12 }} />
-              <div style={{ ...serif, ...titleFont, fontSize: 19, color: c.ink, marginBottom: 8 }}>Marcação confirmada!</div>
-              <div style={{ ...sans, ...bodyFont, fontSize: 15, color: c.mist, lineHeight: 1.6 }}>{service?.name} — {new Date(chosenSlot).toLocaleString("pt-PT")}</div>
-            </div>
-          ) : (
-            <>
-              <h1 style={{ ...serif, ...titleFont, fontSize: 21, color: c.ink, marginBottom: 4 }}>{state.brand.name}</h1>
-              <div style={{ ...sans, ...bodyFont, fontSize: 14.5, color: c.mist, marginBottom: 20 }}>Marca o teu horário</div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                <div>
-                  <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Serviço</div>
-                  <select style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
-                    {state.services.map((s) => <option key={s.id} value={s.id}>{s.name} — {money(s.price)}, {s.duration_minutes} min</option>)}
-                  </select>
-                </div>
-
-                {upsells.length > 0 && (
-                  <div>
-                    <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Extras (opcional)</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      {upsells.map((u) => (
-                        <label key={u.id} style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "center", gap: 8 }}>
-                          <input type="checkbox" checked={selectedUpsellIds.includes(u.id)} onChange={() => toggleUpsell(u.id)} />
-                          {u.name} — {money(u.price)}, +{u.extra_duration_minutes}min
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Profissional</div>
-                  <select style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={staffId} onChange={(e) => setStaffId(e.target.value)}>
-                    {state.staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Dia</div>
-                  <input type="date" min={minDate} style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={date} onChange={(e) => setDate(e.target.value)} />
-                </div>
-
-                {date && (
-                  <div>
-                    <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Hora {extraMinutes > 0 && `(duração total: ${(service?.duration_minutes || 0) + extraMinutes} min)`}</div>
-                    {loadingSlots ? (
-                      <div style={{ ...sans, fontSize: 14, color: c.mist }}>A ver horários livres…</div>
-                    ) : slots.length === 0 ? (
-                      <div style={{ ...sans, fontSize: 14, color: c.mist }}>Sem horários livres neste dia.</div>
-                    ) : (
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {slots.map((s) => (
-                          <button
-                            key={s}
-                            onClick={() => setChosenSlot(s)}
-                            style={{
-                              ...sans, ...bodyFont, fontSize: 13.5, fontWeight: 600, borderRadius: 6, padding: "8px 12px", cursor: "pointer",
-                              border: `1px solid ${chosenSlot === s ? bookingStyle.accentColor : "#E0DAEC"}`, background: chosenSlot === s ? bookingStyle.accentColor : c.folha,
-                              color: chosenSlot === s ? "#fff" : c.ink,
-                            }}
-                          >
-                            {new Date(s).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {chosenSlot && (
-                  <>
-                    <div style={{ ...sans, fontSize: 14, color: c.mist }}>Total: <strong style={{ color: c.ink }}>{money(totalPrice)}</strong></div>
-                    <div>
-                      <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Nome</div>
-                      <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={name} onChange={(e) => setName(e.target.value)} />
-                    </div>
-                    <div>
-                      <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Telefone</div>
-                      <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={phone} onChange={(e) => setPhone(e.target.value)} />
-                    </div>
-                    <div>
-                      <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: "#2A2438", marginBottom: 6 }}>Email (opcional se deres telefone)</div>
-                      <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={email} onChange={(e) => setEmail(e.target.value)} />
-                    </div>
-                    {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
-                    <button
-                      onClick={confirm}
-                      disabled={submitting}
-                      style={{ ...sans, ...bodyFont, width: "100%", fontSize: 15, fontWeight: 600, color: "#fff", background: bookingStyle.accentColor, border: "none", borderRadius: 6, padding: "12px", cursor: "pointer" }}
-                    >
-                      {submitting ? "A confirmar…" : "Confirmar marcação"}
-                    </button>
-                  </>
-                )}
-              </div>
-            </>
+  return shell(
+    <div style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 18, padding: "28px 20px" }}>
+      <BrandHeader brand={page.brand} style={style} subtitle={done ? null : "Marque o seu momento"} />
+      {done ? (
+        <div style={{ textAlign: "center", padding: "12px 0", ...T.body }}>
+          <CheckCircle2 size={34} color="currentColor" style={{ color: T.accent, marginBottom: 12 }} />
+          <div style={{ ...T.title, fontSize: 22, color: T.ink, marginBottom: 8 }}>{paid && !booked ? "Pagamento recebido" : "Marcação confirmada"}</div>
+          <div style={{ fontSize: 15, color: T.muted, lineHeight: 1.6 }}>
+            {booked
+              ? `${booked.serviceName}, ${new Date(booked.startsAt).toLocaleString("pt-PT", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}`
+              : "Assim que o pagamento for confirmado, recebe a confirmação da marcação."}
+          </div>
+          {page.brand.client_app_enabled && (
+            <a href={`/app/${page.brand.slug}`} style={{ display: "inline-block", marginTop: 18, fontSize: 15, fontWeight: 500, color: T.ink, textDecorationColor: T.accent }}>
+              Ver as minhas marcações na app
+            </a>
           )}
         </div>
-      </div>
+      ) : (
+        <BookingFlow page={page} returnUrl={`${window.location.origin}/agendar/${page.brand.slug}`} onBooked={setBooked} />
+      )}
     </div>
   );
 }

@@ -31,6 +31,16 @@ Papéis em `profiles.role`: `admin_geral` (vê tudo), `membro` (equipa da agênc
 - Links de faturas (`invoice_links`, migração 71): a equipa cola o link e o nome de cada fatura; o cliente só vê e abre (leitura `is_brand_member`, escrita `can_manage_brand`; só http/https).
 - Agendamento: sinal opcional por marca (`booking_payment_settings`), marcações `pending_payment` até o webhook confirmar.
 
+## App das clientes (ex: Dream Studio)
+- `/app/<booking_slug>` (`src/modules/clientapp/ClientApp.jsx`), ligada por marca em Agendamento ("App das clientes", `brands.client_app_enabled`). Migração 72.
+- A cliente final entra com email + palavra-passe no Supabase Auth, **sem linha em `profiles`**. `client_portal_link` liga a conta à ficha do CRM pelo email já confirmado (nunca pelo telefone) e cria o contacto se não existir; `client_accounts` guarda a ligação (a equipa pode religar). Tudo o que a cliente vê vem de `client_portal_data`; não lê tabelas.
+- Precisa no Supabase Auth: confirmação de email ligada, SMTP próprio (Resend) e `/app/*` nos Redirect URLs.
+- Página pública e app leem serviços/profissionais/packs por `booking_public_page(slug)` (anon). O fluxo de marcação é o mesmo componente (`booking/BookingFlow.jsx`); `booking-create` reconhece a sessão da cliente pelo Authorization.
+- Packs: `booking_packs` (catálogo) e `client_packs` (comprados ou atribuídos à mão). Cada marcação com pack gasta uma sessão (`client_pack_consume`, só service role); cancelar devolve-a (trigger). Compra pela app em `pack-checkout`.
+- Stripe da própria marca: `stripe-brand-connect` guarda a chave no Vault e cria sozinho o webhook `stripe-brand-webhook?brand=<id>` (sinais e packs). Sem Stripe da marca, os sinais usam a chave global e o `stripe-webhook`.
+- Tema por marca em `brands.booking_style` (accentColor, accentInk, background, surface, ink, titleFont, font, logoUrl, tagline, contactPhone), editado em Agendamento → Aparência e aplicado como variáveis `--app-*` (`booking/publicBooking.js`). Estas páginas usam tratamento formal ("o seu"). Serviços têm categoria, `price_max` e recomendações de cuidado; notas de cuidado em `contact_care_notes` (equipa escreve `team_text`, cliente `client_text` pela app). Migração 73; serviços e tema do Dreams Studio na 74.
+- Horas: disponibilidade e mensagens em hora de Lisboa (as funções convertem; o servidor é UTC). Estado `no_show` = faltou. Importar agenda por CSV em Agendamento → Marcações (passadas ficam concluídas e sem lembretes).
+
 ## Comunicação
 WhatsApp via Meta direta ou Twilio (`whatsapp_accounts.provider`); o utilizador usa Twilio. Fora da janela de 24h só templates aprovados (`whatsapp_templates`, com Content SID no caso Twilio). SMS via Twilio. Email via Resend. Campanhas de email/WhatsApp/SMS escolhem destinatários por tag + consentimento (`opted_in_*`). Redes sociais publicam via APIs oficiais (Instagram, Facebook, Threads, LinkedIn, YouTube, TikTok) na função `social-publish` (cron a cada minuto).
 
