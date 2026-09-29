@@ -226,7 +226,9 @@ function AuthScreen({ page, style }) {
         if (password.length < 6) throw new Error("A palavra-passe tem de ter pelo menos 6 caracteres.");
         const { data, error: err } = await supabase.auth.signUp({
           email: email.trim(), password,
-          options: { emailRedirectTo: redirectTo, data: { name: name.trim(), phone: phone.trim() } },
+          // app_brand: os modelos de email do Supabase usam-no para falar em nome
+          // da marca (as contas da equipa não o têm e recebem o texto do Big Boss).
+          options: { emailRedirectTo: redirectTo, data: { name: name.trim(), phone: phone.trim(), app_brand: brand.name } },
         });
         if (err) throw err;
         if (data.user && data.user.identities?.length === 0) {
