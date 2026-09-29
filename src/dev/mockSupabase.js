@@ -70,9 +70,11 @@ const FIXTURES = {
   forms: [
     {
       id: "fm1", brand_id: B1, name: "Que profissional de estética és?", slug: "quiz-demo", type: "quiz", status: "published",
-      thank_you_message: "Obrigada por responderes!", file_delivery_url: null, on_submit_tags: [], style: {},
+      thank_you_message: "Obrigada por responderes!", file_delivery_url: null, on_submit_tags: [], style: { introTitle: "Descobre o teu nível", introSubtitle: "Duas perguntas rápidas e mostramos-te a formação certa." },
       fields: [
+        { id: "s1", type: "section", label: "Sobre ti", description: "Para sabermos a quem enviar o resultado." },
         { id: "q1", label: "O teu nome", type: "text", required: true, mapsTo: "name" },
+        { id: "s2", type: "section", label: "A tua experiência", description: "" },
         { id: "q2", label: "Quantas formações já tiraste?", type: "choice", required: true, options: [
           { id: "o1", label: "Nenhuma ainda", points: 0 },
           { id: "o2", label: "1 a 2", points: 5 },
