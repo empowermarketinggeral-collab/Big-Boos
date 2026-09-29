@@ -536,6 +536,11 @@ function FormEditor({ brand, form, onBack }) {
               </button>
             </div>
           </div>
+          {fields.some((f) => f.type === "section") && (
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: -6, marginBottom: 12 }}>
+              Com secções, a página mostra um passo de cada vez, com botões Anterior e Seguinte.
+            </div>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {fields.map((f, i) => f.type === "section" ? (
               <SectionRow
@@ -724,6 +729,21 @@ export default function FormsModule({ brand, onBack }) {
 /* ---------------------------------------------------------
    PÁGINA PÚBLICA — /formulario/:slug
 --------------------------------------------------------- */
+// Divide os campos em passos: cada secção abre um passo novo; perguntas
+// antes da primeira secção formam um passo sem título. Sem secções (ou com
+// uma só parte) o formulário continua numa página.
+function splitSteps(fields) {
+  const steps = [];
+  for (const f of fields || []) {
+    if (f.type === "section") steps.push({ section: f, fields: [] });
+    else {
+      if (!steps.length) steps.push({ section: null, fields: [] });
+      steps[steps.length - 1].fields.push(f);
+    }
+  }
+  return steps;
+}
+
 function PublicField({ field, value, onChange, font }) {
   const fontFamily = `'${font || "Inter"}', sans-serif`;
   const label = (
@@ -774,6 +794,7 @@ export function PublicFormPage() {
   const [submitted, setSubmitted] = useState(false);
   const [quizResult, setQuizResult] = useState(null); // { score, band } — só para type === "quiz"
   const [error, setError] = useState("");
+  const [stepIndex, setStepIndex] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -796,6 +817,14 @@ export function PublicFormPage() {
   const submit = async (e) => {
     e.preventDefault();
     if (!state.form) return;
+    // Passo a passo: o browser só valida os campos do passo visível, por
+    // isso "Seguinte" usa o mesmo submit e só envia no último passo.
+    const totalSteps = splitSteps(state.form.fields).length;
+    if (stepIndex < totalSteps - 1) {
+      setStepIndex((i) => i + 1);
+      window.scrollTo({ top: 0 });
+      return;
+    }
     setSubmitting(true);
     setError("");
 
@@ -833,6 +862,19 @@ export function PublicFormPage() {
   const formStyle = { ...DEFAULT_PAGE_STYLE, ...(form.style || {}) };
   const titleFont = { fontFamily: `'${formStyle.font}', serif` };
   const bodyFont = { fontFamily: `'${formStyle.font}', sans-serif` };
+  const steps = splitSteps(form.fields);
+  const stepped = steps.length > 1;
+  const current = Math.min(stepIndex, Math.max(steps.length - 1, 0));
+  const visibleSteps = stepped ? [steps[current]] : steps;
+  const isLastStep = !stepped || current === steps.length - 1;
+  const renderSection = (f, first) => (
+    <div key={f.id} style={{ borderTop: first ? "none" : `1px solid ${c.line}`, paddingTop: first ? 0 : 20, marginTop: first ? 0 : 8 }}>
+      <h2 style={{ ...serif, ...titleFont, fontSize: 18, color: c.ink, margin: 0 }}>{f.label}</h2>
+      {f.description && (
+        <div style={{ ...sans, ...bodyFont, fontSize: 14, color: c.mist, lineHeight: 1.55, whiteSpace: "pre-line", marginTop: 5 }}>{f.description}</div>
+      )}
+    </div>
+  );
 
   return (
     <div className="bb-force-light" style={{ minHeight: "100vh", background: c.paper, display: "flex", justifyContent: "center", padding: "60px 20px", boxSizing: "border-box" }}>
@@ -871,30 +913,49 @@ export function PublicFormPage() {
             </div>
           ) : (
             <form onSubmit={submit}>
-              <h1 style={{ ...serif, ...titleFont, fontSize: 23, color: c.ink, margin: 0, marginBottom: formStyle.introSubtitle ? 8 : 20 }}>{formStyle.introTitle || form.name}</h1>
-              {formStyle.introSubtitle && (
-                <div style={{ ...sans, ...bodyFont, fontSize: 15, color: c.mist, lineHeight: 1.6, whiteSpace: "pre-line", marginBottom: 22 }}>{formStyle.introSubtitle}</div>
+              {current === 0 && (
+                <>
+                  <h1 style={{ ...serif, ...titleFont, fontSize: 23, color: c.ink, margin: 0, marginBottom: formStyle.introSubtitle ? 8 : 20 }}>{formStyle.introTitle || form.name}</h1>
+                  {formStyle.introSubtitle && (
+                    <div style={{ ...sans, ...bodyFont, fontSize: 15, color: c.mist, lineHeight: 1.6, whiteSpace: "pre-line", marginBottom: 22 }}>{formStyle.introSubtitle}</div>
+                  )}
+                </>
+              )}
+              {stepped && (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ ...sans, ...bodyFont, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Passo {current + 1} de {steps.length}</div>
+                  <div style={{ height: 4, borderRadius: 999, background: c.line, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${((current + 1) / steps.length) * 100}%`, background: formStyle.accentColor, transition: "width .2s" }} />
+                  </div>
+                </div>
               )}
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {(form.fields || []).map((f, i) => f.type === "section" ? (
-                  <div key={f.id} style={{ borderTop: i === 0 ? "none" : `1px solid ${c.line}`, paddingTop: i === 0 ? 0 : 20, marginTop: i === 0 ? 0 : 8 }}>
-                    <h2 style={{ ...serif, ...titleFont, fontSize: 18, color: c.ink, margin: 0 }}>{f.label}</h2>
-                    {f.description && (
-                      <div style={{ ...sans, ...bodyFont, fontSize: 14, color: c.mist, lineHeight: 1.55, whiteSpace: "pre-line", marginTop: 5 }}>{f.description}</div>
-                    )}
-                  </div>
-                ) : (
-                  <PublicField key={f.id} field={f} value={answers[f.id]} onChange={(v) => setAnswers((a) => ({ ...a, [f.id]: v }))} font={formStyle.font} />
-                ))}
+                {visibleSteps.map((st, si) => [
+                  st.section ? renderSection(st.section, stepped || si === 0) : null,
+                  ...st.fields.map((f) => (
+                    <PublicField key={f.id} field={f} value={answers[f.id]} onChange={(v) => setAnswers((a) => ({ ...a, [f.id]: v }))} font={formStyle.font} />
+                  )),
+                ])}
               </div>
               {error && <div style={{ ...sans, ...bodyFont, fontSize: 14, color: c.rose, marginTop: 14 }}>{error}</div>}
-              <button
-                type="submit"
-                disabled={submitting}
-                style={{ ...sans, ...bodyFont, width: "100%", marginTop: 22, fontSize: 15, fontWeight: 600, color: "#fff", background: formStyle.accentColor, border: "none", borderRadius: 6, padding: "12px", cursor: "pointer" }}
-              >
-                {submitting ? "A enviar…" : form.type === "quiz" ? "Ver resultado" : "Enviar"}
-              </button>
+              <div style={{ display: "flex", gap: 8, marginTop: 22 }}>
+                {stepped && current > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => { setStepIndex(current - 1); setError(""); }}
+                    style={{ ...sans, ...bodyFont, fontSize: 15, fontWeight: 600, color: formStyle.accentColor, background: "none", border: `1px solid ${formStyle.accentColor}`, borderRadius: 6, padding: "12px 18px", cursor: "pointer" }}
+                  >
+                    Anterior
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  style={{ ...sans, ...bodyFont, flex: 1, fontSize: 15, fontWeight: 600, color: "#fff", background: formStyle.accentColor, border: "none", borderRadius: 6, padding: "12px", cursor: "pointer" }}
+                >
+                  {submitting ? "A enviar…" : !isLastStep ? "Seguinte" : form.type === "quiz" ? "Ver resultado" : "Enviar"}
+                </button>
+              </div>
             </form>
           )}
         </div>
