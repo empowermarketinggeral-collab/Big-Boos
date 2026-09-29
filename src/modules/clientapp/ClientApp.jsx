@@ -103,8 +103,8 @@ function Frame({ page, style, children, nav }) {
   const logo = style.logoUrl || page.brand.logo_url;
   return (
     <div className="bb-force-light" style={{ minHeight: "100dvh", ...brandThemeVars(page.brand.style), ...T.body }}>
-      <header style={{ background: T.surface, borderBottom: `1px solid ${T.line}`, display: "flex", justifyContent: "center", alignItems: "center", height: 58, position: "sticky", top: 0, zIndex: 10 }}>
-        {logo ? <img src={logo} alt={page.brand.name} style={{ maxHeight: 34, maxWidth: "50%" }} /> : <span style={{ ...T.title, fontSize: 20, color: T.ink }}>{page.brand.name}</span>}
+      <header style={{ background: T.surface, borderBottom: `1px solid ${T.line}`, display: "flex", justifyContent: "center", alignItems: "center", height: 84, position: "sticky", top: 0, zIndex: 10 }}>
+        {logo ? <img src={logo} alt={page.brand.name} style={{ maxHeight: 62, maxWidth: "70%", objectFit: "contain" }} /> : <span style={{ ...T.title, fontSize: 20, color: T.ink }}>{page.brand.name}</span>}
       </header>
       <main style={{ maxWidth: 520, margin: "0 auto", padding: `26px 16px ${nav ? 110 : 40}px`, boxSizing: "border-box" }}>{children}</main>
       {nav}

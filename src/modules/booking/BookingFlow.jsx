@@ -374,7 +374,7 @@ export function BrandHeader({ brand, style, subtitle, center }) {
   return (
     <div style={{ marginBottom: 22, textAlign: center ? "center" : "left" }}>
       {logo ? (
-        <img src={logo} alt={brand.name} style={{ maxHeight: 52, maxWidth: "60%", display: center ? "inline-block" : "block", marginBottom: 12 }} />
+        <img src={logo} alt={brand.name} style={{ maxHeight: 110, maxWidth: "80%", objectFit: "contain", display: center ? "inline-block" : "block", marginBottom: 14 }} />
       ) : (
         <h1 style={{ ...T.title, fontSize: 26, color: T.ink, margin: "0 0 6px" }}>{brand.name}</h1>
       )}
