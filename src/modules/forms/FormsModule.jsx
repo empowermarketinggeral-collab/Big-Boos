@@ -542,7 +542,7 @@ function FormEditor({ brand, form, onBack }) {
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 {style.logoUrl && (
                   <div style={{ background: c.paper, border: `1px solid ${c.line}`, borderRadius: 3, padding: 8, display: "flex", alignItems: "center" }}>
-                    <img src={style.logoUrl} alt="" style={{ maxHeight: 40, maxWidth: 160, display: "block" }} />
+                    <img src={style.logoUrl} alt="" style={{ maxHeight: 72, maxWidth: 220, objectFit: "contain", display: "block" }} />
                   </div>
                 )}
                 <label style={{ ...btnGhost, display: "flex", alignItems: "center", gap: 6, cursor: uploadingLogo ? "default" : "pointer" }}>
@@ -976,7 +976,7 @@ export function PublicFormPage() {
       <div style={{ width: "100%", maxWidth: 480 }}>
         <div style={{ background: c.folha, borderRadius: 3, padding: "32px 28px", }}>
           {formStyle.logoUrl && (
-            <img src={formStyle.logoUrl} alt="" style={{ maxHeight: 48, maxWidth: "60%", display: "block", marginBottom: 18 }} />
+            <img src={formStyle.logoUrl} alt="" style={{ maxHeight: 110, maxWidth: "80%", objectFit: "contain", display: "block", margin: "0 auto 24px" }} />
           )}
           {submitted && form.type === "quiz" ? (
             <div style={{ textAlign: "center", padding: "20px 0" }}>

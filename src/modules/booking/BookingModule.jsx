@@ -1175,7 +1175,7 @@ function AppearanceSection({ brand }) {
         <div>
           <div style={small}>Logótipo</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            {style.logoUrl && <img src={style.logoUrl} alt="" style={{ maxHeight: 40, maxWidth: 140, background: c.paper, borderRadius: 4, padding: 4 }} />}
+            {style.logoUrl && <img src={style.logoUrl} alt="" style={{ maxHeight: 72, maxWidth: 220, objectFit: "contain", background: c.paper, borderRadius: 4, padding: 4 }} />}
             <label style={{ ...btnGhost, padding: "6px 12px", cursor: "pointer" }}>
               <Upload size={12} /> {uploading ? "A enviar…" : style.logoUrl ? "Trocar" : "Enviar imagem"}
               <input type="file" accept="image/*" onChange={pickLogo} disabled={uploading} style={{ display: "none" }} />
