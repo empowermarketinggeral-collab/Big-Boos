@@ -6,6 +6,7 @@ import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, PAGE_
 import BookingFlow, { BrandHeader } from "./BookingFlow.jsx";
 import { usePublicBookingPage, brandThemeVars, brandStyle, T } from "./publicBooking.js";
 import ImportAgendaModal from "./ImportAgendaModal.jsx";
+import AgendaCalendar from "./AgendaCalendar.jsx";
 import { ClientAppSection, StripeAccountSection, PacksSection } from "./ClientAppAdmin.jsx";
 import { ArrowLeft, Plus, Trash2, Pencil, Link2, CheckCircle2, Calendar as CalendarIcon, User, History, Upload, CreditCard } from "lucide-react";
 
@@ -1278,12 +1279,14 @@ function PaymentSettingsSection({ brand }) {
 /* ---------------------------------------------------------
    MÓDULO
 --------------------------------------------------------- */
-export default function BookingModule({ brand, onBack }) {
+export default function BookingModule({ brand, onBack, session }) {
   const slugQuery = useBookingSlug(brand.id);
   const updateSlug = useUpdateBookingSlug(brand.id);
   const [slugInput, setSlugInput] = useState("");
   const [copied, setCopied] = useState(false);
   const [selectedStaffId, setSelectedStaffId] = useState(null);
+  const [tab, setTab] = useState("agenda");
+  const [contactFor, setContactFor] = useState(null);
   const servicesQuery = useServices(brand.id);
   const staffQuery = useStaff(brand.id);
 
@@ -1323,21 +1326,58 @@ export default function BookingModule({ brand, onBack }) {
         )}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 640 }}>
-        <StaffSection brand={brand} selectedStaffId={selectedStaffId} onSelectStaff={setSelectedStaffId} />
-        <ServicesSection brand={brand} />
-        <AvailabilitySection brand={brand} staffId={selectedStaffId} onSelectStaff={setSelectedStaffId} />
-        <AppointmentsSection brand={brand} staff={staffQuery.data || []} />
-        <ClientAppSection brand={brand} slug={slug} />
-        <PacksSection brand={brand} services={servicesQuery.data || []} />
-        <RemindersSection brand={brand} />
-        <PaymentSettingsSection brand={brand} />
-        <StripeAccountSection brand={brand} />
-        <AppearanceSection brand={brand} />
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
+        {BOOKING_TABS.map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            style={{ ...sans, fontSize: 14, fontWeight: 700, borderRadius: 999, padding: "8px 16px", cursor: "pointer", border: "none", background: tab === key ? c.boss : c.folha, color: tab === key ? c.onBoss : c.ink }}
+          >
+            {label}
+          </button>
+        ))}
       </div>
+
+      {tab === "agenda" && <AgendaCalendar brand={brand} session={session} onOpenContact={setContactFor} />}
+
+      <div style={{ display: tab === "agenda" ? "none" : "flex", flexDirection: "column", gap: 20, maxWidth: 680 }}>
+        {tab === "list" && <AppointmentsSection brand={brand} staff={staffQuery.data || []} />}
+        {tab === "team" && (
+          <>
+            <StaffSection brand={brand} selectedStaffId={selectedStaffId} onSelectStaff={setSelectedStaffId} />
+            <AvailabilitySection brand={brand} staffId={selectedStaffId} onSelectStaff={setSelectedStaffId} />
+            <ServicesSection brand={brand} />
+          </>
+        )}
+        {tab === "app" && (
+          <>
+            <ClientAppSection brand={brand} slug={slug} />
+            <PacksSection brand={brand} services={servicesQuery.data || []} />
+            <PaymentSettingsSection brand={brand} />
+            <StripeAccountSection brand={brand} />
+          </>
+        )}
+        {tab === "settings" && (
+          <>
+            <RemindersSection brand={brand} />
+            <AppearanceSection brand={brand} />
+          </>
+        )}
+      </div>
+
+      {contactFor && <ContactHistoryModal brand={brand} contactId={contactFor.id} contactName={contactFor.name} onClose={() => setContactFor(null)} />}
     </div>
   );
 }
+
+const BOOKING_TABS = [
+  ["agenda", "Agenda"],
+  ["list", "Lista e importação"],
+  ["team", "Profissionais, horários e serviços"],
+  ["app", "App, packs e pagamentos"],
+  ["settings", "Lembretes e aparência"],
+];
 
 /* ---------------------------------------------------------
    PÁGINA PÚBLICA — /agendar/:slug
