@@ -48,34 +48,21 @@ const CARE_CATEGORIES = [
   { key: "contraindications", label: "Contraindicações", icon: ShieldAlert },
 ];
 
-// "Adicionar ao ecrã principal" com o nome, a cor e o ícone da marca.
+// "Adicionar ao ecrã principal": o manifesto, o ícone e o nome da marca já
+// vêm no HTML de /app/<slug> (api/app-page.js na Vercel), para o telemóvel
+// instalar a app da marca e não a Big Boss. Aqui só se acerta o título e a
+// cor da barra enquanto a app está aberta (ex: em desenvolvimento).
 function useBrandInstallable(brand, style) {
   useEffect(() => {
     if (!brand) return;
     const previousTitle = document.title;
     document.title = brand.name;
-    const origin = window.location.origin;
-    const logo = style.logoUrl || brand.logo_url;
-    const manifest = {
-      name: brand.name, short_name: brand.name.slice(0, 12),
-      start_url: `${origin}/app/${brand.slug}`, scope: `${origin}/app/${brand.slug}`,
-      display: "standalone", background_color: style.background || "white", theme_color: style.surface || style.accentColor,
-      icons: [{ src: logo || `${origin}/icon-512.png`, sizes: "512x512", type: "image/png", purpose: "any" }],
-    };
-    const url = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" }));
-    const swaps = [
-      ['link[rel="manifest"]', "href", url],
-      ['meta[name="apple-mobile-web-app-title"]', "content", brand.name],
-      ['link[rel="apple-touch-icon"]', "href", logo],
-      ['meta[name="theme-color"]', "content", style.surface || style.accentColor],
-    ].map(([selector, attr, value]) => {
-      const el = document.querySelector(selector);
-      const previous = el?.getAttribute(attr);
-      if (el && value) el.setAttribute(attr, value);
-      return () => { if (el && previous) el.setAttribute(attr, previous); };
-    });
-    return () => { document.title = previousTitle; swaps.forEach((undo) => undo()); URL.revokeObjectURL(url); };
-  }, [brand, style.logoUrl, style.accentColor, style.background, style.surface]);
+    const theme = document.querySelector('meta[name="theme-color"]');
+    const previousTheme = theme?.getAttribute("content");
+    const color = style.surface || style.accentColor;
+    if (theme && color) theme.setAttribute("content", color);
+    return () => { document.title = previousTitle; if (theme && previousTheme) theme.setAttribute("content", previousTheme); };
+  }, [brand, style.accentColor, style.surface]);
 }
 
 function useSession() {
