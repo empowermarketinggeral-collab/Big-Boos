@@ -959,7 +959,10 @@ function AppointmentsSection({ brand, staff }) {
     <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
         <div style={{ ...serif, fontSize: 15.5, color: c.ink }}>Marcações</div>
-        <button onClick={() => setImporting(true)} style={{ ...btnGhost, padding: "6px 12px" }}><Upload size={12} /> Importar agenda</button>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button onClick={() => setImporting(true)} style={{ ...btnGhost, padding: "6px 12px" }}><Upload size={12} /> Importar CSV</button>
+          <button onClick={() => document.getElementById("ghl-import")?.scrollIntoView({ behavior: "smooth", block: "start" })} style={{ ...btnGhost, padding: "6px 12px" }}><Upload size={12} /> Importar do GoHighLevel</button>
+        </div>
       </div>
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         {[["upcoming", `Próximas (${upcoming.length})`], ["past", "Passadas"]].map(([key, label]) => (
@@ -972,7 +975,7 @@ function AppointmentsSection({ brand, staff }) {
           </button>
         ))}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 560, overflowY: "auto" }}>
         {list.map((a) => (
           <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 12, background: c.paper, borderRadius: 6, padding: "10px 14px", flexWrap: "wrap" }}>
             <CalendarIcon size={15} color={c.bossText} style={{ flexShrink: 0 }} />
@@ -1333,7 +1336,7 @@ export default function BookingModule({ brand, onBack, session }) {
 
       <div style={{ display: tab === "agenda" ? "none" : "flex", flexDirection: "column", gap: 20, maxWidth: 680 }}>
         {tab === "list" && <AppointmentsSection brand={brand} staff={staffQuery.data || []} />}
-        {tab === "list" && <GhlImportSection brand={brand} />}
+        {tab === "list" && <div id="ghl-import" style={{ scrollMarginTop: 16 }}><GhlImportSection brand={brand} /></div>}
         {tab === "team" && (
           <>
             <StaffSection brand={brand} selectedStaffId={selectedStaffId} onSelectStaff={setSelectedStaffId} />
