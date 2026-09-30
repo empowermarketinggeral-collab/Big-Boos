@@ -90,7 +90,10 @@ export const T = {
   accent: "var(--app-accent)",
   onAccent: "var(--app-on-accent)",
   accentSoft: "var(--app-accent-soft)",
-  title: { fontFamily: "var(--app-title)", fontWeight: 500, letterSpacing: "-0.005em" },
+  // Títulos cheios: peso 700 e tamanho ótico baixo. Com a Bodoni Moda em
+  // tamanho ótico automático, os títulos grandes ficavam com traços finos
+  // demais para ler (sobretudo no telemóvel). Letras sem eixo "opsz" ignoram.
+  title: { fontFamily: "var(--app-title)", fontWeight: 700, fontVariationSettings: "'opsz' 11", letterSpacing: "-0.005em" },
   body: { fontFamily: "var(--app-font)", fontWeight: 400 },
 };
 
