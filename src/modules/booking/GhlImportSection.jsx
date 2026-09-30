@@ -70,7 +70,7 @@ export default function GhlImportSection({ brand }) {
       windows.push([new Date(d), next < end ? next : end]);
       d = next;
     }
-    const total = { found: 0, created: 0, updated: 0, skipped: 0, contactsCreated: 0, servicesCreated: new Set(), errors: [] };
+    const total = { found: 0, created: 0, updated: 0, skipped: 0, contactsCreated: 0, servicesCreated: new Set(), errors: [], sources: new Map(), usersScopeMissing: false };
     // "Tudo" já inclui todos os calendários: não repete os outros.
     const cals = picked.includes("__all__") ? calendars.filter((x) => x.id === "__all__") : calendars.filter((x) => picked.includes(x.id));
     const steps = cals.length * windows.length;
@@ -86,6 +86,8 @@ export default function GhlImportSection({ brand }) {
             total.skipped += r.skipped || 0; total.contactsCreated += r.contactsCreated || 0;
             (r.servicesCreated || []).forEach((s) => total.servicesCreated.add(s));
             total.errors.push(...(r.errors || []));
+            for (const src of r.sources || []) total.sources.set(src.name, (total.sources.get(src.name) || 0) + (src.count || 0));
+            if (r.usersScopeMissing) total.usersScopeMissing = true;
           } catch (err) {
             total.errors.push(`${cal.name}, ${a.toLocaleDateString("pt-PT")}: ${err.message}`);
           }
@@ -95,7 +97,7 @@ export default function GhlImportSection({ brand }) {
     } finally {
       setRunning(false);
       setProgress(null);
-      setResult({ ...total, servicesCreated: [...total.servicesCreated] });
+      setResult({ ...total, servicesCreated: [...total.servicesCreated], errors: [...new Set(total.errors)], sources: [...total.sources.entries()] });
       qc.invalidateQueries({ queryKey: ["booking_appointments", brand.id] });
       qc.invalidateQueries({ queryKey: ["brand_ghl_accounts", brand.id] });
     }
@@ -174,6 +176,15 @@ export default function GhlImportSection({ brand }) {
               <div>{result.found} marcações encontradas: {result.created} novas, {result.updated} atualizadas{result.skipped ? `, ${result.skipped} ignoradas` : ""}.</div>
               <div>{result.contactsCreated} clientes novas criadas no CRM.</div>
               {result.servicesCreated.length > 0 && <div>Serviços criados (arquivados): {result.servicesCreated.join(", ")}.</div>}
+              {result.sources.length > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  <div style={{ color: c.mist }}>De onde vieram (a mesma marcação pode aparecer no calendário e na profissional):</div>
+                  {result.sources.map(([name, count]) => <div key={name}>{name}: {count}</div>)}
+                </div>
+              )}
+              {result.usersScopeMissing && (
+                <div style={{ color: c.amber, marginTop: 4 }}>O token não tem acesso aos utilizadores (View Users): as marcações feitas no calendário de cada profissional não foram lidas.</div>
+              )}
               {result.errors.length > 0 && (
                 <div style={{ color: c.rose, marginTop: 4 }}>
                   {result.errors.length} erros. {result.errors.slice(0, 5).join(" ")}
