@@ -65,7 +65,7 @@ async function ghl(token, path, params = {}) {
   throw new Error("O GoHighLevel está a limitar pedidos. Tenta outra vez daqui a um minuto.");
 }
 
-const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
 function normalizePhone(raw, countryCode = "351") {
   let p = String(raw || "").trim().replace(/[^\d+]/g, "");
