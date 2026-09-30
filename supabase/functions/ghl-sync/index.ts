@@ -7,8 +7,10 @@
 //              token no Vault (nunca em claro) e testa-o.
 //   calendars  { brandId }                     lista os calendários da conta.
 //   import     { brandId, calendarId, from, to }  importa as marcações desse
-//              calendário entre from e to (ISO). O browser chama por blocos
-//              de ~1 mês para cada chamada caber no tempo da função.
+//              calendário entre from e to (ISO). calendarId "__all__" = de
+//              todos os calendários E de todos os utilizadores (no GoHighLevel
+//              há marcações que só aparecem pelo utilizador). O browser chama
+//              por blocos de ~1 mês para cada chamada caber no tempo da função.
 //   disconnect { brandId }
 //
 // Mapeamento:
@@ -190,16 +192,34 @@ Deno.serve(async (req) => {
   if (!calendarId || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to <= from) return json({ error: "Intervalo inválido." }, 400);
   if (to.getTime() - from.getTime() > 62 * 86400000) return json({ error: "Importa no máximo 2 meses de cada vez." }, 400);
 
-  let calendarName = "";
+  const calNames = new Map();
+  const userName = new Map();
   let events = [];
+  const range = { locationId, startTime: from.getTime(), endTime: to.getTime() };
   try {
-    const cal = await ghl(token, `/calendars/${calendarId}`).catch(() => null);
-    calendarName = cal?.calendar?.name || "";
-    const data = await ghl(token, "/calendars/events", { locationId, calendarId, startTime: from.getTime(), endTime: to.getTime() });
-    events = (data?.events || []).filter((e) => !e.deleted);
+    const cals = await ghl(token, "/calendars/", { locationId }).catch(() => null);
+    for (const c of cals?.calendars || []) calNames.set(c.id, c.name || "");
+    // Utilizadores (para a profissional e para ler as marcações de cada um).
+    try {
+      const data = await ghl(token, "/users/", { locationId });
+      for (const u of data?.users || []) userName.set(u.id, u.name || [u.firstName, u.lastName].filter(Boolean).join(" "));
+    } catch { /* sem users.readonly */ }
+
+    const byId = new Map();
+    const add = (list) => { for (const e of list || []) if (!e.deleted && e.id && !byId.has(e.id)) byId.set(e.id, e); };
+    if (calendarId === "__all__") {
+      for (const id of calNames.keys()) add((await ghl(token, "/calendars/events", { ...range, calendarId: id }))?.events);
+      for (const id of userName.keys()) {
+        try { add((await ghl(token, "/calendars/events", { ...range, userId: id }))?.events); } catch { /* utilizador sem calendário */ }
+      }
+    } else {
+      add((await ghl(token, "/calendars/events", { ...range, calendarId }))?.events);
+    }
+    events = [...byId.values()];
   } catch (err) {
     return json({ error: `GoHighLevel: ${err.message}` }, 502);
   }
+  const calendarNameOf = (ev) => calNames.get(ev.calendarId) || calNames.get(calendarId) || "";
 
   const report = { found: events.length, created: 0, updated: 0, skipped: 0, contactsCreated: 0, servicesCreated: [], errors: [] };
   if (!events.length) return json(report);
@@ -212,12 +232,6 @@ Deno.serve(async (req) => {
   const { data: staff } = await admin.from("booking_staff").select("id, name").eq("brand_id", brandId);
   const staffList = (staff || []).map((s) => ({ id: s.id, full: norm(s.name), first: norm(s.name).split(" ")[0] }));
 
-  // Utilizadores do GoHighLevel (para a profissional). Sem permissão, segue sem.
-  const userName = new Map();
-  try {
-    const data = await ghl(token, "/users/", { locationId });
-    for (const u of data?.users || []) userName.set(u.id, u.name || [u.firstName, u.lastName].filter(Boolean).join(" "));
-  } catch { /* sem users.readonly */ }
   const staffFor = (userId) => {
     const n = norm(userName.get(userId));
     if (!n) return null;
@@ -229,7 +243,7 @@ Deno.serve(async (req) => {
     const title = norm(ev.title);
     const byTitle = activeServices.find(([k]) => k && title.includes(k));
     if (byTitle) return byTitle[1].id;
-    const cal = norm(calendarName);
+    const cal = norm(calendarNameOf(ev));
     const byCal = activeServices.find(([k]) => k && (cal === k || cal.includes(k)));
     return byCal ? byCal[1].id : null;
   }
@@ -238,7 +252,7 @@ Deno.serve(async (req) => {
   async function serviceFor(ev, minutes) {
     const matched = matchService(ev);
     if (matched) return matched;
-    const name = calendarName || String(ev.title || "Serviço importado").slice(0, 120);
+    const name = calendarNameOf(ev) || String(ev.title || "Serviço importado").slice(0, 120);
     const existing = serviceByName.get(norm(name));
     if (existing) return existing.id;
     const { data: created, error } = await admin.from("booking_services")

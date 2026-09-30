@@ -80,7 +80,9 @@ export default function StripeImportModal({ brand, onClose }) {
       const kept = new Set();
 
       for (const [i, r] of services.entries()) {
-        const base = r.prices[0];
+        // Produto sem preço de pagamento único (ex: só subscrição ou preço
+        // livre) entra sem preço, para a equipa o pôr à mão.
+        const base = r.prices[0] || { amount: null };
         const baseMinutes = Math.max(5, parseInt(r.duration, 10) || 60);
         const groups = r.prices.length > 1 ? [{
           id: uid("g"),
