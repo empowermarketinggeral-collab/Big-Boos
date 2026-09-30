@@ -36,7 +36,7 @@ const AUTH_ERRORS = {
 const authMessage = (err) => AUTH_ERRORS[err?.message] || (/password/i.test(err?.message || "") ? "A palavra-passe tem de ter pelo menos 6 caracteres." : err?.message || "Algo correu mal. Tente novamente.");
 
 const LINK_ERRORS = {
-  team_account: "Tem sessão iniciada com uma conta da equipa. Termine a sessão para entrar como cliente.",
+  team_account: "Esta conta da equipa não tem acesso a esta marca. Termine a sessão para entrar como cliente.",
   email_not_confirmed: "Confirme primeiro o seu email: enviámos-lhe um link.",
   app_disabled: "A app ainda não está disponível.",
   contact_already_linked: "A sua ficha já está ligada a outra conta. Fale connosco para resolvermos.",
