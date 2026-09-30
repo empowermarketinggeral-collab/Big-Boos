@@ -102,17 +102,32 @@ const PUBLIC_PAGE = {
     style: { accentColor: "#C2A431", accentInk: "#1A0D0E", background: "#F6F1EA", surface: "#FFFDFA", ink: "#1A0D0E", titleFont: "Bodoni Moda", font: "Jost", tagline: "Cuidado com continuidade", contactPhone: "+351912345678" } },
   services: [
     { id: "s1", category: "Cabelo", name: "Brushing", description: "Secagem e modelação simples.", price: 10, duration_minutes: 30 },
-    { id: "s2", category: "Massagem", name: "Massagem Relaxante de Aromas", description: "Massagem com óleos essenciais selecionados.", price: 37.5, price_max: 70, duration_minutes: 45 },
-    { id: "s3", category: "Cabelo", name: "Coloração", description: "Coloração total ou do crescimento do cabelo.", price: 25, price_max: 44, duration_minutes: 90 },
+    { id: "s2", category: "Massagem", name: "Massagem Relaxante de Aromas", description: "Massagem com óleos essenciais selecionados.", price: 37.5, duration_minutes: 30,
+      option_groups: [{ id: "g1", name: "Duração", choices: [
+        { id: "c1", name: "30 minutos", price: 0, extra_minutes: 0 },
+        { id: "c2", name: "60 minutos", price: 27.5, extra_minutes: 30 },
+      ] }] },
+    { id: "s3", category: "Cabelo", name: "Coloração", description: "Coloração total ou do crescimento do cabelo.", price: 25, duration_minutes: 90,
+      option_groups: [{ id: "g2", name: "Brushing", choices: [
+        { id: "c3", name: "Sem brushing", price: 0, extra_minutes: 0 },
+        { id: "c4", name: "Brushing curto", price: 0, extra_minutes: 20 },
+        { id: "c5", name: "Brushing longo", price: 8.5, extra_minutes: 30, description: "Para cabelo abaixo dos ombros." },
+      ] }, { id: "g3", name: "Comprimento", choices: [
+        { id: "c6", name: "Raiz", price: 0, extra_minutes: 0 },
+        { id: "c7", name: "Total", price: 19, extra_minutes: 15 },
+      ] }] },
     { id: "s4", category: "Mãos", name: "Verniz Gel", description: "Manicure com aplicação de verniz gel.", price: 19, duration_minutes: 60 },
     { id: "s5", category: "Rosto", name: "Lifting de Pestanas", description: "Curvatura e definição natural das pestanas.", price: 25, duration_minutes: 60 },
     { id: "s6", category: "Cabelo", name: "Avaliação Capilar Gratuita", description: null, price: 0, duration_minutes: 30 },
   ],
   staff: [{ id: "st1", name: "Joana", photo_url: null }, { id: "st2", name: "Sofia", photo_url: null }],
-  upsells: [{ id: "u1", service_id: "s1", name: "Máscara de ouro", price: 15, extra_duration_minutes: 15 }],
+  upsells: [
+    { id: "u1", service_id: "s1", name: "Máscara de ouro", description: "Hidratação profunda com efeito luminoso.", price: 15, extra_duration_minutes: 15 },
+    { id: "u2", service_id: "s3", name: "Tratamento de queratina", description: null, price: 12.5, extra_duration_minutes: 10 },
+  ],
   packs: [
     { id: "p1", name: "Pack 5 limpezas", description: "Ideal para um tratamento contínuo.", price: 225, sessions_count: 5, service_ids: ["s1"], validity_days: 180 },
-    { id: "p2", name: "Pack 10 massagens", description: null, price: 400, sessions_count: 10, service_ids: [], validity_days: null },
+    { id: "p2", name: "Pack 10 massagens", description: null, price: 400, sessions_count: 9, service_ids: ["s2"], validity_days: null, bonus_sessions: 1, bonus_service_ids: ["s1"] },
   ],
   deposit: { enabled: true, percentage: 50, scope: "new_customers" },
   online_payments: true,

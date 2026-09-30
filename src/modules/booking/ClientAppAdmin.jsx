@@ -4,6 +4,7 @@ import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
 import { Plus, Pencil, Trash2, Link2, CheckCircle2, Smartphone, CreditCard, Package, Search } from "lucide-react";
 import { money } from "./publicBooking.js";
+import { MoneyInput, parseMoney, moneyInputValue } from "./ServiceOptions.jsx";
 
 /* ---------------------------------------------------------
    APP DAS CLIENTES, STRIPE DA MARCA E PACKS — painéis da equipa
@@ -280,16 +281,19 @@ function PackFormModal({ brandId, services, pack, onClose }) {
   const qc = useQueryClient();
   const [name, setName] = useState(pack?.name || "");
   const [description, setDescription] = useState(pack?.description || "");
-  const [price, setPrice] = useState(pack?.price ?? "");
+  const [price, setPrice] = useState(moneyInputValue(pack?.price));
   const [sessions, setSessions] = useState(pack?.sessions_count ?? 5);
   const [validity, setValidity] = useState(pack?.validity_days ?? "");
   const [serviceIds, setServiceIds] = useState(pack?.service_ids || []);
+  const [bonusSessions, setBonusSessions] = useState(pack?.bonus_sessions ?? 0);
+  const [bonusServiceIds, setBonusServiceIds] = useState(pack?.bonus_service_ids || []);
   const [error, setError] = useState("");
   const save = useMutation({
     mutationFn: async () => {
       const payload = {
-        name: name.trim(), description: description.trim() || null, price: Number(price), sessions_count: Number(sessions),
+        name: name.trim(), description: description.trim() || null, price: parseMoney(price), sessions_count: Number(sessions),
         validity_days: validity === "" ? null : Number(validity), service_ids: serviceIds,
+        bonus_sessions: Math.max(0, parseInt(bonusSessions, 10) || 0), bonus_service_ids: bonusServiceIds,
       };
       const { error: err } = pack
         ? await supabase.from("booking_packs").update(payload).eq("id", pack.id)
@@ -301,11 +305,12 @@ function PackFormModal({ brandId, services, pack, onClose }) {
   });
   const submit = () => {
     if (!name.trim()) return setError("O nome é obrigatório.");
-    if (!(Number(price) > 0)) return setError("Indica o preço.");
+    if (!(parseMoney(price) > 0)) return setError("Indica o preço (ex: 250 ou 249,90).");
     if (!(Number(sessions) > 0)) return setError("Indica o número de sessões.");
     save.mutate();
   };
   const toggleService = (id) => setServiceIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  const toggleBonusService = (id) => setBonusServiceIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
 
   return (
     <Modal title={pack ? "Editar pack" : "Novo pack"} onClose={onClose} width={460}>
@@ -313,8 +318,8 @@ function PackFormModal({ brandId, services, pack, onClose }) {
         <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome (ex: Pack 5 massagens)" />
         <textarea rows={2} style={{ ...inputStyle, resize: "vertical" }} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição (opcional)" />
         <div style={{ display: "grid", gridTemplateColumns: "var(--bb-grid-3, repeat(3, 1fr))", gap: 10 }}>
-          <label style={hint}>Preço (€)<input type="number" min="0" step="0.01" style={{ ...inputStyle, marginTop: 4 }} value={price} onChange={(e) => setPrice(e.target.value)} /></label>
-          <label style={hint}>Sessões<input type="number" min="1" style={{ ...inputStyle, marginTop: 4 }} value={sessions} onChange={(e) => setSessions(e.target.value)} /></label>
+          <label style={hint}>Preço (€)<MoneyInput style={{ marginTop: 4 }} value={price} onChange={setPrice} placeholder="0,00" /></label>
+          <label style={hint}>Sessões pagas<input type="number" min="1" style={{ ...inputStyle, marginTop: 4 }} value={sessions} onChange={(e) => setSessions(e.target.value)} /></label>
           <label style={hint}>Validade (dias)<input type="number" min="1" style={{ ...inputStyle, marginTop: 4 }} value={validity} onChange={(e) => setValidity(e.target.value)} placeholder="Sem limite" /></label>
         </div>
         <div>
@@ -326,6 +331,23 @@ function PackFormModal({ brandId, services, pack, onClose }) {
               </label>
             ))}
           </div>
+        </div>
+        <div style={{ borderTop: `1px solid ${c.line}`, paddingTop: 12 }}>
+          <div style={{ ...sans, fontSize: 13.5, fontWeight: 700, color: c.ink, marginBottom: 4 }}>Sessões de oferta (opcional)</div>
+          <div style={{ ...hint, marginBottom: 8 }}>Ex: 9 pagas e 1 de oferta de Brushing. A cliente recebe um pack "Oferta" à parte quando este fica ativo.</div>
+          <label style={{ ...hint, display: "block", maxWidth: 160 }}>Sessões de oferta<input type="number" min="0" style={{ ...inputStyle, marginTop: 4 }} value={bonusSessions} onChange={(e) => setBonusSessions(e.target.value)} /></label>
+          {Number(bonusSessions) > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ ...hint, marginBottom: 6 }}>A oferta serve para (nenhum escolhido = qualquer serviço)</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {services.map((s) => (
+                  <label key={s.id} style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "center", gap: 8 }}>
+                    <input type="checkbox" checked={bonusServiceIds.includes(s.id)} onChange={() => toggleBonusService(s.id)} /> {s.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
         <button onClick={submit} disabled={save.isPending} style={{ ...btnPrimary, width: "fit-content" }}>{save.isPending ? "A guardar…" : "Guardar"}</button>
@@ -414,7 +436,10 @@ export function PacksSection({ brand, services }) {
           <div key={p.id} style={row}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink }}>{p.name}</div>
-              <div style={{ ...hint, marginTop: 2 }}>{money(p.price)}, {p.sessions_count} sessões{p.validity_days ? `, válido ${p.validity_days} dias` : ""}</div>
+              <div style={{ ...hint, marginTop: 2 }}>
+                {money(p.price)}, {p.sessions_count} sessões{p.bonus_sessions > 0 ? ` e ${p.bonus_sessions} de oferta${p.bonus_service_ids?.length ? ` (${p.bonus_service_ids.map((id) => services.find((s) => s.id === id)?.name).filter(Boolean).join(", ")})` : ""}` : ""}
+                {p.validity_days ? `, válido ${p.validity_days} dias` : ""}
+              </div>
             </div>
             <button onClick={() => setEditing(p)} style={iconBtn} aria-label="Editar"><Pencil size={13} /></button>
             <button onClick={() => archive.mutate(p.id)} style={iconBtn} aria-label="Arquivar"><Trash2 size={13} /></button>

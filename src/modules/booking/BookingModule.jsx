@@ -6,6 +6,8 @@ import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, PAGE_
 import BookingFlow, { BrandHeader } from "./BookingFlow.jsx";
 import { usePublicBookingPage, brandThemeVars, brandStyle, T } from "./publicBooking.js";
 import ImportAgendaModal from "./ImportAgendaModal.jsx";
+import GhlImportSection from "./GhlImportSection.jsx";
+import { MoneyInput, parseMoney, moneyInputValue, ServiceUpsellPicker, useUpsellLinks, useSetServiceUpsells, UpsellLibrarySection, OptionGroupsEditor, normalizeOptionGroups, optionGroupsToForm } from "./ServiceOptions.jsx";
 import AgendaCalendar from "./AgendaCalendar.jsx";
 import { ClientAppSection, StripeAccountSection, PacksSection } from "./ClientAppAdmin.jsx";
 import { ArrowLeft, Plus, Trash2, Pencil, Link2, CheckCircle2, Calendar as CalendarIcon, User, History, Upload, CreditCard } from "lucide-react";
@@ -42,7 +44,7 @@ const REMINDER_TYPES = [
 ];
 
 const publicBookingUrl = (slug) => `${window.location.origin}/agendar/${slug}`;
-const money = (v) => (v == null ? "—" : new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v));
+const money = (v) => (v == null ? "—" : new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR", minimumFractionDigits: Number.isInteger(Number(v)) ? 0 : 2, maximumFractionDigits: 2 }).format(v));
 
 /* ---------------------------------------------------------
    DATA — profissionais
@@ -103,11 +105,12 @@ function useServices(brandId) {
 function useSaveService(brandId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name, description, price, durationMinutes, priceMax, category, careRecommendations }) => {
+    mutationFn: async ({ id, name, description, price, durationMinutes, priceMax, category, careRecommendations, optionGroups }) => {
       const payload = {
-        name, description, price: price === "" ? null : Number(price), duration_minutes: Number(durationMinutes),
-        price_max: priceMax === "" || priceMax == null ? null : Number(priceMax),
+        name, description: description?.trim() || null, price, duration_minutes: Number(durationMinutes),
+        price_max: priceMax,
         category: category?.trim() || null, care_recommendations: careRecommendations?.trim() || null,
+        option_groups: optionGroups,
       };
       if (id) {
         const { error } = await supabase.from("booking_services").update(payload).eq("id", id);
@@ -135,40 +138,6 @@ function useDeleteService(brandId) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["booking_services", brandId] }),
   });
 }
-function useUpsells(serviceId) {
-  return useQuery({
-    queryKey: ["booking_service_upsells", serviceId],
-    enabled: !!serviceId,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("booking_service_upsells").select("*").eq("service_id", serviceId).order("created_at");
-      if (error) throw error;
-      return data;
-    },
-  });
-}
-function useSaveUpsell(brandId, serviceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ name, price, extraDurationMinutes }) => {
-      const { error } = await supabase.from("booking_service_upsells").insert({
-        brand_id: brandId, service_id: serviceId, name, price: price === "" ? null : Number(price), extra_duration_minutes: Number(extraDurationMinutes) || 0,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["booking_service_upsells", serviceId] }),
-  });
-}
-function useDeleteUpsell(serviceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id) => {
-      const { error } = await supabase.from("booking_service_upsells").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["booking_service_upsells", serviceId] }),
-  });
-}
-
 /* ---------------------------------------------------------
    DATA — quem faz cada serviço (booking_service_staff).
    Serviço sem ninguém = qualquer profissional pode fazê-lo.
@@ -294,9 +263,11 @@ function useReminderSettings(brandId) {
 function useSaveReminderSetting(brandId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ type, enabled, channel, messageTemplate, reviewLink }) => {
+    mutationFn: async ({ type, enabled, channel, messageTemplate, reviewLink, visitNumbers, visitMessages }) => {
+      const row = { brand_id: brandId, type, enabled, channel, message_template: messageTemplate, review_link: reviewLink };
+      if (type === "post_visit") Object.assign(row, { visit_numbers: visitNumbers?.length ? visitNumbers : null, visit_messages: visitMessages || {} });
       const { error } = await supabase.from("booking_reminder_settings").upsert(
-        { brand_id: brandId, type, enabled, channel, message_template: messageTemplate, review_link: reviewLink },
+        row,
         { onConflict: "brand_id,type" }
       );
       if (error) throw error;
@@ -530,42 +501,43 @@ function StaffSection({ brand, selectedStaffId, onSelectStaff }) {
 /* ---------------------------------------------------------
    SERVIÇOS + UPSELLS
 --------------------------------------------------------- */
-function ServiceFormModal({ brandId, service, categories, staff, links, onClose }) {
+function ServiceFormModal({ brandId, service, categories, staff, links, upsellLinks, onClose }) {
   const setLinks = useSetServiceStaff(brandId);
   const [staffIds, setStaffIds] = useState(() => (links || []).filter((l) => l.service_id === service?.id).map((l) => l.staff_id));
   const toggleStaff = (id) => setStaffIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
   const [name, setName] = useState(service?.name || "");
   const [category, setCategory] = useState(service?.category || "");
-  const [priceMax, setPriceMax] = useState(service?.price_max ?? "");
+  const [priceMax, setPriceMax] = useState(moneyInputValue(service?.price_max));
   const [careRecommendations, setCareRecommendations] = useState(service?.care_recommendations || "");
   const [description, setDescription] = useState(service?.description || "");
-  const [price, setPrice] = useState(service?.price ?? "");
+  const [price, setPrice] = useState(moneyInputValue(service?.price));
   const [durationMinutes, setDurationMinutes] = useState(service?.duration_minutes || 30);
   const [error, setError] = useState("");
   const [savedId, setSavedId] = useState(service?.id || null);
-  const [newUpsellName, setNewUpsellName] = useState("");
-  const [newUpsellPrice, setNewUpsellPrice] = useState("");
-  const [newUpsellMinutes, setNewUpsellMinutes] = useState("");
+  const [optionGroups, setOptionGroups] = useState(() => optionGroupsToForm(service?.option_groups));
+  const [upsellIds, setUpsellIds] = useState(() => (upsellLinks || []).filter((l) => l.service_id === service?.id).map((l) => l.upsell_id));
+  const [saved, setSaved] = useState(false);
   const saveService = useSaveService(brandId);
-  const upsellsQuery = useUpsells(savedId);
-  const saveUpsell = useSaveUpsell(brandId, savedId);
-  const deleteUpsell = useDeleteUpsell(savedId);
+  const setServiceUpsells = useSetServiceUpsells(brandId);
 
   const save = async () => {
+    setError("");
     if (!name.trim()) { setError("O nome é obrigatório."); return; }
+    const p = parseMoney(price);
+    const pMax = parseMoney(priceMax);
+    if (Number.isNaN(p) || Number.isNaN(pMax)) { setError("O preço não parece válido (ex: 12,50)."); return; }
+    if (!(parseInt(durationMinutes, 10) > 0)) { setError("Indica a duração em minutos."); return; }
     try {
-      const id = await saveService.mutateAsync({ id: savedId, name: name.trim(), description, price, durationMinutes, priceMax, category, careRecommendations });
+      const groups = normalizeOptionGroups(optionGroups);
+      const id = await saveService.mutateAsync({ id: savedId, name: name.trim(), description, price: p, durationMinutes, priceMax: pMax, category, careRecommendations, optionGroups: groups });
       await setLinks.mutateAsync({ column: "service_id", id, otherIds: staffIds });
+      await setServiceUpsells.mutateAsync({ serviceId: id, upsellIds });
       setSavedId(id);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
     } catch (err) {
       setError(err.message || "Não foi possível guardar.");
     }
-  };
-
-  const addUpsell = async () => {
-    if (!newUpsellName.trim()) return;
-    await saveUpsell.mutateAsync({ name: newUpsellName.trim(), price: newUpsellPrice, extraDurationMinutes: newUpsellMinutes });
-    setNewUpsellName(""); setNewUpsellPrice(""); setNewUpsellMinutes("");
   };
 
   return (
@@ -574,10 +546,10 @@ function ServiceFormModal({ brandId, service, categories, staff, links, onClose 
         <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome (ex: Corte de cabelo)" />
         <input style={inputStyle} list="booking-service-categories" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Categoria (ex: Cabelo)" />
         <datalist id="booking-service-categories">{categories.map((cat) => <option key={cat} value={cat} />)}</datalist>
-        <textarea rows={2} style={{ ...inputStyle, resize: "vertical" }} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição (opcional)" />
+        <textarea rows={2} style={{ ...inputStyle, resize: "vertical" }} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Breve explicação (opcional, a cliente vê)" />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10 }}>
-          <label style={{ ...sans, fontSize: 12.5, color: c.mist }}>Preço (€)<input type="number" style={{ ...inputStyle, marginTop: 4 }} value={price} onChange={(e) => setPrice(e.target.value)} /></label>
-          <label style={{ ...sans, fontSize: 12.5, color: c.mist }}>Até (€, opcional)<input type="number" style={{ ...inputStyle, marginTop: 4 }} value={priceMax} onChange={(e) => setPriceMax(e.target.value)} /></label>
+          <label style={{ ...sans, fontSize: 12.5, color: c.mist }}>Preço (€)<MoneyInput style={{ marginTop: 4 }} value={price} onChange={setPrice} placeholder="0,00" /></label>
+          <label style={{ ...sans, fontSize: 12.5, color: c.mist }}>Até (€, opcional)<MoneyInput style={{ marginTop: 4 }} value={priceMax} onChange={setPriceMax} /></label>
           <label style={{ ...sans, fontSize: 12.5, color: c.mist }}>Duração (min)<input type="number" style={{ ...inputStyle, marginTop: 4 }} value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} /></label>
         </div>
         {staff.length > 0 && (
@@ -593,30 +565,16 @@ function ServiceFormModal({ brandId, service, categories, staff, links, onClose 
           </div>
         )}
         <textarea rows={3} style={{ ...inputStyle, resize: "vertical" }} value={careRecommendations} onChange={(e) => setCareRecommendations(e.target.value)} placeholder="Recomendações de cuidado depois do serviço (a cliente vê na app)" />
+        <div style={{ borderTop: `1px solid ${c.line}`, paddingTop: 14 }}>
+          <OptionGroupsEditor groups={optionGroups} onChange={setOptionGroups} basePrice={parseMoney(price) || 0} baseMinutes={durationMinutes} />
+        </div>
+        <div style={{ borderTop: `1px solid ${c.line}`, paddingTop: 14 }}>
+          <ServiceUpsellPicker brandId={brandId} selected={upsellIds} onChange={setUpsellIds} />
+        </div>
         {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
-        <button onClick={save} disabled={saveService.isPending} style={{ ...btnPrimary, width: "fit-content" }}>
-          {saveService.isPending ? "A guardar…" : savedId ? "Guardar alterações" : "Criar serviço"}
+        <button onClick={save} disabled={saveService.isPending || setServiceUpsells.isPending} style={{ ...btnPrimary, width: "fit-content" }}>
+          {saveService.isPending || setServiceUpsells.isPending ? "A guardar…" : saved ? "Guardado ✓" : savedId ? "Guardar alterações" : "Criar serviço"}
         </button>
-
-        {savedId && (
-          <div style={{ borderTop: `1px solid ${c.line}`, paddingTop: 14, marginTop: 4 }}>
-            <div style={{ ...sans, fontSize: 13.5, fontWeight: 700, color: c.ink, marginBottom: 8 }}>Upsells (extras opcionais)</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
-              {(upsellsQuery.data || []).map((u) => (
-                <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 8, background: c.paper, borderRadius: 6, padding: "6px 10px" }}>
-                  <div style={{ flex: 1, ...sans, fontSize: 13.5, color: c.ink }}>{u.name} — {money(u.price)}, +{u.extra_duration_minutes}min</div>
-                  <button onClick={() => deleteUpsell.mutate(u.id)} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 2 }}><Trash2 size={12} /></button>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <input style={{ ...inputStyle, fontSize: 13.5 }} value={newUpsellName} onChange={(e) => setNewUpsellName(e.target.value)} placeholder="Nome (ex: Brushing)" />
-              <input type="number" style={{ ...inputStyle, fontSize: 13.5, width: 80 }} value={newUpsellPrice} onChange={(e) => setNewUpsellPrice(e.target.value)} placeholder="€" />
-              <input type="number" style={{ ...inputStyle, fontSize: 13.5, width: 80 }} value={newUpsellMinutes} onChange={(e) => setNewUpsellMinutes(e.target.value)} placeholder="+min" />
-              <button onClick={addUpsell} style={{ background: "none", border: "none", cursor: "pointer", color: c.bossText, padding: 4 }}><Plus size={16} /></button>
-            </div>
-          </div>
-        )}
       </div>
     </Modal>
   );
@@ -626,6 +584,7 @@ function ServicesSection({ brand }) {
   const servicesQuery = useServices(brand.id);
   const staffQuery = useStaff(brand.id);
   const linksQuery = useServiceStaff(brand.id);
+  const upsellLinksQuery = useUpsellLinks(brand.id);
   const staffList = (staffQuery.data || []).filter((st) => st.status !== "archived");
   const links = linksQuery.data || [];
   const staffNames = (serviceId) => links.filter((l) => l.service_id === serviceId).map((l) => staffList.find((st) => st.id === l.staff_id)?.name).filter(Boolean);
@@ -651,7 +610,9 @@ function ServicesSection({ brand }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink }}>{s.name}</div>
               <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
-                {money(s.price)}{s.price_max ? ` a ${money(s.price_max)}` : ""}, {s.duration_minutes} min{s.status === "archived" ? ", arquivado (só histórico)" : ""}
+                {money(s.price)}{s.price_max ? ` a ${money(s.price_max)}` : ""}, {s.duration_minutes} min
+                {s.option_groups?.length ? `, ${s.option_groups.length === 1 ? `${s.option_groups[0].choices.length} opções de ${s.option_groups[0].name.toLowerCase()}` : `${s.option_groups.length} grupos de opções`}` : ""}
+                {s.status === "archived" ? ", arquivado (só histórico)" : ""}
               </div>
               {s.status !== "archived" && staffList.length > 1 && (
                 <div style={{ ...sans, fontSize: 12.5, marginTop: 2, color: staffNames(s.id).length ? c.mist : c.amber }}>
@@ -666,7 +627,7 @@ function ServicesSection({ brand }) {
         ))}
         {!servicesQuery.data?.length && <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "16px 0" }}>Ainda sem serviços.</div>}
       </div>
-      {showForm && <ServiceFormModal brandId={brand.id} service={editing} categories={categories} staff={staffList} links={links} onClose={() => setShowForm(false)} />}
+      {showForm && <ServiceFormModal key={editing?.id || "new"} brandId={brand.id} service={editing} categories={categories} staff={staffList} links={links} upsellLinks={upsellLinksQuery.data || []} onClose={() => setShowForm(false)} />}
     </div>
   );
 }
@@ -1047,12 +1008,16 @@ function ReminderRow({ brand, type, label, setting }) {
   const [channel, setChannel] = useState(setting?.channel || "whatsapp");
   const [template, setTemplate] = useState(setting?.message_template || "");
   const [reviewLink, setReviewLink] = useState(setting?.review_link || "");
+  const [visitText, setVisitText] = useState((setting?.visit_numbers || []).join(", "));
+  const [visitMessages, setVisitMessages] = useState(setting?.visit_messages || {});
   const save = useSaveReminderSetting(brand.id);
+  const visitNumbers = [...new Set(visitText.split(/[^\d]+/).map((n) => parseInt(n, 10)).filter((n) => n > 0))].sort((a, b) => a - b);
 
   const persist = (patch) => {
-    const next = { enabled, channel, messageTemplate: template, reviewLink, ...patch };
+    const next = { enabled, channel, messageTemplate: template, reviewLink, visitNumbers, visitMessages, ...patch };
     save.mutate({ type, ...next });
   };
+  const fieldStyle = { ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 7, padding: "7px 9px", outline: "none", background: c.folha };
 
   return (
     <div style={{ background: c.paper, borderRadius: 6, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1072,17 +1037,36 @@ function ReminderRow({ brand, type, label, setting }) {
         value={template}
         onChange={(e) => setTemplate(e.target.value)}
         onBlur={() => persist({})}
-        placeholder="Mensagem — usa {{nome}}, {{servico}}, {{data}}, {{hora}}"
+        placeholder={type === "post_visit" && visitNumbers.length ? "Mensagem para as visitas sem texto próprio" : "Mensagem. Usa {{primeiro_nome}}, {{nome}}, {{servico}}, {{data}}, {{hora}}"}
         style={{ ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 7, padding: "7px 9px", outline: "none", resize: "vertical", background: c.folha }}
       />
       {type === "post_visit" && (
-        <input
-          value={reviewLink}
-          onChange={(e) => setReviewLink(e.target.value)}
-          onBlur={() => persist({})}
-          placeholder="Link de avaliação (ex: Google My Business)"
-          style={{ ...sans, fontSize: 13.5, border: `1px solid ${c.lineStrong}`, borderRadius: 7, padding: "7px 9px", outline: "none", background: c.folha }}
-        />
+        <>
+          <input
+            value={reviewLink}
+            onChange={(e) => setReviewLink(e.target.value)}
+            onBlur={() => persist({})}
+            placeholder="Link de avaliação (ex: Google My Business), entra em {{avaliacao}}"
+            style={fieldStyle}
+          />
+          <label style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", flexDirection: "column", gap: 4 }}>
+            Só nestas visitas (vazio = todas)
+            <input value={visitText} onChange={(e) => setVisitText(e.target.value)} onBlur={() => persist({})} placeholder="Ex: 1, 10, 30" style={fieldStyle} />
+          </label>
+          {visitNumbers.map((n) => (
+            <label key={n} style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", flexDirection: "column", gap: 4 }}>
+              Mensagem da {n}.ª visita
+              <textarea
+                rows={2}
+                value={visitMessages[String(n)] || ""}
+                onChange={(e) => setVisitMessages((m) => ({ ...m, [String(n)]: e.target.value }))}
+                onBlur={() => persist({})}
+                placeholder="Sem texto próprio usa a mensagem de cima"
+                style={{ ...fieldStyle, resize: "vertical" }}
+              />
+            </label>
+          ))}
+        </>
       )}
     </div>
   );
@@ -1204,7 +1188,7 @@ function RemindersSection({ brand }) {
   return (
     <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
       <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 4 }}>Lembretes automáticos</div>
-      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 14 }}>Por WhatsApp ou Email — reaproveita as contas já ligadas nesses módulos.</div>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 14 }}>Por WhatsApp, SMS ou email, com as contas já ligadas nesses módulos. Horas em hora de Lisboa.</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {REMINDER_TYPES.map((rt) => (
           <ReminderRow key={rt.value} brand={brand} type={rt.value} label={rt.label} setting={settings.find((s) => s.type === rt.value)} />
@@ -1343,11 +1327,13 @@ export default function BookingModule({ brand, onBack, session }) {
 
       <div style={{ display: tab === "agenda" ? "none" : "flex", flexDirection: "column", gap: 20, maxWidth: 680 }}>
         {tab === "list" && <AppointmentsSection brand={brand} staff={staffQuery.data || []} />}
+        {tab === "list" && <GhlImportSection brand={brand} />}
         {tab === "team" && (
           <>
             <StaffSection brand={brand} selectedStaffId={selectedStaffId} onSelectStaff={setSelectedStaffId} />
             <AvailabilitySection brand={brand} staffId={selectedStaffId} onSelectStaff={setSelectedStaffId} />
             <ServicesSection brand={brand} />
+            <UpsellLibrarySection brand={brand} services={servicesQuery.data || []} />
           </>
         )}
         {tab === "app" && (

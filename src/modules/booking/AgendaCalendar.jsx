@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Plus, Phone, History, AlertTriangle } from "
 import { ContactPicker } from "./ClientAppAdmin.jsx";
 import { normalizePhone } from "../../shared/csv.js";
 import { money } from "./publicBooking.js";
+import { MoneyInput, parseMoney, moneyInputValue } from "./ServiceOptions.jsx";
 
 /* ---------------------------------------------------------
    AGENDA — calendário das marcações da marca.
@@ -306,7 +307,7 @@ function AppointmentModal({ brandId, appt, staff, onClose, onOpenContact }) {
   return (
     <Modal title={appt.customer_name} onClose={onClose} width={460}>
       <div style={{ marginBottom: 14 }}>
-        <div style={row}><span style={lbl}>Serviço</span><span>{appt.booking_services?.name || "?"}{appt.selected_upsells?.length ? ` e ${appt.selected_upsells.map((u) => u.name).join(", ")}` : ""}</span></div>
+        <div style={row}><span style={lbl}>Serviço</span><span>{appt.booking_services?.name || "?"}{appt.selected_options?.length ? ` (${appt.selected_options.map((o) => o.name).join(", ")})` : ""}{appt.selected_upsells?.length ? ` e ${appt.selected_upsells.map((u) => u.name).join(", ")}` : ""}</span></div>
         <div style={row}><span style={lbl}>Quando</span><span>{cap(start.toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" }))}, {hhmm(start)} às {hhmm(new Date(appt.ends_at))}</span></div>
         <div style={row}><span style={lbl}>Profissional</span><span>{appt.booking_staff?.name || "Sem profissional"}</span></div>
         <div style={row}><span style={lbl}>Estado</span><span>{STATUS_LABEL[appt.status] || appt.status}</span></div>
@@ -381,7 +382,7 @@ function NewAppointmentModal({ brandId, statics, initial, onClose }) {
   useEffect(() => {
     if (!service) return;
     setDuration(service.duration_minutes);
-    setPrice(service.price ?? "");
+    setPrice(moneyInputValue(service.price));
     if (assigned.length && !assigned.includes(staffId)) setStaffId(assigned[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serviceId]);
@@ -404,6 +405,7 @@ function NewAppointmentModal({ brandId, statics, initial, onClose }) {
     mutationFn: async (force) => {
       const start = new Date(`${date}T${time}:00`);
       if (Number.isNaN(start.getTime())) throw new Error("Data ou hora inválida.");
+      if (Number.isNaN(parseMoney(price))) throw new Error("O preço não parece válido (ex: 12,50).");
       const end = new Date(start.getTime() + Number(duration) * 60000);
 
       // Aviso (não bloqueia): sobreposição com outra marcação da mesma profissional.
@@ -439,7 +441,7 @@ function NewAppointmentModal({ brandId, statics, initial, onClose }) {
         brand_id: brandId, service_id: serviceId, staff_id: staffId, contact_id: c2.id,
         customer_name: c2.name, customer_phone: c2.phone || null, customer_email: c2.email || null,
         starts_at: start.toISOString(), ends_at: end.toISOString(), status: "confirmed",
-        total_price: price === "" ? null : Number(price), selected_upsells: [],
+        total_price: parseMoney(price), selected_upsells: [],
         deposit_required: false, deposit_status: "not_required", client_pack_id: packId || null, source: "manual",
       });
       if (err) throw err;
@@ -501,7 +503,7 @@ function NewAppointmentModal({ brandId, statics, initial, onClose }) {
           <label style={small}>Dia<input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...inputStyle, marginTop: 4 }} /></label>
           <label style={small}>Hora<input type="time" step={300} value={time} onChange={(e) => setTime(e.target.value)} style={{ ...inputStyle, marginTop: 4 }} /></label>
           <label style={small}>Duração (min)<input type="number" min={5} step={5} value={duration} onChange={(e) => setDuration(e.target.value)} style={{ ...inputStyle, marginTop: 4 }} /></label>
-          <label style={small}>Preço (€)<input type="number" min={0} step="0.5" value={price} onChange={(e) => setPrice(e.target.value)} style={{ ...inputStyle, marginTop: 4 }} /></label>
+          <label style={small}>Preço (€)<MoneyInput value={price} onChange={setPrice} style={{ marginTop: 4 }} placeholder="0,00" /></label>
         </div>
 
         {usablePacks.length > 0 && (
