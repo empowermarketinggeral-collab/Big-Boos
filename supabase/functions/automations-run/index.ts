@@ -112,7 +112,7 @@ async function sendSmsText(admin, brandId, toPhone, body, contactId) {
   if (!res.ok) throw new Error(`Falha ao enviar SMS para ${toPhone}: ${data?.message || "erro desconhecido"}`);
 }
 
-async function sendEmailViaResend(admin, brandId, toEmail, subject, html) {
+async function sendEmailViaResend(admin, brandId, toEmail, subject, html, text = null) {
   const { data: domain } = await admin.from("email_domains").select("from_name, from_email, api_key_ref").eq("brand_id", brandId).maybeSingle();
   if (!domain) return { ok: false, providerRef: null, error: "Esta marca não tem email ligado." };
 
@@ -120,41 +120,212 @@ async function sendEmailViaResend(admin, brandId, toEmail, subject, html) {
   if (!apiKey) return { ok: false, providerRef: null, error: "Não foi possível obter a chave de envio." };
 
   const from = domain.from_name ? `${domain.from_name} <${domain.from_email}>` : domain.from_email;
+  const payload = { from, to: toEmail, subject, html: html || "" };
+  if (text) payload.text = text;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: toEmail, subject, html: html || "" }),
+    body: JSON.stringify(payload),
   });
   const data = await res.json();
   return { ok: res.ok, providerRef: data?.id || null, error: res.ok ? null : data?.message || data?.error || JSON.stringify(data) };
 }
 
+// Emails escritos como texto simples (sem etiquetas HTML) seguem com
+// parágrafos: linha em branco = novo parágrafo, quebra simples = <br>.
+// Também vai a versão só texto (melhor entrega). Com HTML, fica como está.
+const HTML_TAG = /<(p|br|div|a|strong|b|em|i|span|ul|ol|li|table|h[1-6])\b/i;
+const escapeHtml = (v) => String(v).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+
+function buildEmailBodies(body, preheader) {
+  const hidden = preheader
+    ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(preheader)}</div>`
+    : "";
+  if (HTML_TAG.test(body)) return { html: hidden + body, text: null };
+  const paragraphs = body.replace(/\r\n/g, "\n").trim().split(/\n\s*\n/);
+  const html = paragraphs
+    .map((para) => `<p>${escapeHtml(para.trim()).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>').replace(/\n/g, "<br>")}</p>`)
+    .join("\n");
+  return { html: hidden + html, text: body.trim() };
+}
+
 // Substitui {{variavel}} pelos dados do contacto. Falha (em vez de enviar
 // "Olá !") se alguma variável não tiver valor.
-function renderTemplate(text, contact) {
+//   {{nome_marca|tua marca}}  valor de reserva quando o campo está vazio
+//                             ({{campo|}} = pode ficar vazio)
+//   Um campo cujo valor tem {{...}} (ex.: uma variante de parágrafo) é
+//   preenchido também com os dados do contacto.
+const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+function parseDateField(raw) {
+  if (!raw) return null;
+  const d = new Date(`${String(raw).slice(0, 10)}T12:00:00Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+// Variáveis calculadas a partir de campos do contacto.
+function computedVariable(key, contact) {
+  const cf = contact?.custom_fields || {};
+  if (key === "em_mes_reuniao") return cf.mes_reuniao ? `em ${cf.mes_reuniao}` : undefined;
+  if (key === "meses_desde_projeto") {
+    const end = parseDateField(cf.data_fim_projeto);
+    if (!end) return undefined;
+    const now = new Date();
+    return String(Math.max(0, (now.getUTCFullYear() - end.getUTCFullYear()) * 12 + now.getUTCMonth() - end.getUTCMonth()));
+  }
+  if (key === "data_limite_integracao") {
+    if (cf.data_limite_integracao) return cf.data_limite_integracao;
+    const delivered = parseDateField(cf.data_entrega_mapa);
+    if (!delivered) return undefined;
+    delivered.setUTCDate(delivered.getUTCDate() + 30);
+    return `${delivered.getUTCDate()} de ${MESES[delivered.getUTCMonth()]}`;
+  }
+  return undefined;
+}
+
+function renderTemplate(text, contact, depth = 0) {
   if (!text) return text;
   const missing = [];
-  const out = text.replace(/\{\{\s*([\w]+)\s*\}\}/g, (_m, key) => {
+  const out = text.replace(/\{\{\s*(\w+)\s*(?:\|([^{}]*))?\}\}/g, (_m, key, fallback) => {
     let value;
     if (key === "primeiro_nome") value = (contact?.name || "").trim().split(/\s+/)[0];
     else if (key === "nome") value = contact?.name;
     else if (key === "email") value = contact?.email;
     else if (key === "telefone") value = contact?.phone;
     else if (key === "ano_seguinte") value = String(new Date().getFullYear() + 1);
-    else value = contact?.custom_fields?.[key];
-    if (value === undefined || value === null || String(value).trim() === "") missing.push(key);
-    return String(value ?? "");
+    else value = contact?.custom_fields?.[key] ?? computedVariable(key, contact);
+    if (value === undefined || value === null || String(value).trim() === "") {
+      if (fallback !== undefined) return fallback;
+      missing.push(key);
+      return "";
+    }
+    value = String(value);
+    if (depth < 1 && value.includes("{{")) {
+      try {
+        value = renderTemplate(value, contact, depth + 1);
+      } catch (err) {
+        missing.push(`${key} (${String(err?.message || err).replace(/^Variável sem valor no contacto: /, "")})`);
+      }
+    }
+    return value;
   });
   if (missing.length) throw new Error(`Variável sem valor no contacto: ${[...new Set(missing)].join(", ")}`);
   return out;
 }
 
-// Paragem automática: tag de paragem (ex.: já comprou) ou resposta do contacto no WhatsApp.
+// Nunca sai um email com texto por preencher.
+function assertNoPlaceholders(...parts) {
+  for (const part of parts) {
+    if (/\[AJUSTAR|\{\{|\}\}/.test(part || "")) {
+      throw new Error("O email ainda tem texto por preencher ([AJUSTAR] ou {{...}}). Edita o passo antes de voltar a ativar.");
+    }
+  }
+}
+
+// ---------------------------------------------------------
+// Janela de envio e limite semanal (trigger_config da automação):
+//   sendWindow: { days: [2,3,4], start: "08:30", end: "10:00", tz: "Europe/Lisbon" }
+//               dias ISO (1 = segunda … 7 = domingo)
+//   maxEmailsPerWeek: 2   (conta todos os emails enviados ao contacto)
+// Um passo com config.sendNow ignora os dois (ex.: resumo 1h após reunião).
+// ---------------------------------------------------------
+function zonedParts(date, tz) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", weekday: "short", hourCycle: "h23",
+    }).formatToParts(date).map((p) => [p.type, p.value]),
+  );
+  const weekday = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 }[parts.weekday];
+  return { year: +parts.year, month: +parts.month, day: +parts.day, hour: +parts.hour, minute: +parts.minute, weekday };
+}
+
+// Instante UTC de uma hora local (ano, mês, dia, hh:mm) no fuso indicado.
+function zonedTimeToUtc(year, month, day, hour, minute, tz) {
+  const guess = Date.UTC(year, month - 1, day, hour, minute);
+  const p = zonedParts(new Date(guess), tz);
+  const offset = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute) - guess;
+  return new Date(guess - offset);
+}
+
+// null = pode enviar já; senão, o próximo instante dentro da janela.
+function nextSendWindow(from, win) {
+  const tz = win.tz || "Europe/Lisbon";
+  const days = Array.isArray(win.days) && win.days.length ? win.days.map(Number) : [1, 2, 3, 4, 5];
+  const [sh, sm] = String(win.start || "08:30").split(":").map(Number);
+  const [eh, em] = String(win.end || "10:00").split(":").map(Number);
+  const startMin = sh * 60 + sm;
+  const endMin = eh * 60 + em;
+  const now = zonedParts(from, tz);
+  const nowMin = now.hour * 60 + now.minute;
+  if (days.includes(now.weekday) && nowMin >= startMin && nowMin < endMin) return null;
+  for (let i = 0; i < 8; i++) {
+    const probe = new Date(Date.UTC(now.year, now.month - 1, now.day + i, 12));
+    const weekday = ((now.weekday - 1 + i) % 7) + 1;
+    if (!days.includes(weekday) || (i === 0 && nowMin >= startMin)) continue;
+    // Espalha os envios pela janela para não saírem todos ao mesmo minuto.
+    const jitter = Math.floor(Math.random() * Math.max(1, endMin - startMin - 5));
+    const minutes = startMin + jitter;
+    return zonedTimeToUtc(probe.getUTCFullYear(), probe.getUTCMonth() + 1, probe.getUTCDate(), Math.floor(minutes / 60), minutes % 60, tz);
+  }
+  return null;
+}
+
+const normalize = (v) => String(v ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+function conditionHolds(contact, cond) {
+  const value = contact?.custom_fields?.[cond.field];
+  const filled = normalize(value) !== "";
+  if (cond.empty) return !filled;
+  if (cond.equals !== undefined) return normalize(value) === normalize(cond.equals);
+  return filled;
+}
+
+async function emailDeferral(admin, contact, triggerConfig, step) {
+  if (step.config?.sendNow || !contact) return null;
+  let earliest = new Date();
+  const max = Number(triggerConfig?.maxEmailsPerWeek || 0);
+  if (max > 0) {
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+    const { data: sends } = await admin
+      .from("email_sends")
+      .select("sent_at")
+      .eq("contact_id", contact.id)
+      .eq("status", "sent")
+      .gt("sent_at", weekAgo)
+      .order("sent_at", { ascending: true });
+    if (sends && sends.length >= max) {
+      // Liberta-se quando o envio mais antigo que conta sair dos 7 dias.
+      earliest = new Date(new Date(sends[sends.length - max].sent_at).getTime() + 7 * 86400000 + 60000);
+    }
+  }
+  const win = triggerConfig?.sendWindow;
+  const windowStart = win ? nextSendWindow(earliest, win) : null;
+  const target = windowStart || earliest;
+  return target.getTime() > Date.now() + 30000 ? target : null;
+}
+
+// Paragem automática: tag de paragem (ex.: já comprou), tag posta depois do
+// arranque (ex.: respondeu) ou resposta do contacto no WhatsApp.
 async function shouldCancel(admin, run, contact, triggerConfig) {
   if (!contact) return false;
   const stopTagIds = triggerConfig?.stopTagIds;
   if (Array.isArray(stopTagIds) && stopTagIds.length) {
     const { data } = await admin.from("contact_tags").select("tag_id").eq("contact_id", contact.id).in("tag_id", stopTagIds).limit(1);
+    if (data && data.length) return true;
+  }
+  // Tags que param a automação só se forem postas DEPOIS de ela arrancar
+  // (ex.: sinal:respondeu — quem respondeu no passado pode entrar num fluxo
+  // novo, mas uma resposta a meio para-o).
+  const stopAfterIds = triggerConfig?.stopIfTaggedAfterStartIds;
+  if (Array.isArray(stopAfterIds) && stopAfterIds.length) {
+    const { data, error } = await admin
+      .from("contact_tags")
+      .select("tag_id")
+      .eq("contact_id", contact.id)
+      .in("tag_id", stopAfterIds)
+      .gt("created_at", run.created_at)
+      .limit(1);
+    if (error) console.error("automations-run: stopIfTaggedAfterStartIds", error.message);
     if (data && data.length) return true;
   }
   if (triggerConfig?.stopOnReply) {
@@ -244,7 +415,12 @@ async function runAction(admin, brandId, step, contact) {
     }
     case "send_email": {
       if (!contact?.email) throw new Error("O contacto não tem email.");
-      const result = await sendEmailViaResend(admin, brandId, contact.email, renderTemplate(config.subject || "", contact), renderTemplate(config.body || "", contact));
+      const subject = renderTemplate(config.subject || "", contact);
+      const rendered = renderTemplate(config.body || "", contact);
+      const preheader = config.preheader ? renderTemplate(config.preheader, contact) : "";
+      assertNoPlaceholders(subject, rendered, preheader);
+      const { html, text } = buildEmailBodies(rendered, preheader);
+      const result = await sendEmailViaResend(admin, brandId, contact.email, subject, html, text);
       await admin.from("email_sends").insert({
         brand_id: brandId,
         automation_step_id: step.id,
@@ -328,6 +504,22 @@ async function processRun(admin, run) {
     }
 
     if (step.type === "action") {
+      // Condição simples por passo: config.onlyIf = { field, equals? , empty? }
+      //   { field: "x" }                 corre só se o campo x estiver preenchido
+      //   { field: "x", equals: "sim" }  corre só se x = "sim" (sem maiúsculas/acentos a contar)
+      //   { field: "x", empty: true }    corre só se x estiver vazio
+      if (step.config?.onlyIf && !conditionHolds(contact, step.config.onlyIf)) continue;
+      if (step.action_type === "send_email") {
+        const deferUntil = await emailDeferral(admin, contact, automation?.trigger_config, step);
+        if (deferUntil) {
+          // Volta a este passo na próxima janela / quando houver folga semanal.
+          await admin
+            .from("automation_runs")
+            .update({ status: "waiting", current_step_id: idx > 0 ? steps[idx - 1].id : null, next_run_at: deferUntil.toISOString() })
+            .eq("id", run.id);
+          return;
+        }
+      }
       try {
         await runAction(admin, run.brand_id, step, contact);
       } catch (err) {

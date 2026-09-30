@@ -4,7 +4,11 @@
 // Limite deliberado de 500 destinatários por chamada — para volumes
 // maiores, isto precisa de passar a fila/lote (ver secção 15 do
 // documento de arquitetura); não construído já, por simplicidade.
-// Só envia a contactos com opted_in_email = true, com email preenchido.
+// Só envia a contactos com opted_in_email = true, com email preenchido e
+// sem a tag "rgpd:opt-out". O assunto e o corpo aceitam variáveis por
+// contacto: {{primeiro_nome}}, {{nome}}, campos personalizados e valor de
+// reserva ({{nome_marca|tua marca}}). Sem valor nem reserva, esse contacto
+// é saltado (nunca sai um email com {{...}} visível).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -12,6 +16,27 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Mesmo formato de variáveis das automações (automations-run).
+function renderForContact(text, contact, escape = true) {
+  if (!text) return { ok: true, value: text || "" };
+  let ok = true;
+  const value = text.replace(/\{\{\s*(\w+)\s*(?:\|([^{}]*))?\}\}/g, (_m, key, fallback) => {
+    let v;
+    if (key === "primeiro_nome") v = (contact.name || "").trim().split(/\s+/)[0];
+    else if (key === "nome") v = contact.name;
+    else if (key === "email") v = contact.email;
+    else v = contact.custom_fields?.[key];
+    if (v === undefined || v === null || String(v).trim() === "") {
+      if (fallback !== undefined) return fallback;
+      ok = false;
+      return "";
+    }
+    if (!escape) return String(v);
+    return String(v).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+  });
+  return { ok, value };
+}
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -70,9 +95,17 @@ Deno.serve(async (req) => {
 
   const { data: contacts } = await adminClient
     .from("contacts")
-    .select("id, name, email, opted_in_email")
+    .select("id, name, email, opted_in_email, custom_fields")
     .in("id", contactIds)
     .eq("brand_id", campaign.brand_id);
+
+  // Quem pediu para sair nunca recebe, mesmo que ainda tenha consentimento marcado.
+  const optedOut = new Set();
+  const { data: optOutTag } = await adminClient.from("tags").select("id").eq("brand_id", campaign.brand_id).ilike("name", "rgpd:opt-out").maybeSingle();
+  if (optOutTag) {
+    const { data: rows } = await adminClient.from("contact_tags").select("contact_id").eq("tag_id", optOutTag.id).in("contact_id", contactIds);
+    for (const r of rows || []) optedOut.add(r.contact_id);
+  }
 
   const from = domain.from_name ? `${domain.from_name} <${domain.from_email}>` : domain.from_email;
 
@@ -80,14 +113,20 @@ Deno.serve(async (req) => {
 
   let sent = 0, skipped = 0, failed = 0;
   for (const contact of contacts || []) {
-    if (!contact.email || !contact.opted_in_email) {
+    if (!contact.email || !contact.opted_in_email || optedOut.has(contact.id)) {
+      skipped++;
+      continue;
+    }
+    const subject = renderForContact(campaign.subject, contact, false);
+    const html = renderForContact(campaign.body_html || "", contact);
+    if (!subject.ok || !html.ok) {
       skipped++;
       continue;
     }
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to: contact.email, subject: campaign.subject, html: campaign.body_html || "" }),
+      body: JSON.stringify({ from, to: contact.email, subject: subject.value, html: html.value }),
     });
     const data = await res.json();
     if (!res.ok) {
