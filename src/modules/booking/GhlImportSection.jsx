@@ -55,7 +55,7 @@ export default function GhlImportSection({ brand }) {
   });
   const loadCalendars = useMutation({
     mutationFn: () => invokeFunction("ghl-sync", { action: "calendars", brandId: brand.id }),
-    onSuccess: (data) => { setError(""); setCalendars(data.calendars || []); setPicked((data.calendars || []).filter((x) => x.active).map((x) => x.id)); },
+    onSuccess: (data) => { setError(""); setCalendars([{ id: "__all__", name: "Tudo: todos os calendários e todas as profissionais", active: true }, ...(data.calendars || [])]); setPicked(["__all__"]); },
     onError: (err) => setError(err.message),
   });
 
@@ -71,7 +71,8 @@ export default function GhlImportSection({ brand }) {
       d = next;
     }
     const total = { found: 0, created: 0, updated: 0, skipped: 0, contactsCreated: 0, servicesCreated: new Set(), errors: [] };
-    const cals = calendars.filter((x) => picked.includes(x.id));
+    // "Tudo" já inclui todos os calendários: não repete os outros.
+    const cals = picked.includes("__all__") ? calendars.filter((x) => x.id === "__all__") : calendars.filter((x) => picked.includes(x.id));
     const steps = cals.length * windows.length;
     let done = 0;
     setRunning(true);
@@ -143,10 +144,11 @@ export default function GhlImportSection({ brand }) {
                   {calendars.map((cal) => (
                     <label key={cal.id} style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "center", gap: 8 }}>
                       <input type="checkbox" checked={picked.includes(cal.id)} onChange={() => setPicked((p) => (p.includes(cal.id) ? p.filter((x) => x !== cal.id) : [...p, cal.id]))} />
-                      {cal.name}{cal.active ? "" : " (inativo)"}
+                      {cal.id === "__all__" ? <strong>{cal.name}</strong> : cal.name}{cal.active ? "" : " (inativo)"}
                     </label>
                   ))}
-                  {!calendars.length && <div style={hint}>Esta conta não tem calendários.</div>}
+                  {calendars.length <= 1 && <div style={hint}>Esta conta não tem calendários.</div>}
+                  <div style={hint}>"Tudo" apanha também as marcações feitas diretamente no calendário de cada profissional.</div>
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
