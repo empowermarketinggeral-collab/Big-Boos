@@ -27,6 +27,13 @@
 // importado) e sem a tag de cliente antiga (is_returning_customer). pending_payment também ocupa o horário; a
 // booking-reminders cancela as abandonadas há mais de 30 minutos.
 //
+// UPSELLS: vêm da lista da marca ligada a este serviço
+// (booking_service_upsell_links → booking_upsells).
+// OPÇÕES OBRIGATÓRIAS: booking_services.option_groups; o pedido traz
+// options = { idDoGrupo: idDaOpção } e cada grupo tem de ter uma opção
+// válida. Preço e minutos das opções somam-se ao serviço; a escolha fica
+// em booking_appointments.selected_options.
+//
 // "Verify JWT" DESLIGADO: a página pública chama sem sessão.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -137,7 +144,7 @@ async function sendConfirmation(admin, brandId, contactId, name, phone, email, s
     .select("enabled, channel, message_template")
     .eq("brand_id", brandId).eq("type", "confirmation").maybeSingle();
   if (!confirmationSetting?.enabled) return;
-  const vars = { nome: name, servico: serviceName, data: fmtDate(start), hora: fmtTime(start) };
+  const vars = { nome: name, primeiro_nome: String(name || "").trim().split(/\s+/)[0] || "", servico: serviceName, data: fmtDate(start), hora: fmtTime(start) };
   const text = fillTemplate(confirmationSetting.message_template, vars) || `A tua marcação de ${serviceName} ficou confirmada para ${vars.data} às ${vars.hora}.`;
   if (confirmationSetting.channel === "whatsapp" && phone) await sendWhatsappText(admin, brandId, phone, text);
   if (confirmationSetting.channel === "sms" && phone) await sendSmsText(admin, brandId, phone, text, contactId);
@@ -218,7 +225,7 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: "Corpo do pedido inválido." }, 400);
   }
-  const { brandId, serviceId, staffId, startsAt, upsellIds, clientPackId, successUrl, cancelUrl } = body;
+  const { brandId, serviceId, staffId, startsAt, upsellIds, options, clientPackId, successUrl, cancelUrl } = body;
   if (!brandId || !serviceId || !staffId || !startsAt) {
     return json({ error: "Faltam campos obrigatórios." }, 400);
   }
@@ -232,18 +239,41 @@ Deno.serve(async (req) => {
   if (!phone && !email) return json({ error: "Indique o telemóvel ou o email." }, 400);
   if (clientPackId && !client) return json({ error: "Entre na sua conta para usar um pack." }, 401);
 
-  const { data: service } = await admin.from("booking_services").select("name, duration_minutes, price, status").eq("id", serviceId).eq("brand_id", brandId).maybeSingle();
+  const { data: service } = await admin.from("booking_services").select("name, duration_minutes, price, status, option_groups").eq("id", serviceId).eq("brand_id", brandId).maybeSingle();
   if (!service || service.status !== "active") {
     return json({ error: "Serviço não encontrado." }, 404);
   }
 
   let selectedUpsells = [];
   if (Array.isArray(upsellIds) && upsellIds.length > 0) {
-    const { data: upsells } = await admin.from("booking_service_upsells").select("id, name, price, extra_duration_minutes").in("id", upsellIds).eq("service_id", serviceId);
-    selectedUpsells = upsells || [];
+    const { data: links } = await admin
+      .from("booking_service_upsell_links")
+      .select("booking_upsells!inner(id, name, price, extra_duration_minutes, status)")
+      .eq("service_id", serviceId).in("upsell_id", upsellIds.slice(0, 50));
+    selectedUpsells = (links || [])
+      .map((l) => l.booking_upsells)
+      .filter((u) => u?.status === "active")
+      .map((u) => ({ id: u.id, name: u.name, price: u.price, extra_duration_minutes: u.extra_duration_minutes }));
   }
-  const extraMinutes = selectedUpsells.reduce((sum, u) => sum + (u.extra_duration_minutes || 0), 0);
-  const totalPrice = (service.price || 0) + selectedUpsells.reduce((sum, u) => sum + (u.price || 0), 0);
+
+  // Opções obrigatórias: uma escolha válida por grupo.
+  const selectedOptions = [];
+  for (const group of Array.isArray(service.option_groups) ? service.option_groups : []) {
+    const choices = Array.isArray(group?.choices) ? group.choices : [];
+    if (!choices.length) continue;
+    const picked = choices.find((ch) => ch.id === options?.[group.id]);
+    if (!picked) return json({ error: `Escolha uma opção em "${group.name || "Opções"}".` }, 400);
+    selectedOptions.push({
+      group_id: group.id, group: group.name || "", id: picked.id, name: picked.name || "",
+      price: Number(picked.price) || 0, extra_minutes: Math.max(0, parseInt(picked.extra_minutes, 10) || 0),
+    });
+  }
+
+  const extraMinutes = selectedUpsells.reduce((sum, u) => sum + (u.extra_duration_minutes || 0), 0)
+    + selectedOptions.reduce((sum, o) => sum + o.extra_minutes, 0);
+  const totalPrice = Math.round(((Number(service.price) || 0)
+    + selectedUpsells.reduce((sum, u) => sum + (Number(u.price) || 0), 0)
+    + selectedOptions.reduce((sum, o) => sum + o.price, 0)) * 100) / 100;
 
   const start = new Date(startsAt);
   if (Number.isNaN(start.getTime())) return json({ error: "Horário inválido." }, 400);
@@ -321,7 +351,7 @@ Deno.serve(async (req) => {
     customer_name: name, customer_phone: phone || null, customer_email: email || null,
     starts_at: start.toISOString(), ends_at: end.toISOString(),
     status: depositRequired ? "pending_payment" : "confirmed",
-    selected_upsells: selectedUpsells, total_price: totalPrice,
+    selected_upsells: selectedUpsells, selected_options: selectedOptions, total_price: totalPrice,
     deposit_required: depositRequired, deposit_amount: depositRequired ? depositAmount : null,
     deposit_status: depositRequired ? "pending" : "not_required",
     client_pack_id: packId, source: client ? "app" : "online",

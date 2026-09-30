@@ -2,6 +2,12 @@
 // pós-visita). Chamado a cada ~15 minutos pelo pg_cron (ver
 // supabase/42_booking_reminders_cron.sql). A confirmação imediata ao
 // marcar é tratada dentro do booking-create, não aqui.
+//
+// Pós-visita: com booking_reminder_settings.visit_numbers (ex: {1,10,30})
+// só sai nessas visitas (conta as marcações concluídas da cliente antes
+// desta, incluindo o histórico importado), com o texto de visit_messages
+// para esse número ou, sem ele, message_template. {{avaliacao}} = link de
+// avaliação; sem link, a frase que o tem sai do texto.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -94,15 +100,19 @@ async function sendEmail(admin, brandId, toEmail, subject, html, contactId) {
   if (!res.ok) throw new Error(data?.message || "Falha ao enviar email.");
 }
 
-async function notify(admin, appt, setting, defaultText) {
+async function notify(admin, appt, setting, defaultText, templateOverride) {
   const vars = {
     nome: appt.customer_name,
+    primeiro_nome: String(appt.customer_name || "").trim().split(/\s+/)[0] || "",
+    avaliacao: setting.review_link || "",
     servico: appt.booking_services?.name || "",
     // O servidor corre em UTC: sem o fuso, no verão a hora saía errada.
     data: new Date(appt.starts_at).toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" }),
     hora: new Date(appt.starts_at).toLocaleTimeString("pt-PT", { timeZone: "Europe/Lisbon", hour: "2-digit", minute: "2-digit" }),
   };
-  const text = fillTemplate(setting.message_template, vars) || defaultText(vars);
+  let template = templateOverride || setting.message_template || "";
+  if (!vars.avaliacao) template = template.replace(/[^.!?]*\{\{avaliacao\}\}[^.!?]*[.!?]?/g, "").trim();
+  const text = fillTemplate(template, vars) || defaultText(vars);
   if (setting.channel === "whatsapp" && appt.customer_phone) await sendWhatsappText(admin, appt.brand_id, appt.customer_phone, text);
   if (setting.channel === "sms" && appt.customer_phone) await sendSmsText(admin, appt.brand_id, appt.customer_phone, text, appt.contact_id);
   if (setting.channel === "email" && appt.customer_email) await sendEmail(admin, appt.brand_id, appt.customer_email, "Marcação", text, appt.contact_id);
@@ -111,9 +121,9 @@ async function notify(admin, appt, setting, defaultText) {
 // As funções de envio acima lançam erro em falha (ex: marca sem canal
 // ligado, ou a API do fornecedor a recusar). Isola cada marcação para
 // uma falha não travar o resto do lote neste ciclo do cron.
-async function notifySafe(admin, appt, setting, defaultText) {
+async function notifySafe(admin, appt, setting, defaultText, templateOverride) {
   try {
-    await notify(admin, appt, setting, defaultText);
+    await notify(admin, appt, setting, defaultText, templateOverride);
   } catch (err) {
     console.error("Falha ao notificar marcação", { apptId: appt.id, channel: setting.channel, error: String(err?.message || err) });
   }
@@ -192,11 +202,29 @@ Deno.serve(async () => {
         .select("*, booking_services(name)")
         .eq("brand_id", setting.brand_id).eq("status", "confirmed").eq("post_visit_sent", false)
         .lte("ends_at", new Date(now).toISOString());
+      const milestones = Array.isArray(setting.visit_numbers) && setting.visit_numbers.length ? setting.visit_numbers : null;
       for (const appt of appts || []) {
-        const reviewLine = setting.review_link ? ` Se gostaste, avalia-nos aqui: ${setting.review_link}` : "";
-        await notifySafe(admin, appt, setting, (v) => `Obrigado pela tua visita, ${v.nome}!${reviewLine}`);
+        let send = true;
+        let override = null;
+        if (milestones) {
+          // Número desta visita = concluídas antes dela + 1.
+          let visit = null;
+          if (appt.contact_id) {
+            const { count } = await admin
+              .from("booking_appointments").select("id", { count: "exact", head: true })
+              .eq("brand_id", appt.brand_id).eq("contact_id", appt.contact_id).eq("status", "completed")
+              .lt("starts_at", appt.starts_at);
+            visit = (count || 0) + 1;
+          }
+          send = visit != null && milestones.includes(visit);
+          override = send ? setting.visit_messages?.[String(visit)] || null : null;
+        }
+        if (send) {
+          const reviewLine = setting.review_link ? ` Se gostou, avalie-nos aqui: ${setting.review_link}` : "";
+          await notifySafe(admin, appt, setting, (v) => `Obrigado pela sua visita, ${v.primeiro_nome || v.nome}!${reviewLine}`, override);
+          sentPostVisit++;
+        }
         await admin.from("booking_appointments").update({ post_visit_sent: true, status: "completed" }).eq("id", appt.id);
-        sentPostVisit++;
       }
     }
   }

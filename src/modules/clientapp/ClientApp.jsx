@@ -36,7 +36,7 @@ const AUTH_ERRORS = {
 const authMessage = (err) => AUTH_ERRORS[err?.message] || (/password/i.test(err?.message || "") ? "A palavra-passe tem de ter pelo menos 6 caracteres." : err?.message || "Algo correu mal. Tente novamente.");
 
 const LINK_ERRORS = {
-  team_account: "Tem sessão iniciada com uma conta da equipa. Termine a sessão para entrar como cliente.",
+  team_account: "Esta conta da equipa não tem acesso a esta marca. Termine a sessão para entrar como cliente.",
   email_not_confirmed: "Confirme primeiro o seu email: enviámos-lhe um link.",
   app_disabled: "A app ainda não está disponível.",
   contact_already_linked: "A sua ficha já está ligada a outra conta. Fale connosco para resolvermos.",
@@ -509,7 +509,9 @@ function PacksTab({ page, data }) {
                     <div style={{ fontSize: 17, fontWeight: 500, color: T.ink, whiteSpace: "nowrap" }}>{money(p.price)}</div>
                   </div>
                   <div style={{ fontSize: 14, color: T.muted, marginTop: 6, lineHeight: 1.5 }}>
-                    {p.sessions_count} sessões{names.length ? ` de ${names.join(", ")}` : ""}{p.validity_days ? `, válido ${p.validity_days} dias após a compra` : ""}.
+                    {p.sessions_count} sessões{names.length ? ` de ${names.join(", ")}` : ""}
+                    {p.bonus_sessions > 0 ? ` e ${p.bonus_sessions === 1 ? "1 sessão" : `${p.bonus_sessions} sessões`} de oferta${(p.bonus_service_ids || []).map(serviceName).filter(Boolean).length ? ` de ${(p.bonus_service_ids || []).map(serviceName).filter(Boolean).join(", ")}` : ""}` : ""}
+                    {p.validity_days ? `, válido ${p.validity_days} dias após a compra` : ""}.
                   </div>
                   {p.description && <div style={{ fontSize: 14.5, color: T.ink, marginTop: 8, lineHeight: 1.5 }}>{p.description}</div>}
                   {page.online_payments ? (

@@ -193,7 +193,7 @@ Deno.serve(async (req) => {
           if (confirmationSetting?.enabled) {
             const start = new Date(appt.starts_at);
             const serviceName = appt.booking_services?.name || "";
-            const vars = { nome: appt.customer_name, servico: serviceName, data: start.toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" }), hora: start.toLocaleTimeString("pt-PT", { timeZone: "Europe/Lisbon", hour: "2-digit", minute: "2-digit" }) };
+            const vars = { nome: appt.customer_name, primeiro_nome: String(appt.customer_name || "").trim().split(/\s+/)[0] || "", servico: serviceName, data: start.toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" }), hora: start.toLocaleTimeString("pt-PT", { timeZone: "Europe/Lisbon", hour: "2-digit", minute: "2-digit" }) };
             const text = fillTemplate(confirmationSetting.message_template, vars) || `A tua marcação de ${serviceName} ficou confirmada para ${vars.data} às ${vars.hora}.`;
             if (confirmationSetting.channel === "whatsapp" && appt.customer_phone) await sendWhatsappText(admin, appt.brand_id, appt.customer_phone, text);
             if (confirmationSetting.channel === "sms" && appt.customer_phone) await sendSmsText(admin, appt.brand_id, appt.customer_phone, text, appt.contact_id);

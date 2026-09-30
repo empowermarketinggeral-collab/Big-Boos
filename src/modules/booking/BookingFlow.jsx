@@ -14,6 +14,32 @@ import { T, money, priceLabel, durationLabel, packFitsService, capitalize } from
    publicBooking.js), aplicado pela página que usa este componente.
 --------------------------------------------------------- */
 
+// Opções obrigatórias do serviço (option_groups): com um só grupo mostra o
+// preço e a duração finais de cada opção (ex: Massagem 30 min 40 €, 60 min
+// 65 €); com vários grupos mostra o que cada opção acrescenta.
+const optionGroupsOf = (service) => (Array.isArray(service?.option_groups) ? service.option_groups.filter((g) => g.choices?.length) : []);
+function choiceLabel(service, groups, ch) {
+  const price = Number(ch.price) || 0;
+  const minutes = parseInt(ch.extra_minutes, 10) || 0;
+  if (groups.length === 1) {
+    const total = (Number(service.price) || 0) + price;
+    // "60 minutos" já diz a duração: não a repete.
+    const time = /\d+\s*(min|h)/i.test(ch.name || "") ? "" : durationLabel((service.duration_minutes || 0) + minutes);
+    return [time, total > 0 ? money(total) : ""].filter(Boolean).join(", ");
+  }
+  const parts = [];
+  if (price) parts.push(`${price > 0 ? "+" : ""}${money(price)}`);
+  if (minutes) parts.push(`+${minutes} min`);
+  return parts.length ? parts.join(", ") : "Incluído";
+}
+
+// Preço a mostrar no cartão do serviço: "Desde" quando as opções o podem subir.
+function servicePriceLabel(service) {
+  const base = priceLabel(service);
+  const raises = optionGroupsOf(service).some((g) => g.choices.some((ch) => Number(ch.price) > 0));
+  return raises && base && base !== "Gratuito" && !service.price_max ? `Desde ${base}` : base;
+}
+
 const toDateKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const timeLabel = (iso) => new Date(iso).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
 
@@ -78,11 +104,19 @@ function ServicePicker({ services, onPick }) {
           <Choice key={s.id} onClick={() => onPick(s.id)}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
               <span style={{ fontSize: 16, fontWeight: 500 }}>{s.name}</span>
-              <span style={{ fontSize: 15, fontWeight: 500, whiteSpace: "nowrap" }}>{priceLabel(s)}</span>
+              <span style={{ fontSize: 15, fontWeight: 500, whiteSpace: "nowrap" }}>{servicePriceLabel(s)}</span>
             </div>
             <div style={{ fontSize: 14, color: T.muted, marginTop: 4, lineHeight: 1.45 }}>
-              {durationLabel(s.duration_minutes)}{s.description ? `. ${s.description}` : ""}
+              {optionGroupsOf(s).length === 1 ? "" : durationLabel(s.duration_minutes)}
+              {s.description ? `${optionGroupsOf(s).length === 1 ? "" : ". "}${s.description}` : ""}
             </div>
+            {optionGroupsOf(s).length === 1 && (
+              <div style={{ fontSize: 14, color: T.muted, marginTop: 4, lineHeight: 1.5 }}>
+                {optionGroupsOf(s)[0].choices.map((ch) => (
+                  <div key={ch.id}>{ch.name}: {choiceLabel(s, optionGroupsOf(s), ch)}</div>
+                ))}
+              </div>
+            )}
           </Choice>
         ))}
         {!visible.length && <div style={{ ...T.body, fontSize: 15, color: T.muted, padding: "8px 2px" }}>Nenhum serviço encontrado.</div>}
@@ -97,6 +131,7 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
   const [serviceId, setServiceId] = useState("");
   const [staffId, setStaffId] = useState("any");
   const [selectedUpsellIds, setSelectedUpsellIds] = useState([]);
+  const [options, setOptions] = useState({}); // { idDoGrupo: idDaOpção }
   const [date, setDate] = useState("");
   const [slots, setSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -113,8 +148,14 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
   const serviceStaff = service?.staff_ids?.length ? staff.filter((st) => service.staff_ids.includes(st.id)) : staff;
   const upsells = allUpsells.filter((u) => u.service_id === serviceId);
   const chosenUpsells = upsells.filter((u) => selectedUpsellIds.includes(u.id));
-  const extraMinutes = chosenUpsells.reduce((sum, u) => sum + (u.extra_duration_minutes || 0), 0);
-  const totalPrice = (Number(service?.price) || 0) + chosenUpsells.reduce((sum, u) => sum + (Number(u.price) || 0), 0);
+  const groups = optionGroupsOf(service);
+  const chosenOptions = groups.map((g) => g.choices.find((ch) => ch.id === options[g.id])).filter(Boolean);
+  const allOptionsChosen = chosenOptions.length === groups.length;
+  const extraMinutes = chosenUpsells.reduce((sum, u) => sum + (u.extra_duration_minutes || 0), 0)
+    + chosenOptions.reduce((sum, ch) => sum + (parseInt(ch.extra_minutes, 10) || 0), 0);
+  const totalPrice = Math.round(((Number(service?.price) || 0)
+    + chosenUpsells.reduce((sum, u) => sum + (Number(u.price) || 0), 0)
+    + chosenOptions.reduce((sum, ch) => sum + (Number(ch.price) || 0), 0)) * 100) / 100;
   const hasRange = service?.price_max && Number(service.price_max) > Number(service.price);
 
   const usablePacks = useMemo(() => (client?.packs || []).filter((p) => packFitsService(p, serviceId)), [client, serviceId]);
@@ -127,23 +168,23 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
   }, []);
 
   useEffect(() => {
-    setSelectedUpsellIds([]); setPackId(""); setDate(""); setChosenSlot(null);
+    setSelectedUpsellIds([]); setOptions({}); setPackId(""); setDate(""); setChosenSlot(null);
     const s = services.find((x) => x.id === serviceId);
     const ids = s?.staff_ids?.length ? s.staff_ids : staff.map((st) => st.id);
     setStaffId(ids.length === 1 ? ids[0] : "any");
   }, [serviceId, services, staff]);
 
   useEffect(() => {
-    if (!serviceId || !staffId || !date) { setSlots([]); return; }
+    if (!serviceId || !staffId || !date || !allOptionsChosen) { setSlots([]); return; }
     let active = true;
     setLoadingSlots(true);
     setChosenSlot(null);
-    invokeFunction("booking-availability", { brandId: brand.id, serviceId, staffId, date, upsellIds: selectedUpsellIds })
+    invokeFunction("booking-availability", { brandId: brand.id, serviceId, staffId, date, upsellIds: selectedUpsellIds, options })
       .then((data) => { if (active) setSlots(data.slots || []); })
       .catch(() => { if (active) setSlots([]); })
       .finally(() => { if (active) setLoadingSlots(false); });
     return () => { active = false; };
-  }, [serviceId, staffId, date, brand.id, selectedUpsellIds]);
+  }, [serviceId, staffId, date, brand.id, selectedUpsellIds, options, allOptionsChosen]);
 
   const toggleUpsell = (id) => setSelectedUpsellIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
 
@@ -161,7 +202,7 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
     setSubmitting(true);
     try {
       const result = await invokeFunction("booking-create", {
-        brandId: brand.id, serviceId, staffId, startsAt: chosenSlot, upsellIds: selectedUpsellIds,
+        brandId: brand.id, serviceId, staffId, startsAt: chosenSlot, upsellIds: selectedUpsellIds, options,
         clientPackId: packId || undefined,
         name: name.trim(), phone: phone.trim(), email: email.trim(),
         successUrl: returnUrl ? `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}pago=1` : undefined,
@@ -199,9 +240,32 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
           <ChevronLeft size={16} /> Outro serviço
         </button>
         <div style={{ ...T.title, fontSize: 22, color: T.ink }}>{service.name}</div>
-        <div style={{ fontSize: 14.5, color: T.muted, marginTop: 4 }}>{durationLabel(service.duration_minutes)}, {priceLabel(service)}</div>
+        {groups.length !== 1 && <div style={{ fontSize: 14.5, color: T.muted, marginTop: 4 }}>{durationLabel(service.duration_minutes)}, {servicePriceLabel(service).replace(/^Desde/, "desde")}</div>}
         {service.description && <div style={{ fontSize: 14.5, color: T.ink, marginTop: 10, lineHeight: 1.55 }}>{service.description}</div>}
       </div>
+
+      {groups.map((g) => (
+        <div key={g.id}>
+          <div style={label}>{g.name || "Opções"}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {g.choices.map((ch) => {
+              const on = options[g.id] === ch.id;
+              return (
+                <Choice key={ch.id} selected={on} onClick={() => setOptions((o) => ({ ...o, [g.id]: ch.id }))} style={{ padding: "12px 14px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 15 }}>
+                    <span style={{ width: 20, height: 20, borderRadius: "50%", border: `1px solid ${on ? T.accent : T.line}`, background: on ? T.accent : "transparent", color: T.onAccent, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {on && <Check size={13} />}
+                    </span>
+                    <span style={{ flex: 1 }}>{ch.name}</span>
+                    <span style={{ color: T.muted, whiteSpace: "nowrap" }}>{choiceLabel(service, groups, ch)}</span>
+                  </div>
+                  {ch.description && <div style={{ fontSize: 14, color: T.muted, marginTop: 4, paddingLeft: 30, lineHeight: 1.45 }}>{ch.description}</div>}
+                </Choice>
+              );
+            })}
+          </div>
+        </div>
+      ))}
 
       {upsells.length > 0 && (
         <div>
@@ -216,8 +280,9 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
                       {on && <Check size={13} />}
                     </span>
                     <span style={{ flex: 1 }}>{u.name}</span>
-                    <span style={{ color: T.muted }}>{money(u.price)}{u.extra_duration_minutes ? `, +${u.extra_duration_minutes} min` : ""}</span>
+                    <span style={{ color: T.muted, whiteSpace: "nowrap" }}>{money(u.price)}{u.extra_duration_minutes ? `, +${u.extra_duration_minutes} min` : ""}</span>
                   </div>
+                  {u.description && <div style={{ fontSize: 14, color: T.muted, marginTop: 4, paddingLeft: 30, lineHeight: 1.45 }}>{u.description}</div>}
                 </Choice>
               );
             })}
@@ -242,7 +307,11 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
         </div>
       )}
 
-      <div>
+      {!allOptionsChosen && (
+        <div style={{ fontSize: 15, color: T.muted }}>Escolha {groups.length === 1 ? "uma opção" : "uma opção em cada grupo"} para ver os horários.</div>
+      )}
+
+      {allOptionsChosen && <div>
         <div style={label}>Dia</div>
         <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6 }}>
           {days.map((d) => {
@@ -265,11 +334,11 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
             );
           })}
         </div>
-      </div>
+      </div>}
 
-      {date && (
+      {allOptionsChosen && date && (
         <div>
-          <div style={label}>Hora{extraMinutes > 0 ? `, duração ${durationLabel(service.duration_minutes + extraMinutes)}` : ""}</div>
+          <div style={label}>Hora, duração {durationLabel(service.duration_minutes + extraMinutes)}</div>
           {loadingSlots ? (
             <div style={{ fontSize: 15, color: T.muted }}>A procurar horários livres…</div>
           ) : slots.length === 0 ? (
@@ -315,7 +384,9 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
           )}
 
           <div style={{ fontSize: 15, color: T.ink, background: T.soft, borderRadius: 12, padding: "14px 16px", lineHeight: 1.6 }}>
-            <div style={{ fontWeight: 500 }}>{service.name}{chosenUpsells.length ? ` e ${chosenUpsells.map((u) => u.name).join(", ")}` : ""}</div>
+            <div style={{ fontWeight: 500 }}>
+              {service.name}{chosenOptions.length ? ` (${chosenOptions.map((ch) => ch.name).join(", ")})` : ""}{chosenUpsells.length ? ` e ${chosenUpsells.map((u) => u.name).join(", ")}` : ""}
+            </div>
             <div style={{ color: T.muted }}>
               {capitalize(new Date(chosenSlot).toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" }))}, às {timeLabel(chosenSlot)}
             </div>

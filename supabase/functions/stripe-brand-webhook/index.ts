@@ -126,7 +126,7 @@ async function confirmDeposit(admin, brandId, appointmentId) {
   const start = new Date(appt.starts_at);
   const serviceName = appt.booking_services?.name || "";
   const vars = {
-    nome: appt.customer_name, servico: serviceName,
+    nome: appt.customer_name, primeiro_nome: String(appt.customer_name || "").trim().split(/\s+/)[0] || "", servico: serviceName,
     data: start.toLocaleDateString("pt-PT", { timeZone: TZ }),
     hora: start.toLocaleTimeString("pt-PT", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }),
   };

@@ -12,6 +12,10 @@
 // servidor corre em UTC, por isso cada hora é convertida com o fuso
 // certo (senão no verão os horários saíam uma hora mais tarde).
 //
+// A duração conta os upsells escolhidos (lista da marca ligada ao serviço,
+// booking_service_upsell_links) e as opções obrigatórias do serviço
+// (booking_services.option_groups; options = { idDoGrupo: idDaOpção }).
+//
 // "Verify JWT" DESLIGADO.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -111,7 +115,7 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: "Corpo do pedido inválido." }, 400);
   }
-  const { brandId, serviceId, staffId, date, upsellIds } = body; // date: "YYYY-MM-DD", dia em Lisboa
+  const { brandId, serviceId, staffId, date, upsellIds, options } = body; // date: "YYYY-MM-DD", dia em Lisboa
   if (!brandId || !serviceId || !staffId || !date) {
     return json({ error: "Faltam campos obrigatórios." }, 400);
   }
@@ -119,15 +123,27 @@ Deno.serve(async (req) => {
     return json({ error: "Data inválida." }, 400);
   }
 
-  const { data: service } = await admin.from("booking_services").select("duration_minutes, status").eq("id", serviceId).eq("brand_id", brandId).maybeSingle();
+  const { data: service } = await admin.from("booking_services").select("duration_minutes, status, option_groups").eq("id", serviceId).eq("brand_id", brandId).maybeSingle();
   if (!service || service.status !== "active") {
     return json({ error: "Serviço não encontrado." }, 404);
   }
 
   let extraMinutes = 0;
   if (Array.isArray(upsellIds) && upsellIds.length > 0) {
-    const { data: upsells } = await admin.from("booking_service_upsells").select("extra_duration_minutes").in("id", upsellIds).eq("service_id", serviceId);
-    extraMinutes = (upsells || []).reduce((sum, u) => sum + (u.extra_duration_minutes || 0), 0);
+    const { data: links } = await admin
+      .from("booking_service_upsell_links")
+      .select("booking_upsells!inner(extra_duration_minutes, status)")
+      .eq("service_id", serviceId).in("upsell_id", upsellIds.slice(0, 50));
+    extraMinutes = (links || [])
+      .filter((l) => l.booking_upsells?.status === "active")
+      .reduce((sum, l) => sum + (l.booking_upsells.extra_duration_minutes || 0), 0);
+  }
+  // Opções obrigatórias: sem escolha num grupo, conta a primeira opção (a
+  // página pública só pede horários depois de tudo escolhido).
+  for (const group of Array.isArray(service.option_groups) ? service.option_groups : []) {
+    const choices = Array.isArray(group?.choices) ? group.choices : [];
+    const picked = choices.find((ch) => ch.id === options?.[group.id]) || choices[0];
+    extraMinutes += Math.max(0, parseInt(picked?.extra_minutes, 10) || 0);
   }
   const durationMs = (service.duration_minutes + extraMinutes) * 60000;
 
