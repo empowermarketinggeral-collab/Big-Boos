@@ -194,6 +194,8 @@ Deno.serve(async (req) => {
 
   const calNames = new Map();
   const userName = new Map();
+  const sources = []; // diagnóstico: [{ name, count }] por calendário/utilizador
+  let usersScopeMissing = false;
   let events = [];
   const range = { locationId, startTime: from.getTime(), endTime: to.getTime() };
   try {
@@ -203,17 +205,21 @@ Deno.serve(async (req) => {
     try {
       const data = await ghl(token, "/users/", { locationId });
       for (const u of data?.users || []) userName.set(u.id, u.name || [u.firstName, u.lastName].filter(Boolean).join(" "));
-    } catch { /* sem users.readonly */ }
+    } catch { usersScopeMissing = true; }
 
     const byId = new Map();
-    const add = (list) => { for (const e of list || []) if (!e.deleted && e.id && !byId.has(e.id)) byId.set(e.id, e); };
+    const add = (name, list) => {
+      const valid = (list || []).filter((e) => !e.deleted && e.id);
+      sources.push({ name, count: valid.length });
+      for (const e of valid) if (!byId.has(e.id)) byId.set(e.id, e);
+    };
     if (calendarId === "__all__") {
-      for (const id of calNames.keys()) add((await ghl(token, "/calendars/events", { ...range, calendarId: id }))?.events);
-      for (const id of userName.keys()) {
-        try { add((await ghl(token, "/calendars/events", { ...range, userId: id }))?.events); } catch { /* utilizador sem calendário */ }
+      for (const [id, name] of calNames) add(`Calendário ${name || id}`, (await ghl(token, "/calendars/events", { ...range, calendarId: id }))?.events);
+      for (const [id, name] of userName) {
+        try { add(`Profissional ${name || id}`, (await ghl(token, "/calendars/events", { ...range, userId: id }))?.events); } catch { /* utilizador sem calendário */ }
       }
     } else {
-      add((await ghl(token, "/calendars/events", { ...range, calendarId }))?.events);
+      add(`Calendário ${calNames.get(calendarId) || calendarId}`, (await ghl(token, "/calendars/events", { ...range, calendarId }))?.events);
     }
     events = [...byId.values()];
   } catch (err) {
@@ -221,7 +227,7 @@ Deno.serve(async (req) => {
   }
   const calendarNameOf = (ev) => calNames.get(ev.calendarId) || calNames.get(calendarId) || "";
 
-  const report = { found: events.length, created: 0, updated: 0, skipped: 0, contactsCreated: 0, servicesCreated: [], errors: [] };
+  const report = { found: events.length, created: 0, updated: 0, skipped: 0, contactsCreated: 0, servicesCreated: [], errors: [], sources, usersScopeMissing };
   if (!events.length) return json(report);
 
   // Serviços, profissionais e contactos já existentes nesta marca.
