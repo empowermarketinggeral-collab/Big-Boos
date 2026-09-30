@@ -15,9 +15,9 @@
 //   - Contacto: pelo telemóvel (E.164, +351 por omissão), depois email;
 //     sem ficha, cria uma (origem "importacao"). ghl_contact_map guarda a
 //     ligação para não voltar a pedir o mesmo contacto à API.
-//   - Serviço: nome do calendário (ou o título da marcação) igual ao nome de
-//     um serviço; sem igual, cria um serviço arquivado com esse nome (como a
-//     importação por CSV).
+//   - Serviço: título da marcação (ou o nome do calendário) com o nome de
+//     um serviço ativo; sem igual, cria um serviço arquivado com o nome do
+//     calendário (como a importação por CSV).
 //   - Profissional: nome do utilizador do GoHighLevel igual (ou o primeiro
 //     nome igual) ao de uma profissional; sem igual, fica sem profissional.
 //   - Estado: cancelled → cancelada, noshow → faltou, showed → concluída;
@@ -25,7 +25,9 @@
 //   - Passadas entram com os lembretes já dados (não recebem mensagens).
 //     Futuras recebem os lembretes 24h/1h do Big Boss: desliga os do
 //     GoHighLevel para não irem em duplicado.
-//   - Já importada (external_id) = atualiza estado, hora e profissional.
+//   - Já importada (external_id) = atualiza estado, hora e profissional; se
+//     ainda não tinha ficha de cliente (ex: o token não tinha acesso aos
+//     contactos) ou tinha o serviço arquivado genérico, completa-os agora.
 //
 // "Verify JWT" LIGADO. Só quem gere a marca (can_manage_brand).
 
@@ -203,8 +205,10 @@ Deno.serve(async (req) => {
   if (!events.length) return json(report);
 
   // Serviços, profissionais e contactos já existentes nesta marca.
-  const { data: services } = await admin.from("booking_services").select("id, name, duration_minutes").eq("brand_id", brandId);
+  const { data: services } = await admin.from("booking_services").select("id, name, duration_minutes, status").eq("brand_id", brandId);
   const serviceByName = new Map((services || []).map((s) => [norm(s.name), s]));
+  const activeServices = [...serviceByName.entries()].filter(([, s]) => s.status === "active").sort((a, b) => b[0].length - a[0].length);
+  const serviceStatus = new Map((services || []).map((s) => [s.id, s.status]));
   const { data: staff } = await admin.from("booking_staff").select("id, name").eq("brand_id", brandId);
   const staffList = (staff || []).map((s) => ({ id: s.id, full: norm(s.name), first: norm(s.name).split(" ")[0] }));
 
@@ -220,13 +224,20 @@ Deno.serve(async (req) => {
     return (staffList.find((s) => s.full === n) || staffList.find((s) => s.first && s.first === n.split(" ")[0]))?.id || null;
   };
 
-  // Serviço: nome do calendário, depois título da marcação; senão cria arquivado.
-  async function serviceFor(ev, minutes) {
-    const byCal = serviceByName.get(norm(calendarName));
-    if (byCal) return byCal.id;
+  // Serviço ativo reconhecido pelo título ou pelo nome do calendário (ou null).
+  function matchService(ev) {
     const title = norm(ev.title);
-    const byTitle = [...serviceByName.entries()].sort((a, b) => b[0].length - a[0].length).find(([k]) => k && title.includes(k));
+    const byTitle = activeServices.find(([k]) => k && title.includes(k));
     if (byTitle) return byTitle[1].id;
+    const cal = norm(calendarName);
+    const byCal = activeServices.find(([k]) => k && (cal === k || cal.includes(k)));
+    return byCal ? byCal[1].id : null;
+  }
+
+  // Serviço: reconhecido; senão um arquivado com o nome do calendário.
+  async function serviceFor(ev, minutes) {
+    const matched = matchService(ev);
+    if (matched) return matched;
     const name = calendarName || String(ev.title || "Serviço importado").slice(0, 120);
     const existing = serviceByName.get(norm(name));
     if (existing) return existing.id;
@@ -247,6 +258,7 @@ Deno.serve(async (req) => {
     for (const r of data || []) contactMap.set(r.ghl_contact_id, r.contact_id);
   }
   const contactInfo = new Map();
+  let contactScopeMissing = false;
   const missing = ghlIds.filter((id) => !contactMap.has(id));
   await pool(missing, 4, async (id) => {
     try {
@@ -255,9 +267,13 @@ Deno.serve(async (req) => {
       const name = c.name || c.contactName || [c.firstName, c.lastName].filter(Boolean).join(" ") || "";
       contactInfo.set(id, { name: name.trim(), email: String(c.email || "").trim().toLowerCase(), phone: normalizePhone(c.phone) });
     } catch (err) {
-      report.errors.push(`Contacto ${id}: ${err.message}`);
+      if (/scope/i.test(err.message)) contactScopeMissing = true;
+      else report.errors.push(`Contacto ${id}: ${err.message}`);
     }
   });
+  if (contactScopeMissing) {
+    report.errors.unshift("O token não tem acesso aos contactos: na Private Integration do GoHighLevel acrescenta a permissão \"View Contacts\" (contacts.readonly) e importa outra vez. As marcações ficam sem ficha de cliente até lá.");
+  }
   for (const id of missing) {
     const info = contactInfo.get(id);
     if (!info) continue;
@@ -287,7 +303,7 @@ Deno.serve(async (req) => {
   const eventIds = events.map((e) => String(e.id));
   const existingByExt = new Map();
   for (let i = 0; i < eventIds.length; i += 200) {
-    const { data } = await admin.from("booking_appointments").select("id, external_id, status").eq("brand_id", brandId).eq("external_source", "ghl").in("external_id", eventIds.slice(i, i + 200));
+    const { data } = await admin.from("booking_appointments").select("id, external_id, status, contact_id, service_id").eq("brand_id", brandId).eq("external_source", "ghl").in("external_id", eventIds.slice(i, i + 200));
     for (const r of data || []) existingByExt.set(r.external_id, r);
   }
 
@@ -313,6 +329,16 @@ Deno.serve(async (req) => {
       if (prev) {
         const patch = { starts_at: start.toISOString(), ends_at: end.toISOString(), status };
         if (staffId) patch.staff_id = staffId;
+        const prevContact = ev.contactId ? contactMap.get(ev.contactId) : null;
+        if (!prev.contact_id && prevContact) {
+          const c = contactById.get(prevContact);
+          Object.assign(patch, { contact_id: prevContact, customer_name: c?.name || undefined, customer_phone: c?.phone || null, customer_email: c?.email || null });
+          if (!c?.name) delete patch.customer_name;
+        }
+        if (serviceStatus.get(prev.service_id) !== "active") {
+          const matched = matchService(ev);
+          if (matched) patch.service_id = matched;
+        }
         await admin.from("booking_appointments").update(patch).eq("id", prev.id);
         report.updated++;
         continue;
