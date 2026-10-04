@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, PAGE_FONT_OPTIONS, PAGE_COLOR_SWATCHES, DEFAULT_PAGE_STYLE, display } from "../../shared/theme.jsx";
 import BookingFlow, { BrandHeader } from "./BookingFlow.jsx";
-import { usePublicBookingPage, brandThemeVars, brandStyle, T } from "./publicBooking.js";
+import { usePublicBookingPage, brandThemeVars, brandStyle, T, STANDALONE_SLUG, bookingPath } from "./publicBooking.js";
 import ImportAgendaModal from "./ImportAgendaModal.jsx";
 import GhlImportSection from "./GhlImportSection.jsx";
 import StripeImportModal from "./StripeImportModal.jsx";
@@ -1422,7 +1422,8 @@ const BOOKING_TABS = [
    as tabelas diretamente) e usa o mesmo fluxo da app das clientes.
 --------------------------------------------------------- */
 export function PublicBookingPage() {
-  const { slug } = useParams();
+  const params = useParams();
+  const slug = params.slug || STANDALONE_SLUG;
   const pageQuery = usePublicBookingPage(slug);
   const [booked, setBooked] = useState(null);
   const paid = new URLSearchParams(window.location.search).has("pago");
@@ -1453,13 +1454,13 @@ export function PublicBookingPage() {
               : "Assim que o pagamento for confirmado, recebe a confirmação da marcação."}
           </div>
           {page.brand.client_app_enabled && (
-            <a href={`/app/${page.brand.slug}`} style={{ display: "inline-block", marginTop: 18, fontSize: 15, fontWeight: 500, color: T.ink, textDecorationColor: T.accent }}>
+            <a href={STANDALONE_SLUG ? "/" : style.appUrl || `/app/${page.brand.slug}`} style={{ display: "inline-block", marginTop: 18, fontSize: 15, fontWeight: 500, color: T.ink, textDecorationColor: T.accent }}>
               Ver as minhas marcações na app
             </a>
           )}
         </div>
       ) : (
-        <BookingFlow page={page} returnUrl={`${window.location.origin}/agendar/${page.brand.slug}`} onBooked={setBooked} />
+        <BookingFlow page={page} returnUrl={`${window.location.origin}${bookingPath(page.brand.slug)}`} onBooked={setBooked} />
       )}
     </div>
   );

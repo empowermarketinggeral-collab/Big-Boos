@@ -1,0 +1,16 @@
+{
+  "name": "Dreams Studio",
+  "short_name": "Dreams Studio",
+  "description": "As suas marcações, o seu histórico e os seus packs.",
+  "lang": "pt",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F6F1EA",
+  "theme_color": "#FFFDFA",
+  "icons": [
+    { "src": "/apps/dreams-studio/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/apps/dreams-studio/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/apps/dreams-studio/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -8,7 +8,7 @@ import {
   MessageCircle, AlertTriangle, Shield, ShieldAlert, Pencil, Clock, Sparkles, Bell, Smartphone,
 } from "lucide-react";
 import BookingFlow from "../booking/BookingFlow.jsx";
-import { usePublicBookingPage, money, capitalize, brandThemeVars, brandStyle, T } from "../booking/publicBooking.js";
+import { usePublicBookingPage, money, capitalize, brandThemeVars, brandStyle, T, STANDALONE_SLUG, appPath, bookingPath } from "../booking/publicBooking.js";
 
 /* ---------------------------------------------------------
    APP DAS CLIENTES — /app/:slug (ex: Dreams Studio)
@@ -196,7 +196,7 @@ function AuthScreen({ page, style }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const redirectTo = `${window.location.origin}/app/${brand.slug}`;
+  const redirectTo = `${window.location.origin}${appPath(brand.slug)}`;
   const go = (m) => { setMode(m); setError(""); setNotice(""); };
 
   const submit = async (e) => {
@@ -264,7 +264,7 @@ function AuthScreen({ page, style }) {
         {mode !== "signup" && <button type="button" onClick={() => go("signup")} style={linkBtn}>Ainda não tem conta? <u>Criar conta</u></button>}
         {mode !== "login" && <button type="button" onClick={() => go("login")} style={linkBtn}>Já tem conta? <u>Entrar</u></button>}
         {mode === "login" && <button type="button" onClick={() => go("forgot")} style={{ ...linkBtn, color: T.muted, fontSize: 14.5 }}>Esqueci-me da palavra-passe</button>}
-        <a href={`/agendar/${brand.slug}`} style={{ fontSize: 14.5, color: T.muted, marginTop: 6 }}>Marcar sem conta</a>
+        <a href={bookingPath(brand.slug)} style={{ fontSize: 14.5, color: T.muted, marginTop: 6 }}>Marcar sem conta</a>
       </div>
     </Frame>
   );
@@ -458,7 +458,7 @@ function PacksTab({ page, data }) {
   const buy = async (packId) => {
     setError(""); setBuying(packId);
     try {
-      const base = `${window.location.origin}/app/${page.brand.slug}`;
+      const base = `${window.location.origin}${appPath(page.brand.slug)}`;
       const result = await invokeFunction("pack-checkout", { brandId: page.brand.id, packId, successUrl: `${base}?pago=1&tab=packs`, cancelUrl: `${base}?tab=packs` });
       window.location.href = result.paymentUrl;
     } catch (err) {
@@ -568,7 +568,7 @@ function AppointmentsTab({ page, data, mode, setMode, onBooked }) {
               <AccentButton onClick={() => { setBooked(null); setMode(null); }} style={{ marginTop: 20 }}>Ver as minhas marcações</AccentButton>
             </div>
           ) : (
-            <BookingFlow page={page} client={data} returnUrl={`${window.location.origin}/app/${page.brand.slug}?tab=appointments`} onBooked={(b) => { setBooked(b); onBooked(); }} />
+            <BookingFlow page={page} client={data} returnUrl={`${window.location.origin}${appPath(page.brand.slug)}?tab=appointments`} onBooked={(b) => { setBooked(b); onBooked(); }} />
           )}
         </div>
       </div>
@@ -992,7 +992,8 @@ function Portal({ page, style, session }) {
    ROTA
 --------------------------------------------------------- */
 export default function ClientApp() {
-  const { slug } = useParams();
+  const params = useParams();
+  const slug = params.slug || STANDALONE_SLUG;
   const pageQuery = usePublicBookingPage(slug);
   const [auth, setAuth] = useSession();
   const page = pageQuery.data;

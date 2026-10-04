@@ -12,6 +12,12 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
 import { c, DEFAULT_PAGE_STYLE } from "../../shared/theme.jsx";
 
+// App com endereço próprio (projeto Vercel à parte, ver vite.config.js):
+// a raiz "/" é a app desta marca e "/agendar" a página de marcação.
+export const STANDALONE_SLUG = String(import.meta.env.VITE_CLIENT_APP_SLUG || "").trim();
+export const appPath = (slug) => (STANDALONE_SLUG ? "/" : `/app/${slug}`);
+export const bookingPath = (slug) => (STANDALONE_SLUG ? "/agendar" : `/agendar/${slug}`);
+
 export function usePublicBookingPage(slug) {
   return useQuery({
     queryKey: ["booking_public_page", slug],

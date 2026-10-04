@@ -80,9 +80,9 @@ function useClientAppEnabled(brandId) {
     queryKey: ["brand_client_app", brandId],
     enabled: !!brandId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("brands").select("client_app_enabled").eq("id", brandId).maybeSingle();
+      const { data, error } = await supabase.from("brands").select("client_app_enabled, booking_style").eq("id", brandId).maybeSingle();
       if (error) throw error;
-      return !!data?.client_app_enabled;
+      return { enabled: !!data?.client_app_enabled, style: data?.booking_style || {} };
     },
   });
 }
@@ -144,7 +144,19 @@ export function ClientAppSection({ brand, slug }) {
     onError: (err) => setError(err.message || "Não foi possível guardar."),
   });
 
-  const url = slug ? `${window.location.origin}/app/${slug}` : "";
+  // Endereço próprio da app (projeto Vercel à parte); senão, dentro do Big Boss.
+  const appUrl = enabledQuery.data?.style?.appUrl || "";
+  const saveAppUrl = useMutation({
+    mutationFn: async (value) => {
+      const clean = value.trim().replace(/\/+$/, "");
+      if (clean && !/^https:\/\/[^\s/]+$/i.test(clean)) throw new Error("Escreva só o endereço, por exemplo https://dreams-studio.vercel.app");
+      const { error: err } = await supabase.from("brands").update({ booking_style: { ...(enabledQuery.data?.style || {}), appUrl: clean || undefined } }).eq("id", brand.id);
+      if (err) throw err;
+    },
+    onSuccess: () => { setError(""); qc.invalidateQueries({ queryKey: ["brand_client_app", brand.id] }); qc.invalidateQueries({ queryKey: ["brand_booking_style", brand.id] }); },
+    onError: (err) => setError(err.message),
+  });
+  const url = appUrl || (slug ? `${window.location.origin}/app/${slug}` : "");
   const accounts = accountsQuery.data || [];
   const copy = async () => {
     try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* noop */ }
@@ -159,12 +171,22 @@ export function ClientAppSection({ brand, slug }) {
         As clientes entram com email e palavra-passe e veem as marcações futuras e passadas, os packs, e marcam ou compram packs. A conta liga-se à ficha do CRM pelo email.
       </div>
       <label style={{ ...sans, fontSize: 14, fontWeight: 600, color: c.ink, display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
-        <input type="checkbox" checked={!!enabledQuery.data} disabled={!slug || toggle.isPending} onChange={(e) => toggle.mutate(e.target.checked)} />
+        <input type="checkbox" checked={!!enabledQuery.data?.enabled} disabled={!slug || toggle.isPending} onChange={(e) => toggle.mutate(e.target.checked)} />
         App ativa
       </label>
       {!slug && <div style={{ ...hint, marginBottom: 12 }}>Ativa primeiro o link público de marcação (lá em cima): a app usa o mesmo endereço.</div>}
+      <label style={{ ...hint, display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+        Endereço próprio da app (o que as clientes instalam no telemóvel)
+        <input
+          key={appUrl}
+          style={inputStyle}
+          defaultValue={appUrl}
+          onBlur={(e) => { if (e.target.value.trim().replace(/\/+$/, "") !== appUrl) saveAppUrl.mutate(e.target.value); }}
+          placeholder="https://dreams-studio.vercel.app"
+        />
+      </label>
       {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 10 }}>{error}</div>}
-      {enabledQuery.data && url && (
+      {enabledQuery.data?.enabled && url && (
         <button onClick={copy} style={{ ...btnGhost, marginBottom: 16, maxWidth: "100%", overflow: "hidden" }}>
           {copied ? <CheckCircle2 size={13} /> : <Link2 size={13} />}
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copied ? "Copiado" : url}</span>
