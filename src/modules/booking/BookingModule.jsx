@@ -1104,6 +1104,35 @@ function AppearanceSection({ brand }) {
   const unset = (key) => { const next = { ...style }; delete next[key]; updateStyle.mutate(next); };
   const small = { ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 };
 
+  const [uploadingIcon, setUploadingIcon] = useState(false);
+  const [iconError, setIconError] = useState("");
+  // Ícone da app no telemóvel: PNG quadrado (o iPhone não aceita SVG).
+  const pickIcon = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setIconError("");
+    if (file.type !== "image/png") { setIconError("O ícone tem de ser PNG."); return; }
+    const size = await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => { resolve([img.naturalWidth, img.naturalHeight]); URL.revokeObjectURL(img.src); };
+      img.onerror = () => resolve([0, 0]);
+      img.src = URL.createObjectURL(file);
+    });
+    if (size[0] !== size[1] || size[0] < 192) { setIconError("O ícone tem de ser quadrado e ter pelo menos 192×192 (ideal 512×512)."); return; }
+    setUploadingIcon(true);
+    try {
+      const path = `${brand.id}/app-icon-${Date.now()}.png`;
+      const { error } = await supabase.storage.from("brand-logos").upload(path, file, { contentType: "image/png", upsert: true });
+      if (error) throw error;
+      set({ appIconUrl: supabase.storage.from("brand-logos").getPublicUrl(path).data.publicUrl });
+    } catch (err) {
+      setIconError(err.message || "Não foi possível enviar o ícone.");
+    } finally {
+      setUploadingIcon(false);
+    }
+  };
+
   const pickLogo = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1175,6 +1204,19 @@ function AppearanceSection({ brand }) {
             </label>
             {style.logoUrl && <button type="button" onClick={() => unset("logoUrl")} style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>remover</button>}
           </div>
+        </div>
+        <div>
+          <div style={small}>Ícone da app no telemóvel (PNG quadrado, ideal 512×512)</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            {style.appIconUrl && <img src={style.appIconUrl} alt="" style={{ width: 56, height: 56, borderRadius: 12, objectFit: "cover", border: `1px solid ${c.line}` }} />}
+            <label style={{ ...btnGhost, padding: "6px 12px", cursor: "pointer" }}>
+              <Upload size={12} /> {uploadingIcon ? "A enviar…" : style.appIconUrl ? "Trocar" : "Enviar ícone"}
+              <input type="file" accept="image/png" onChange={pickIcon} disabled={uploadingIcon} style={{ display: "none" }} />
+            </label>
+            {style.appIconUrl && <button type="button" onClick={() => unset("appIconUrl")} style={{ ...sans, fontSize: 12.5, color: c.mist, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>remover</button>}
+          </div>
+          {iconError && <div style={{ ...sans, fontSize: 13, color: c.rose, marginTop: 6 }}>{iconError}</div>}
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 6 }}>É o ícone que as clientes veem quando instalam a app. Sem ele usa-se o logótipo.</div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
           <label style={{ ...small, marginBottom: 0, display: "flex", flexDirection: "column", gap: 6 }}>
