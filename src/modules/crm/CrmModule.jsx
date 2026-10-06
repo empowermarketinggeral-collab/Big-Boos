@@ -245,6 +245,80 @@ function useToggleContactTag(brandId, contactId) {
   });
 }
 
+// Pôr ou tirar uma tag a vários contactos de uma vez. Pôr ignora quem já a
+// tem (não duplica e não volta a disparar automações de "tag adicionada").
+function useBulkTag(brandId) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ contactIds, tagId, add }) => {
+      for (let i = 0; i < contactIds.length; i += 200) {
+        const chunk = contactIds.slice(i, i + 200);
+        const { error } = add
+          ? await supabase.from("contact_tags").upsert(
+              chunk.map((contact_id) => ({ brand_id: brandId, contact_id, tag_id: tagId })),
+              { onConflict: "contact_id,tag_id", ignoreDuplicates: true }
+            )
+          : await supabase.from("contact_tags").delete().eq("tag_id", tagId).in("contact_id", chunk);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["crm_contacts", brandId] }),
+  });
+}
+
+function BulkTagBar({ brandId, selectedIds, onClear }) {
+  const tagsQuery = useTags(brandId);
+  const createTag = useCreateTag(brandId);
+  const bulkTag = useBulkTag(brandId);
+  const [tagId, setTagId] = useState("");
+  const [newName, setNewName] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const tags = tagsQuery.data || [];
+
+  const run = async (add) => {
+    setError(""); setMessage("");
+    try {
+      let id = tagId;
+      if (id === "__new__") {
+        if (!newName.trim()) { setError("Escreve o nome da tag nova."); return; }
+        const created = await createTag.mutateAsync(newName.trim());
+        id = created.id;
+        setTagId(id); setNewName("");
+      }
+      if (!id) { setError("Escolhe uma tag."); return; }
+      await bulkTag.mutateAsync({ contactIds: selectedIds, tagId: id, add });
+      const name = tags.find((t) => t.id === id)?.name || newName.trim();
+      setMessage(add ? `Tag "${name}" posta em ${selectedIds.length} contactos.` : `Tag "${name}" tirada de ${selectedIds.length} contactos.`);
+    } catch (err) {
+      setError(err.message || "Não foi possível guardar.");
+    }
+  };
+  const busy = bulkTag.isPending || createTag.isPending;
+
+  return (
+    <div style={{ position: "sticky", top: 8, zIndex: 5, background: c.folha, border: `1px solid ${c.lineStrong}`, borderRadius: 3, padding: "10px 14px", marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ ...sans, fontSize: 14, fontWeight: 700, color: c.ink }}>{selectedIds.length} selecionados</span>
+        <select value={tagId} onChange={(e) => setTagId(e.target.value)} style={{ ...inputStyle, width: "auto", minWidth: 160, padding: "6px 9px" }}>
+          <option value="">Escolher tag…</option>
+          {tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          <option value="__new__">+ Tag nova</option>
+        </select>
+        {tagId === "__new__" && (
+          <input style={{ ...inputStyle, width: 160, padding: "6px 9px" }} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nome da tag" />
+        )}
+        <button onClick={() => run(true)} disabled={busy} style={{ ...btnPrimary, padding: "7px 12px" }}><Plus size={13} /> Pôr tag</button>
+        <button onClick={() => run(false)} disabled={busy || tagId === "__new__"} style={{ ...btnGhost, padding: "7px 12px" }}>Tirar tag</button>
+        <button onClick={onClear} style={{ ...sans, fontSize: 13, color: c.mist, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>Limpar seleção</button>
+      </div>
+      {message && <div style={{ ...sans, fontSize: 13, color: c.sage }}>{message}</div>}
+      {error && <div style={{ ...sans, fontSize: 13, color: c.rose }}>{error}</div>}
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>Pôr uma tag pode arrancar automações ligadas a essa tag para estes contactos.</div>
+    </div>
+  );
+}
+
 /* ---------------------------------------------------------
    DATA — pipeline, fases, negócios
 --------------------------------------------------------- */
@@ -614,6 +688,8 @@ function ContactsView({ brand, session }) {
   const [confirmingDelete, setConfirmingDelete] = useState(null);
   const [importResult, setImportResult] = useState(null);
   const [importError, setImportError] = useState("");
+  const [selected, setSelected] = useState(() => new Set());
+  const toggleSelected = (id) => setSelected((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
 
   const contacts = (contactsQuery.data || []).filter((ct) => {
     const q = query.trim().toLowerCase();
@@ -695,12 +771,30 @@ function ContactsView({ brand, session }) {
 
       {contactsQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A carregar…</div>}
 
+      {selected.size > 0 && <BulkTagBar brandId={brand.id} selectedIds={[...selected]} onClear={() => setSelected(new Set())} />}
+
+      {contacts.length > 0 && (
+        <label style={{ ...sans, fontSize: 13.5, color: c.mist, display: "flex", alignItems: "center", gap: 8, margin: "0 0 8px 16px", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={contacts.every((ct) => selected.has(ct.id))}
+            onChange={(e) => setSelected((prev) => {
+              const next = new Set(prev);
+              contacts.forEach((ct) => (e.target.checked ? next.add(ct.id) : next.delete(ct.id)));
+              return next;
+            })}
+          />
+          {query.trim() ? `Selecionar os ${contacts.length} da pesquisa` : `Selecionar todos (${contacts.length})`}
+        </label>
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {contacts.map((ct) => (
           <div
             key={ct.id}
-            style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "12px 16px" }}
+            style={{ display: "flex", alignItems: "center", gap: 14, background: selected.has(ct.id) ? c.bossSoft : c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "12px 16px" }}
           >
+            <input type="checkbox" checked={selected.has(ct.id)} onChange={() => toggleSelected(ct.id)} aria-label={`Selecionar ${ct.name}`} style={{ flexShrink: 0 }} />
             <div style={{ width: 34, height: 34, borderRadius: 999, background: c.bossSoft, color: c.bossText, display: "flex", alignItems: "center", justifyContent: "center", ...sans, fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
               {initials(ct.name)}
             </div>
