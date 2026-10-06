@@ -8,7 +8,7 @@ import {
   Clock, ChevronRight, ChevronLeft, BookMarked, ClipboardList, Layers, Video,
   Link2, Calculator, Sparkles, Eye, Zap, Target, TrendingUp,
   Trash2, Pencil, ChevronUp, ChevronDown, Image as ImageIcon,
-  Instagram, Facebook, Youtube, MessageCircle, Music2, Palette, Handshake, Kanban, Mail, MessageSquare, Inbox, CreditCard, FileSignature, LogOut
+  Instagram, Facebook, Youtube, MessageCircle, Music2, Palette, Cake, Handshake, Kanban, Mail, MessageSquare, Inbox, CreditCard, FileSignature, LogOut
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -28,6 +28,7 @@ import AgencyBillingModule from "./modules/billing/AgencyBillingModule.jsx";
 import ContractsModule from "./modules/contracts/ContractsModule.jsx";
 import BrandContractsModule from "./modules/contracts/BrandContractsModule.jsx";
 import CreativesModule from "./modules/creatives/CreativesModule.jsx";
+import BirthdaysModule from "./modules/birthdays/BirthdaysModule.jsx";
 import PaymentReminderBanner from "./modules/billing/PaymentReminderBanner.jsx";
 import ThemeToggle from "./design/ThemeToggle.jsx";
 import BrandLogo from "./design/BrandLogo.jsx";
@@ -2295,6 +2296,7 @@ const MODULE_GROUPS = [
       { key: "stories", label: "Cronograma de Stories", sub: "Planeamento semanal", icon: Video },
       { key: "roteiros", label: "Roteiros", sub: "Roteiros de vídeo", icon: ClipboardList },
       { key: "social", label: "Social Media", sub: "Planeador e publicação", icon: Instagram },
+      { key: "aniversarios", label: "Aniversários", sub: "Lembretes e lista anual", icon: Cake },
     ],
   },
   {
@@ -2914,6 +2916,9 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
   }
   if (sub === "contratos") {
     return <BrandContractsModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
+  }
+  if (sub === "aniversarios") {
+    return <BirthdaysModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
   }
   if (sub === "criativos") {
     return <CreativesModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;

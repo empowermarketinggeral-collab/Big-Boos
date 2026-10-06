@@ -80,6 +80,11 @@ WhatsApp via Meta direta ou Twilio (`whatsapp_accounts.provider`); o utilizador 
 - Ficheiros no bucket privado `creatives` (primeiro segmento = id da marca; sempre por URL assinada, nunca públicos). Equipa escreve (`can_manage_brand`); o cliente com login só lê opções que não sejam rascunho.
 - Cliente sem login: link `/criativos/:token` (token em `creative_share_links`, só a equipa o lê; função `creative-share`, JWT desligado) vê só opções enviadas, comenta, aprova ou pede alterações; a equipa recebe notificação (área `criativos`). Os ficheiros finais só saem com a opção aprovada.
 
+## Aniversários (lembrete para publicar)
+- Módulo "Aniversários" de cada marca (`src/modules/birthdays/`, migração 90): lista anual `brand_birthdays` (nome, dia/mês, ano opcional, n.º de sócio, perfil, observações), importada de CSV exportado do Drive ou colada do Sheets (colunas detetadas e corrigíveis; a lógica pura está em `birthdaysLogic.js`).
+- Lembrete no sino: `notify_birthdays()` (SQL, pg_cron de hora a hora, hora de Lisboa) cria uma notificação por marca/dia (área `aniversarios`), sem duplicar (`birthday_reminder_log`). Definições por marca em `birthday_settings` (no dia, véspera, 3 dias, 1 semana; hora). 29/02 festeja-se a 28/02 nos anos não bissextos. "Publicado" por pessoa e ano em `birthday_posts`.
+- Independente do CRM (`contacts.birth_date` serve só os gatilhos de automações).
+
 ## UI e identidade visual (Big Boss by Empower Boss)
 - Conceito "a mesa do Boss": fundo = mesa, cada área = folha de cantos vivos (3px), menu = régua em roxo profundo. Claro e escuro (segue o sistema; interruptor na barra de topo; escolha em localStorage "bb-theme"; ver `src/design/theme.js`).
 - **Nunca escrevas hex nos módulos.** As cores são variáveis CSS em `src/design/tokens.css` e chegam aos módulos por `c` em `src/shared/theme.jsx`: `c.boss` = roxo para FUNDOS (texto branco por cima), `c.bossText` = roxo para texto/ícones; `c.roseSolid`/`c.sageSolid`/`c.amberSolid` = fundos cheios com texto branco, `c.rose`/`c.sage`/`c.amber` = texto e contornos; `c.folha` = conteúdo, `c.paper` = mesa; `c.lineStrong` = contorno de campos. Nada de `${cor}1A` (alfa em hex): usa `color-mix(in srgb, <cor> 14%, transparent)`.
