@@ -7,7 +7,7 @@ Quem manda é quem põe o ponto final. Um ponto dourado fecha o nome, o monogram
 
 ## Logótipo
 - Wordmark: "Empower Boss." em Bodoni Moda 700, ponto em dourado.
-- Símbolo: em escolha (o monograma "EB." foi recusado). Opções no canvas: A. O Ponto (círculo irmão do Big Boss com o ponto dourado), B. Ponto final, C. O Selo, D. "Boss.".
+- Símbolo: **"Boss."** (Bodoni Moda 900, ponto dourado). Ícone: "Boss." num quadrado preto de cantos vivos.
 - Lockup com slogan em Bodoni Moda itálico: "Run it like one."
 - Versões: preto sobre papel, papel sobre preto, preto sobre dourado.
 
@@ -29,5 +29,5 @@ Quem manda é quem põe o ponto final. Um ponto dourado fecha o nome, o monogram
 - Texto: Quicksand 500/600 (a mesma do Big Boss).
 
 ## Regras
-O Big Boss usa sempre o seu logótipo oficial (`public/brand/`), nunca o nome escrito à mão.
+Proposta de família (por decidir): todos os nomes escritos da mesma forma, "Nome." em Bodoni Moda 900 com ponto dourado sobre a cor do produto, mais "by Empower Boss". Ícones: "Boss." (marca-mãe), "Big." em roxo (Big Boss) e a rosa-dos-ventos do atual símbolo do Big Boss passa para a Bússola. Se for aprovada, é preciso atualizar `public/brand/` e o ícone da app.
 Cantos vivos, sem gradientes, sem sombras suaves, sem pontos médios nem setas nos textos. Produtos assinam "by Empower Boss" e usam a sua cor como fundo, sempre com o ponto dourado.
