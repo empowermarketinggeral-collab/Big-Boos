@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
 
   const { data: domain } = await adminClient
     .from("email_domains")
-    .select("from_name, from_email, api_key_ref")
+    .select("from_name, from_email, api_key_ref, reply_to")
     .eq("brand_id", campaign.brand_id)
     .maybeSingle();
   if (!domain) return json({ error: "Esta marca não tem email ligado." }, 400);
@@ -188,6 +188,7 @@ Deno.serve(async (req) => {
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         from, to: contact.email, subject: subject.value, html: html.value + openPixel,
+        ...(domain.reply_to ? { reply_to: domain.reply_to } : {}),
         headers: { "List-Unsubscribe": `<${unsubscribe}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
       }),
     });

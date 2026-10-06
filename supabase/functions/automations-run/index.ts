@@ -183,7 +183,7 @@ async function brandVariables(admin, brandId) {
 }
 
 async function sendEmailViaResend(admin, brandId, toEmail, subject, html, text = null, extraHeaders = null) {
-  const { data: domain } = await admin.from("email_domains").select("from_name, from_email, api_key_ref").eq("brand_id", brandId).maybeSingle();
+  const { data: domain } = await admin.from("email_domains").select("from_name, from_email, api_key_ref, reply_to").eq("brand_id", brandId).maybeSingle();
   if (!domain) return { ok: false, providerRef: null, error: "Esta marca não tem email ligado." };
 
   const { data: apiKey } = await admin.rpc("vault_read_secret", { p_id: domain.api_key_ref });
@@ -193,6 +193,7 @@ async function sendEmailViaResend(admin, brandId, toEmail, subject, html, text =
   const payload = { from, to: toEmail, subject, html: html || "" };
   if (text) payload.text = text;
   if (extraHeaders) payload.headers = extraHeaders;
+  if (domain.reply_to) payload.reply_to = domain.reply_to; // respostas para a caixa da marca (migração 89)
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },

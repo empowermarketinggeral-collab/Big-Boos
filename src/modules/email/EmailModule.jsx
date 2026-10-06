@@ -19,7 +19,7 @@ function useEmailDomain(brandId) {
     queryKey: ["email_domain", brandId],
     enabled: !!brandId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("email_domains").select("id, domain, from_name, from_email, verified").eq("brand_id", brandId).maybeSingle();
+      const { data, error } = await supabase.from("email_domains").select("id, domain, from_name, from_email, verified, reply_to").eq("brand_id", brandId).maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -34,6 +34,50 @@ function useConnectEmail(brandId) {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["email_domain", brandId] }),
   });
+}
+
+function useSaveReplyTo(brandId) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, replyTo }) => {
+      const { error } = await supabase.from("email_domains").update({ reply_to: replyTo || null }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["email_domain", brandId] }),
+  });
+}
+
+// Remetente e "Responder para": os emails saem do domínio verificado e as
+// respostas vão para a caixa da marca. "Trocar domínio" volta a ligar
+// (ex.: quando a marca passar a ter o seu próprio domínio no Resend).
+function SenderSettings({ brandId, domain, onChangeDomain }) {
+  const save = useSaveReplyTo(brandId);
+  const [replyTo, setReplyTo] = useState(domain.reply_to || "");
+  const [msg, setMsg] = useState("");
+  const submit = async () => {
+    const v = replyTo.trim();
+    if (v && !/^[^s@]+@[^s@]+.[^s@]+$/.test(v)) { setMsg("Email inválido."); return; }
+    try {
+      await save.mutateAsync({ id: domain.id, replyTo: v });
+      setMsg("Guardado.");
+    } catch (err) {
+      setMsg(err.message || "Não foi possível guardar.");
+    }
+  };
+  return (
+    <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px", marginBottom: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <span>Enviado de: <strong>{domain.from_name ? `${domain.from_name} <${domain.from_email}>` : domain.from_email}</strong></span>
+        <button onClick={onChangeDomain} style={{ ...btnGhost, padding: "5px 10px", fontSize: 13 }}>Trocar domínio</button>
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <span style={{ ...sans, fontSize: 13.5, color: c.mist }}>As respostas vão para</span>
+        <input style={{ ...inputStyle, flex: "1 1 220px", maxWidth: 320 }} type="email" value={replyTo} onChange={(e) => { setReplyTo(e.target.value); setMsg(""); }} placeholder="ex: ola@marca.pt (vazio = endereço de envio)" />
+        <button onClick={submit} disabled={save.isPending} style={btnGhost}>{save.isPending ? "A guardar…" : "Guardar"}</button>
+        {msg && <span style={{ ...sans, fontSize: 13, color: msg === "Guardado." ? c.sage : c.rose }}>{msg}</span>}
+      </div>
+    </div>
+  );
 }
 
 function useCampaigns(brandId) {
@@ -147,7 +191,7 @@ function useContactTagMap(brandId) {
 /* ---------------------------------------------------------
    LIGAR DOMÍNIO
 --------------------------------------------------------- */
-function ConnectEmailForm({ brandId }) {
+function ConnectEmailForm({ brandId, onConnected }) {
   const [domain, setDomain] = useState("");
   const [fromName, setFromName] = useState("");
   const [fromEmail, setFromEmail] = useState("");
@@ -163,6 +207,7 @@ function ConnectEmailForm({ brandId }) {
     }
     try {
       await connect.mutateAsync({ domain: domain.trim(), fromName: fromName.trim(), fromEmail: fromEmail.trim(), apiKey: apiKey.trim() });
+      onConnected?.();
     } catch (err) {
       setError(err.message || "Não foi possível ligar o email.");
     }
@@ -410,6 +455,7 @@ export default function EmailModule({ brand, onBack }) {
   const [newName, setNewName] = useState("");
   const [openId, setOpenId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [changingDomain, setChangingDomain] = useState(false);
 
   const campaigns = campaignsQuery.data || [];
   const open = openId ? campaigns.find((cp) => cp.id === openId) : null;
@@ -418,13 +464,16 @@ export default function EmailModule({ brand, onBack }) {
     return <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A verificar ligação…</div>;
   }
 
-  if (!domainQuery.data) {
+  if (!domainQuery.data || changingDomain) {
     return (
       <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
         <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
           <ArrowLeft size={14} /> Voltar à marca
         </button>
-        <ConnectEmailForm brandId={brand.id} />
+        <ConnectEmailForm brandId={brand.id} onConnected={() => setChangingDomain(false)} />
+        {changingDomain && (
+          <button onClick={() => setChangingDomain(false)} style={{ ...btnGhost, marginTop: 14 }}>Cancelar e manter o domínio atual</button>
+        )}
       </div>
     );
   }
@@ -450,6 +499,8 @@ export default function EmailModule({ brand, onBack }) {
           <Plus size={14} /> Nova campanha
         </button>
       </div>
+
+      <SenderSettings key={domainQuery.data.id + (domainQuery.data.reply_to || "")} brandId={brand.id} domain={domainQuery.data} onChangeDomain={() => setChangingDomain(true)} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {campaigns.map((cp) => (
