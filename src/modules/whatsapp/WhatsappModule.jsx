@@ -1043,7 +1043,9 @@ function Inbox({ brandId }) {
 }
 
 /* ---------------------------------------------------------
-   CUSTOS — calculadora de saldo do WhatsApp (Twilio + Meta)
+   CUSTOS — calculadora de saldo do WhatsApp
+   O cliente vê uma só "taxa por mensagem", sem nomes de fornecedores
+   (o custo do envio + a taxa do WhatsApp, somados).
    Ajuda a agência e o cliente a perceberem quanto saldo pôr na conta
    Twilio para o WhatsApp não parar — a mensalidade da Big Boss cobre a
    plataforma, mas os envios em si são pagos à parte, diretamente à
@@ -1060,8 +1062,10 @@ const rateMoney = (v) => `${(v || 0).toFixed(4)}€`;
 // país e por categoria de template (marketing/utilitário/autenticação) e
 // mudam com o tempo. O valor real é o que aparece em
 // Twilio Console → Monitor → Usage, por isso os campos ficam editáveis.
-const DEFAULT_META_RATE = 0.0034;
-const DEFAULT_TWILIO_RATE = 0.005;
+// Taxa única por mensagem = envio (0,005) + taxa do WhatsApp (0,0034).
+// É o caso mais caro (mensagens iniciadas pela marca); as respostas dentro
+// das 24h custam menos, por isso a estimativa fica do lado seguro.
+const DEFAULT_RATE = 0.0084;
 
 function RateField({ label, value, onChange, hint }) {
   return (
@@ -1116,26 +1120,19 @@ function VolumeSlider({ label, value, onChange, max = 10000 }) {
 function CostsPanel({ brandId }) {
   const usageQuery = useWaUsage(brandId);
   const trendQuery = useWaUsageTrend(brandId);
-  const [inWindow, setInWindow] = useState(0);
-  const [outWindow, setOutWindow] = useState(0);
-  const [metaRate, setMetaRate] = useState(DEFAULT_META_RATE);
-  const [twilioRate, setTwilioRate] = useState(DEFAULT_TWILIO_RATE);
+  const [messages, setMessages] = useState(0);
+  const [rate, setRate] = useState(DEFAULT_RATE);
   const [prefilled, setPrefilled] = useState(false);
 
-  // Pré-preenche uma vez com o real dos últimos 30 dias — como ainda não
-  // guardamos se cada mensagem foi dentro ou fora da janela de 24h, entra
-  // tudo como "fora" (é o caso mais comum em automações/campanhas); ajusta-se
-  // à mão a seguir.
+  // Pré-preenche uma vez com o número real dos últimos 30 dias.
   useEffect(() => {
     if (!prefilled && usageQuery.data && usageQuery.data.numMessages > 0) {
-      setOutWindow(usageQuery.data.numMessages);
+      setMessages(usageQuery.data.numMessages);
       setPrefilled(true);
     }
   }, [prefilled, usageQuery.data]);
 
-  const metaCost = outWindow * metaRate;
-  const twilioCost = (inWindow + outWindow) * twilioRate;
-  const total = metaCost + twilioCost;
+  const total = messages * rate;
 
   const trend = trendQuery.data || [];
   const daysWithData = trend.length;
@@ -1146,9 +1143,9 @@ function CostsPanel({ brandId }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 720 }}>
       <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
-        <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 6 }}>Gasto real (Twilio)</div>
+        <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 6 }}>Gasto real</div>
         <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 16, lineHeight: 1.5 }}>
-          A mensalidade cobre a plataforma — o envio de cada mensagem é pago à parte, diretamente à Twilio. Este é o valor que a Twilio já cobrou, sincronizado uma vez por dia.
+          A mensalidade cobre a plataforma. Cada mensagem enviada tem uma taxa à parte. Este é o valor já gasto em mensagens, atualizado uma vez por dia.
         </div>
         {usageQuery.isLoading ? (
           <div style={{ ...sans, fontSize: 13.5, color: c.mist }}>A carregar…</div>
@@ -1182,25 +1179,18 @@ function CostsPanel({ brandId }) {
           <div style={{ ...serif, fontSize: 15.5, color: c.ink }}>Simulador</div>
         </div>
         <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 18, lineHeight: 1.5 }}>
-          Ajusta o número de mensagens por mês para veres o custo estimado. "Fora da janela" são mensagens que a marca começa (automações, campanhas, "Nova conversa") — só essas têm taxa da Meta. "Dentro da janela" são respostas a quem escreveu nas últimas 24h — sem taxa da Meta, só da Twilio.
+          Ajusta o número de mensagens por mês para veres o custo estimado.
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          <VolumeSlider label="Mensagens dentro da janela de 24h (respostas)" value={inWindow} onChange={setInWindow} max={10000} />
-          <VolumeSlider label="Mensagens fora da janela (templates)" value={outWindow} onChange={setOutWindow} max={10000} />
-        </div>
+        <VolumeSlider label="Mensagens por mês" value={messages} onChange={setMessages} max={10000} />
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, margin: "20px 0" }}>
-          <RateField label="Taxa da Meta (fora da janela)" value={metaRate} onChange={setMetaRate} hint="Valores de partida em euros a partir do exemplo dos EUA — a tua taxa real varia por país e categoria." />
-          <RateField label="Taxa da Twilio (todas as mensagens)" value={twilioRate} onChange={setTwilioRate} />
+        <div style={{ margin: "20px 0" }}>
+          <RateField label="Taxa por mensagem" value={rate} onChange={setRate} />
         </div>
 
         <div style={{ background: c.paper, borderRadius: 6, padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", ...sans, fontSize: 13.5, color: c.ink }}>
-            <span>Taxa Meta — {outWindow.toLocaleString("pt-PT")} msgs × {rateMoney(metaRate)}</span><span>{money(metaCost)}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", ...sans, fontSize: 13.5, color: c.ink }}>
-            <span>Taxa Twilio — {(inWindow + outWindow).toLocaleString("pt-PT")} msgs × {rateMoney(twilioRate)}</span><span>{money(twilioCost)}</span>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, ...sans, fontSize: 13.5, color: c.ink }}>
+            <span>{messages.toLocaleString("pt-PT")} mensagens × {rateMoney(rate)}</span><span>{money(total)}</span>
           </div>
           <div style={{ borderTop: `1px solid ${c.line}`, marginTop: 4, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <span style={{ ...sans, fontSize: 14, fontWeight: 700, color: c.ink }}>Total mensal estimado</span>
@@ -1210,7 +1200,7 @@ function CostsPanel({ brandId }) {
 
         <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 14, ...sans, fontSize: 11.5, color: c.mistLight, lineHeight: 1.5 }}>
           <Info size={13} style={{ flexShrink: 0, marginTop: 1 }} />
-          Estimativa, não uma fatura. As taxas de partida acima estão em euros, mas o número em si vem do simulador da Meta para os EUA — confirma a tua taxa real (Portugal/UE) em Twilio Console → Monitor → Usage, ou no simulador da própria Meta (Meta Business Suite → Faturação → WhatsApp Manager). Não inclui outros custos Twilio (número, funcionalidades extra).
+          Estimativa, não uma fatura. A taxa pode variar com o país do destinatário e o tipo de mensagem; as respostas a quem escreveu nas últimas 24 horas costumam sair mais baratas.
         </div>
       </div>
     </div>
