@@ -79,9 +79,19 @@ async function slotsForStaff(admin, brandId, staffId, date, weekday, durationMs)
     .lt("starts_at", dayEnd.toISOString())
     .gt("ends_at", dayStart.toISOString());
 
+  // Períodos ocupados lidos do Google Agenda da profissional (só existem se
+  // ela o ligou; ver supabase/84_google_calendar.sql).
+  const { data: googleBusy } = await admin
+    .from("booking_external_busy")
+    .select("starts_at, ends_at")
+    .eq("staff_id", staffId)
+    .lt("starts_at", dayEnd.toISOString())
+    .gt("ends_at", dayStart.toISOString());
+
   const busy = [
     ...(existing || []).map((a) => ({ start: new Date(a.starts_at).getTime(), end: new Date(a.ends_at).getTime() })),
     ...(timeOff || []).map((t) => ({ start: new Date(t.starts_at).getTime(), end: new Date(t.ends_at).getTime() })),
+    ...(googleBusy || []).map((g) => ({ start: new Date(g.starts_at).getTime(), end: new Date(g.ends_at).getTime() })),
   ];
 
   const slots = [];

@@ -9,6 +9,7 @@ import ImportAgendaModal from "./ImportAgendaModal.jsx";
 import GhlImportSection from "./GhlImportSection.jsx";
 import StripeImportModal from "./StripeImportModal.jsx";
 import { MoneyInput, parseMoney, moneyInputValue, ServiceUpsellPicker, useUpsellLinks, useSetServiceUpsells, UpsellLibrarySection, OptionGroupsEditor, normalizeOptionGroups, optionGroupsToForm } from "./ServiceOptions.jsx";
+import GoogleCalendarPanel from "./GoogleCalendarPanel.jsx";
 import AgendaCalendar from "./AgendaCalendar.jsx";
 import { ClientAppSection, StripeAccountSection, PacksSection } from "./ClientAppAdmin.jsx";
 import { ArrowLeft, Plus, Trash2, Pencil, Link2, CheckCircle2, Calendar as CalendarIcon, User, History, Upload, CreditCard } from "lucide-react";
@@ -447,6 +448,7 @@ function StaffFormModal({ brandId, staff, onClose }) {
           <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 8 }}>Só aparece para marcação nos serviços escolhidos. Um serviço sem nenhuma profissional escolhida fica com todas.</div>
           {linksQuery.isSuccess && <StaffServicesPicker services={servicesQuery.data || []} selected={chosenServiceIds} onChange={setServiceIds} />}
         </div>
+        {savedId && <GoogleCalendarPanel staffId={savedId} staffName={name} />}
         {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
         <button onClick={save} disabled={saveStaff.isPending || setLinks.isPending} style={{ ...btnPrimary, width: "fit-content" }}>{saveStaff.isPending ? "A guardar…" : "Guardar"}</button>
       </div>

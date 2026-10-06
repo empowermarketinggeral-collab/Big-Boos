@@ -1,45 +1,83 @@
-# Guia — Ligar o Google Calendar
+# Guia — Google Agenda das profissionais (evitar conflitos nas marcações)
 
-Este é OAuth a sério (diferente do WhatsApp/Resend, onde colavas um token) — precisas de criar um projeto na Google e configurar um ecrã de consentimento. Demora uns 15-20 minutos, uma vez só.
+Cada profissional liga o **seu** Google Agenda ao Big Boss. A partir daí:
 
----
+- **Google → Big Boss:** o que ela tem ocupado no Google Agenda (reuniões, consultas, férias, eventos pessoais) deixa de aparecer como horário livre na página de marcação e na app das clientes. A leitura é feita de 5 em 5 minutos e, por cima disso, no momento exato da marcação a função confirma ao vivo no Google (se a Google não responder, a marcação segue — nunca trava por causa dela).
+- **Big Boss → Google:** as marcações confirmadas passam a aparecer como eventos no Google Agenda dela (opcional, ela ou a equipa podem desligar).
 
-## 1. Criar o projeto no Google Cloud
+A profissional **não precisa de conta no Big Boss**: a equipa gera um link pessoal, ela abre-o, escolhe a conta Google e autoriza. Só isso.
 
-1. Vai a **console.cloud.google.com** e cria uma conta/projeto novo (nome sugerido: `Empower OS`).
-2. No menu, vai a **APIs & Services → Library**, procura **"Google Calendar API"** e clica **Enable**.
-
----
-
-## 2. Configurar o ecrã de consentimento OAuth
-
-1. **APIs & Services → OAuth consent screen**.
-2. Tipo: **External** (a menos que tenhas Google Workspace e queiras restringir à tua organização).
-3. Preenche nome da app (`Empower OS`), email de suporte, e o teu email como developer contact.
-4. Em **Scopes**, adiciona: `https://www.googleapis.com/auth/calendar` (acesso de leitura/escrita ao calendário).
-5. Em **Test users** (enquanto a app não é publicada/verificada pela Google), adiciona os emails Google que vão ligar o calendário (o teu, e o de cada marca que precise).
+Fazes isto uma vez (cerca de 15–20 minutos) e serve para todas as marcas e profissionais.
 
 ---
 
-## 3. Criar as credenciais OAuth
+## 1. Criar o projeto na Google Cloud
 
-1. **APIs & Services → Credentials → Create Credentials → OAuth client ID**.
-2. Tipo de aplicação: **Web application**.
-3. Em **Authorized redirect URIs**, adiciona:
-   `https://phfhhricqtttinploffo.supabase.co/functions/v1/google-calendar-callback`
-4. Cria — vais receber um **Client ID** e um **Client Secret**.
+1. Vai a **console.cloud.google.com** e cria um projeto (ex: `Big Boss`).
+2. **APIs & Services → Library** → procura **Google Calendar API** → **Enable**.
+
+## 2. Ecrã de consentimento OAuth
+
+1. **APIs & Services → OAuth consent screen** (ou "Google Auth Platform"). Tipo **External**.
+2. Nome da app (o que a profissional vê ao autorizar — ex: `Big Boss`), email de suporte, email de contacto.
+3. **Scopes** — adiciona exatamente estes:
+   - `https://www.googleapis.com/auth/calendar.freebusy` (ver só ocupado/livre, sem ver os títulos dos eventos)
+   - `https://www.googleapis.com/auth/calendar.events` (criar/atualizar/apagar os eventos das marcações)
+   - `openid` e `.../auth/userinfo.email` (mostrar qual conta está ligada)
+4. **Publicar a app (muito importante):** em **Publishing status** muda de *Testing* para **In production**.
+   Em *Testing* a Google **expira a autorização ao fim de 7 dias** e as profissionais teriam de voltar a ligar todas as semanas. Só aguenta bem em *In production*.
+
+### O que esperar da Google (honestamente)
+
+- Estes scopes são "sensíveis". Enquanto a app **não for verificada pela Google**, ao autorizar a profissional vê o aviso *"A Google não validou esta aplicação"* (ela clica em **Avançadas → Ir para Big Boss**) e há um **limite de 100 utilizadoras**.
+- Para tirar o aviso e o limite, pede a **verificação** no mesmo ecrã (precisa de política de privacidade, domínio e um vídeo curto a mostrar o uso dos scopes). Demora de dias a algumas semanas. Para começar com poucas profissionais, funciona sem verificação.
+- Para a ligação funcionar só com `calendar.freebusy` (sem escrever eventos), a profissional pode desmarcar a caixa dos eventos no ecrã da Google — o Big Boss aceita e desliga automaticamente o "escrever no Google".
+
+## 3. Credenciais OAuth
+
+1. **APIs & Services → Credentials → Create credentials → OAuth client ID**.
+2. Tipo: **Web application**.
+3. **Authorized redirect URIs** — adiciona exatamente:
+   `https://<o-teu-projeto>.supabase.co/functions/v1/google-calendar-oauth`
+   (o `<o-teu-projeto>` é o mesmo que aparece nos outros endereços das funções.)
+4. Guarda o **Client ID** e o **Client Secret**.
+
+## 4. Segredos no Supabase
+
+**Edge Functions → Secrets**:
+
+| Nome | Valor |
+|---|---|
+| `GOOGLE_CLIENT_ID` | o Client ID |
+| `GOOGLE_CLIENT_SECRET` | o Client Secret |
+| `GOOGLE_STATE_SECRET` | (opcional) um texto longo aleatório; sem ele usa o Client Secret |
+
+## 5. Instalar no Supabase (por esta ordem)
+
+1. **SQL Editor:** corre `supabase/84_google_calendar.sql` (tabelas, políticas, cron de 5 em 5 minutos).
+2. **Edge Functions** (colar o `index.ts` de cada uma):
+   - `google-calendar-connect` — **Verify JWT: ligado**
+   - `google-calendar-oauth` — **Verify JWT: desligado**
+   - `google-calendar-sync` — **Verify JWT: desligado** (só aceita a chave service role; é o cron que a chama)
+3. **Voltar a colar** (alteradas) `booking-availability` e `booking-create` — **Verify JWT: desligado**, como antes.
+4. A app (frontend) sai com o `git push`.
 
 ---
 
-## 4. O que me trazeres
+## Como a equipa usa
 
-- **Client ID**
-- **Client Secret**
+1. **Agendamento → Profissionais → Editar** a profissional → secção **Google Agenda** → **Gerar link para ligar**.
+2. Copia o link e envia-o à profissional (WhatsApp, por exemplo). O link é pessoal, de uso único e dura 7 dias.
+3. Ela abre o link → **Continuar com a Google** → escolhe a conta e autoriza → vê "Google Agenda ligado".
+4. No painel da profissional aparece a conta ligada, a última sincronização e o interruptor **Escrever as marcações no Google Agenda**.
+5. **Desligar** remove a ligação, apaga os eventos futuros que o Big Boss criou e revoga o acesso na Google.
 
-Como sempre, não os publiques em lado nenhum — traz-mos e eu ligo-os através de uma Edge Function, guardados no Vault.
+Se a profissional revogar o acesso na conta Google (ou a Google o expirar), o estado passa a **"precisa de voltar a ligar"**, a agência recebe **uma** notificação e basta gerar um link novo. Até lá, o que já estava sincronizado deixa de ser atualizado, mas as marcações continuam a funcionar.
 
----
+## Limites a ter em conta
 
-## Nota
-
-Enquanto a app estiver em modo "Testing" (não publicada/verificada pela Google), só os emails que adicionares em "Test users" conseguem autorizar a ligação — perfeito para começar, sem esperar pela verificação da Google. Publicar/verificar a app só é preciso mais tarde, se quiseres que qualquer cliente ligue o próprio Google Calendar sem estar na lista de testers.
+- Só o calendário **principal** (`primary`) da conta é lido e escrito.
+- Atraso de até ~5 minutos entre algo mudar no Google e o Big Boss saber — a confirmação ao vivo no momento de marcar cobre esse intervalo.
+- Mudar ou apagar à mão, no Google, um evento criado pelo Big Boss **não altera** a marcação; a marcação manda. Se a mudares no Big Boss, o evento acompanha.
+- Os eventos incluem nome, telemóvel e email da cliente (aparecem no calendário da profissional). Se não quiseres isso, desliga **Escrever as marcações**.
+- O token de acesso fica no Vault do Supabase; o browser nunca o vê.

@@ -181,7 +181,56 @@ async function staffFree(admin, brandId, staffId, start, end) {
   const { data: timeOff } = await admin
     .from("booking_time_off").select("id")
     .eq("staff_id", staffId).lt("starts_at", end.toISOString()).gt("ends_at", start.toISOString()).limit(1);
-  return !(timeOff && timeOff.length > 0);
+  if (timeOff && timeOff.length > 0) return false;
+
+  // Google Agenda da profissional (se o ligou): períodos já sincronizados e,
+  // por cima, uma verificação ao vivo — cobre os minutos desde a última
+  // sincronização (supabase/84_google_calendar.sql).
+  const { data: external } = await admin
+    .from("booking_external_busy").select("id")
+    .eq("staff_id", staffId).lt("starts_at", end.toISOString()).gt("ends_at", start.toISOString()).limit(1);
+  if (external && external.length > 0) return false;
+  return !(await googleBusyLive(admin, staffId, start, end));
+}
+
+// Pergunta ao Google Agenda da profissional, neste momento, se o intervalo
+// está ocupado. Se a Google não responder (ou ela não ligou o Google Agenda),
+// devolve false: nunca trava uma marcação por causa de um serviço externo.
+async function googleBusyLive(admin, staffId, start, end) {
+  try {
+    const clientId = Deno.env.get("GOOGLE_CLIENT_ID");
+    const clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
+    if (!clientId || !clientSecret) return false;
+    const { data: connection } = await admin.from("booking_staff_google").select("refresh_token_ref, calendar_id").eq("staff_id", staffId).eq("status", "connected").maybeSingle();
+    if (!connection?.refresh_token_ref) return false;
+    const { data: refreshToken } = await admin.rpc("vault_read_secret", { p_id: connection.refresh_token_ref });
+    if (!refreshToken) return false;
+
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: "refresh_token" }),
+      signal: AbortSignal.timeout(4000),
+    });
+    const tokens = await tokenRes.json().catch(() => ({}));
+    if (!tokenRes.ok || !tokens.access_token) return false;
+
+    const calendarId = connection.calendar_id || "primary";
+    const res = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokens.access_token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ timeMin: start.toISOString(), timeMax: end.toISOString(), timeZone: TZ, items: [{ id: calendarId }] }),
+      signal: AbortSignal.timeout(4000),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return false;
+    const entry = data.calendars?.[calendarId] || Object.values(data.calendars || {})[0];
+    if (!entry || (entry.errors && entry.errors.length > 0)) return false;
+    return (entry.busy || []).length > 0;
+  } catch (err) {
+    console.error("booking-create: verificação no Google Agenda falhou (segue sem ela)", String(err?.message || err));
+    return false;
+  }
 }
 
 // Chave Stripe da própria marca (Vault); sem ela, a global da plataforma.
