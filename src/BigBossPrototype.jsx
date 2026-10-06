@@ -27,6 +27,7 @@ import BillingModule from "./modules/billing/BillingModule.jsx";
 import AgencyBillingModule from "./modules/billing/AgencyBillingModule.jsx";
 import ContractsModule from "./modules/contracts/ContractsModule.jsx";
 import BrandContractsModule from "./modules/contracts/BrandContractsModule.jsx";
+import CreativesModule from "./modules/creatives/CreativesModule.jsx";
 import PaymentReminderBanner from "./modules/billing/PaymentReminderBanner.jsx";
 import ThemeToggle from "./design/ThemeToggle.jsx";
 import BrandLogo from "./design/BrandLogo.jsx";
@@ -2321,6 +2322,7 @@ const MODULE_GROUPS = [
     label: "Marca & Estratégia",
     modules: [
       { key: "brand-book", label: "Brand Book", sub: "Identidade visual e diretrizes", icon: BookOpen },
+      { key: "criativos", label: "Criativos", sub: "Opções de design e aprovações", icon: Palette },
       { key: "plano", label: "Plano Estratégico", sub: "Fases e tarefas", icon: Layers },
       { key: "dashboards", label: "Dashboards", sub: "Performance da marca", icon: BarChart3 },
       { key: "billing", label: "Faturação", sub: "Subscrição e faturas de serviços", icon: CreditCard },
@@ -2912,6 +2914,9 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
   }
   if (sub === "contratos") {
     return <BrandContractsModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
+  }
+  if (sub === "criativos") {
+    return <CreativesModule brand={brand} onBack={() => onOpenSub(null)} session={session} />;
   }
   if (sub === "conteudos") {
     return <ConteudosView brand={brand} onBack={() => onOpenSub(null)} session={session} />;
