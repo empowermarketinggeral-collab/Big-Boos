@@ -24,7 +24,8 @@ Quem manda é quem põe o ponto final. Um ponto dourado fecha o nome, o monogram
 | Norte Bússola | #1F5C5A | cor do produto Bússola |
 
 ## Tipografia
-- Títulos: Bodoni Moda 800 com tamanho ótico baixo (opsz 11), para os traços finos não desaparecerem.
+- Títulos: Bodoni Moda 600, tamanho ótico 28, quase sem aperto entre letras, para se lerem bem.
+- Nomes da marca (Empower Boss., Big Boss., Bússola., Boss.): Bodoni Moda 900, tamanho ótico 11.
 - Atitude (slogan, frases de efeito): Bodoni Moda itálico 600.
 - Texto: Quicksand 500/600 (a mesma do Big Boss).
 
