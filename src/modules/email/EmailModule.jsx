@@ -56,7 +56,7 @@ function SenderSettings({ brandId, domain, onChangeDomain }) {
   const [msg, setMsg] = useState("");
   const submit = async () => {
     const v = replyTo.trim();
-    if (v && !/^[^s@]+@[^s@]+.[^s@]+$/.test(v)) { setMsg("Email inválido."); return; }
+    if (v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { setMsg("Email inválido."); return; }
     try {
       await save.mutateAsync({ id: domain.id, replyTo: v });
       setMsg("Guardado.");
