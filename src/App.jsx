@@ -5,6 +5,7 @@ import { PublicFormPage } from "./modules/forms/FormsModule.jsx";
 import { PublicBookingPage } from "./modules/booking/BookingModule.jsx";
 import SignupPage from "./modules/billing/SignupPage.jsx";
 import SignContractPage from "./modules/contracts/SignContractPage.jsx";
+import { PrivacyPage, TermsPage } from "./modules/legal/LegalPage.jsx";
 import ClientApp from "./modules/clientapp/ClientApp.jsx";
 
 // Exemplar de design: só existe em desenvolvimento (não entra no build de produção).
@@ -46,6 +47,8 @@ function App() {
         <Route path="/app/:slug" element={<ClientApp />} />
         <Route path="/registar" element={<SignupPage />} />
         <Route path="/assinar/:token" element={<SignContractPage />} />
+        <Route path="/privacidade" element={<PrivacyPage />} />
+        <Route path="/termos" element={<TermsPage />} />
         <Route path="*" element={<BigBossPrototype />} />
       </Routes>
     </BrowserRouter>
