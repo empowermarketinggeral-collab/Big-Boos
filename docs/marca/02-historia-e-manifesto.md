@@ -2,6 +2,8 @@
 
 ## A história (versão longa, para a página "Sobre")
 
+Assinada por **Beatriz Melo**, estrategista de marketing e founder da Empower Marketing (com nome e fotografia).
+
 Quando comecei a Empower Marketing, percebi depressa que para fazer uma coisa era preciso ter cinco ferramentas. Um CRM aqui, formulários ali, email marketing noutro sítio, contratos numa pasta, links na bio espalhados. Cada uma com a sua mensalidade.
 
 As plataformas que juntavam tudo custavam 300 ou 500 euros por mês, e nem assim chegavam: era preciso pagar mais outra, e mais outra. No fim do mês, a conta de "estar organizada" passava os mil euros. Isto antes de pagar a quem montasse tudo.
@@ -13,6 +15,9 @@ A Empower Boss não nasceu para ser vendida. Começou como um centro de ajuda pa
 Fomos juntando o que nos fazia falta, com o que aprendemos a fazer isto todos os dias. Quando demos por isso, tínhamos uma estrutura que falta a muita gente. Foi assim que nasceu o **Big Boss**.
 
 A **Bússola** nasceu da mesma vontade, do lado do conteúdo. Os pequenos negócios querem conteúdo autêntico, com a cara da marca, mas muitas vezes não podem pagar a quem o faça. Por isso pusemos lá dentro o que sabemos de análise de marca e criação de conteúdo, para que qualquer pessoa perceba onde está, que caminho seguir e o que publicar. De forma simples, rápida e sem jargão.
+
+Beatriz Melo
+Estrategista de marketing, founder da Empower Marketing
 
 ## Manifesto
 
