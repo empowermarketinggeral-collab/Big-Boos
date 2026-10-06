@@ -21,6 +21,9 @@ const FONTS_IMPORT = `* { box-sizing: border-box; }`;
 
 const SALES_WHATSAPP = "351910199278";
 
+// Site da Empower Boss, para quem chega pelos botões de preços poder voltar atrás.
+const SITE_URL = import.meta.env.VITE_SITE_URL || "https://empower-boss-site.vercel.app";
+
 function money(cents, currency = "EUR") {
   return new Intl.NumberFormat("pt-PT", { style: "currency", currency }).format((cents || 0) / 100);
 }
@@ -38,13 +41,13 @@ function usePlans() {
 
 function PlanStep({ onPick }) {
   const plansQuery = usePlans();
-  const salesLink = `https://wa.me/${SALES_WHATSAPP}?text=${encodeURIComponent("Olá! Tenho interesse no plano Enterprise do EMPOWER OS para a minha agência.")}`;
+  const salesLink = `https://wa.me/${SALES_WHATSAPP}?text=${encodeURIComponent("Olá! Tenho interesse no plano Enterprise do Big Boss para a minha agência.")}`;
 
   return (
     <div style={{ width: "100%", maxWidth: 920 }}>
       <div style={{ textAlign: "center", marginBottom: 32 }}>
         <div style={{ ...display, fontSize: 30, color: c.ink, marginBottom: 8 }}>Escolhe o teu plano</div>
-        <div style={{ ...sans, fontSize: 15, color: c.mist }}>Regista a tua agência no EMPOWER OS.</div>
+        <div style={{ ...sans, fontSize: 15, color: c.mist }}>Escolhe o plano: crias a conta e pagas online.</div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
         {(plansQuery.data || []).map((plan) => (
@@ -153,6 +156,9 @@ function AccountStep({ plan, onBack }) {
         <button type="submit" disabled={loading} style={{ ...sans, width: "100%", fontSize: 15, fontWeight: 600, color: "#fff", background: c.boss, border: "none", borderRadius: 6, padding: "12px 16px", cursor: "pointer", marginTop: 20 }}>
           {loading ? "A criar…" : "Criar conta e continuar para pagamento"}
         </button>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 12, textAlign: "center", lineHeight: 1.5 }}>
+          Ao continuar aceitas os <a href={`${SITE_URL}/termos/`} target="_blank" rel="noopener" style={{ color: c.mist }}>Termos e Condições</a> e a <a href={`${SITE_URL}/privacidade/`} target="_blank" rel="noopener" style={{ color: c.mist }}>Política de Privacidade</a>.
+        </div>
       </form>
     </div>
   );
@@ -180,8 +186,12 @@ export default function SignupPage() {
   }, [autoPicked, wanted, plansQuery.data]);
 
   return (
-    <div style={{ minHeight: "100vh", background: c.paper, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20, ...sans }}>
+    <div style={{ minHeight: "100vh", background: c.paper, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "84px 20px 20px", position: "relative", ...sans }}>
       <style>{FONTS_IMPORT}</style>
+      <a href={SITE_URL} aria-label="Voltar ao site da Empower Boss" style={{ position: "absolute", top: 20, left: 20, display: "flex", flexDirection: "column", textDecoration: "none", color: c.ink, lineHeight: 1 }}>
+        <span style={{ ...display, fontSize: 21, fontWeight: 900 }}>Empower Boss<span style={{ color: c.gold }}>.</span></span>
+        <span style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: c.mist, marginTop: 5 }}>Voltar ao site</span>
+      </a>
       <BrandLogo variant="empilhado" height={130} style={{ marginBottom: 28 }} />
 
       {selectedPlan ? <AccountStep plan={selectedPlan} onBack={() => setSelectedPlan(null)} /> : <PlanStep onPick={setSelectedPlan} />}
