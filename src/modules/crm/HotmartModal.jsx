@@ -29,14 +29,16 @@ function useHotmart(brandId) {
     queryKey: ["hotmart", brandId],
     enabled: !!brandId,
     queryFn: async () => {
-      const [settings, products, events] = await Promise.all([
+      const [settings, accounts, products, events] = await Promise.all([
         supabase.from("brand_hotmart_settings").select("enabled, connected_at, last_event_at, hottok_ref").eq("brand_id", brandId).maybeSingle(),
+        supabase.from("brand_hotmart_accounts").select("id, label, created_at").eq("brand_id", brandId).order("created_at"),
         supabase.from("hotmart_products").select("*").eq("brand_id", brandId).order("created_at"),
         supabase.from("hotmart_events").select("id, event, buyer_email, status, error, created_at").eq("brand_id", brandId).order("created_at", { ascending: false }).limit(8),
       ]);
       if (settings.error) throw settings.error;
       if (products.error) throw products.error;
-      return { settings: settings.data, products: products.data || [], events: events.data || [] };
+      // Sem a migração 88 não há contas: o hottok único do 86 conta como uma.
+      return { settings: settings.data, accounts: accounts.data || [], products: products.data || [], events: events.data || [] };
     },
   });
 }
@@ -45,9 +47,16 @@ function useHotmartMutations(brandId) {
   const qc = useQueryClient();
   const done = () => qc.invalidateQueries({ queryKey: ["hotmart", brandId] });
   return {
-    saveHottok: useMutation({
-      mutationFn: async (hottok) => {
-        const { error } = await supabase.rpc("hotmart_save_hottok", { p_brand_id: brandId, p_hottok: hottok });
+    saveAccount: useMutation({
+      mutationFn: async ({ label, hottok }) => {
+        const { error } = await supabase.rpc("hotmart_save_account", { p_brand_id: brandId, p_label: label, p_hottok: hottok });
+        if (error) throw error;
+      },
+      onSuccess: done,
+    }),
+    deleteAccount: useMutation({
+      mutationFn: async (id) => {
+        const { error } = await supabase.from("brand_hotmart_accounts").delete().eq("id", id);
         if (error) throw error;
       },
       onSuccess: done,
@@ -172,6 +181,7 @@ export default function HotmartModal({ brand, onClose }) {
   const query = useHotmart(brand.id);
   const m = useHotmartMutations(brand.id);
   const [hottok, setHottok] = useState("");
+  const [label, setLabel] = useState("");
   const [newName, setNewName] = useState("");
   const [error, setError] = useState("");
   const data = query.data;
@@ -186,7 +196,7 @@ export default function HotmartModal({ brand, onClose }) {
   };
 
   const webhookUrl = `${ENDPOINT}?brand=${brand.id}`;
-  const connected = !!data?.settings?.hottok_ref;
+  const connected = !!data?.settings && (data.accounts.length > 0 || !!data.settings.hottok_ref);
 
   return (
     <Modal title="Hotmart" onClose={onClose} width={680}>
@@ -204,23 +214,45 @@ export default function HotmartModal({ brand, onClose }) {
             <ol style={{ ...sans, fontSize: 13.5, color: c.mist, lineHeight: 1.7, margin: 0, paddingLeft: 18 }}>
               <li>Na Hotmart: Ferramentas → Webhook (API e notificações) → Cadastrar webhook, versão 2.0.0.</li>
               <li>Cola o endereço abaixo e escolhe os eventos Compra aprovada, Compra reembolsada, Chargeback e Abandono de carrinho.</li>
-              <li>Copia o hottok que a Hotmart mostra e cola-o aqui.</li>
+              <li>Copia o hottok que a Hotmart mostra e cola-o aqui, com um nome para a conta.</li>
+              <li>Tens produtos noutra conta Hotmart? Repete os passos nessa conta, com o mesmo endereço, e junta aqui o hottok dela com outro nome.</li>
             </ol>
             <CopyRow label="Endereço do webhook" value={webhookUrl} />
+            {data.accounts.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>Contas ligadas</div>
+                {data.accounts.map((acc) => (
+                  <div key={acc.id} style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "center", gap: 10, border: `1px solid ${c.line}`, borderRadius: 3, padding: "8px 12px" }}>
+                    <Check size={14} color={c.sage} />
+                    <span style={{ flex: 1 }}>{acc.label}</span>
+                    <span style={{ fontSize: 12.5, color: c.mist }}>hottok guardado</span>
+                    <button onClick={() => run(() => m.deleteAccount.mutateAsync(acc.id))} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 4 }} aria-label={`Desligar ${acc.label}`}>
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div style={{ display: "flex", gap: 6, alignItems: "flex-end", flexWrap: "wrap" }}>
-              <div style={{ flex: 1, minWidth: 200 }}>
-                <Field label={connected ? "Hottok guardado. Para trocar, cola o novo" : "Hottok"}>
-                  <input style={inputStyle} type="password" autoComplete="off" value={hottok} onChange={(e) => setHottok(e.target.value)} placeholder={connected ? "••••••••" : "Cola aqui o hottok"} />
+              <div style={{ flex: "1 1 140px" }}>
+                <Field label="Nome da conta">
+                  <input style={inputStyle} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex: Patrícia" maxLength={60} />
+                </Field>
+              </div>
+              <div style={{ flex: "2 1 200px" }}>
+                <Field label="Hottok dessa conta">
+                  <input style={inputStyle} type="password" autoComplete="off" value={hottok} onChange={(e) => setHottok(e.target.value)} placeholder="Cola aqui o hottok" />
                 </Field>
               </div>
               <button
-                onClick={() => run(async () => { await m.saveHottok.mutateAsync(hottok); setHottok(""); })}
-                disabled={!hottok.trim() || m.saveHottok.isPending}
+                onClick={() => run(async () => { await m.saveAccount.mutateAsync({ label, hottok }); setHottok(""); setLabel(""); })}
+                disabled={!hottok.trim() || !label.trim() || m.saveAccount.isPending}
                 style={btnPrimary}
               >
-                {m.saveHottok.isPending ? "A guardar…" : "Guardar hottok"}
+                {m.saveAccount.isPending ? "A guardar…" : data.accounts.length ? "Juntar conta" : "Guardar conta"}
               </button>
             </div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>Para trocar o hottok de uma conta, guarda outra vez com o mesmo nome.</div>
             {connected && (
               <label style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "center", gap: 7 }}>
                 <input type="checkbox" checked={data.settings.enabled} onChange={(e) => run(() => m.setEnabled.mutateAsync(e.target.checked))} />

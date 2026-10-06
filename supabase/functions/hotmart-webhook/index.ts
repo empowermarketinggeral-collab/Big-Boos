@@ -1,8 +1,9 @@
 // EMPOWER OS — webhook da Hotmart (versão 2.0.0) → CRM da marca.
 //
 //   POST https://<project>.supabase.co/functions/v1/hotmart-webhook?brand=<id da marca>
-//   Cabeçalho X-HOTMART-HOTTOK (ou "hottok" no corpo) = hottok da conta Hotmart,
-//   guardado no Vault em CRM → Hotmart (hotmart_save_hottok).
+//   Cabeçalho X-HOTMART-HOTTOK (ou "hottok" no corpo) = hottok de uma das contas
+//   Hotmart da marca, guardado no Vault em CRM → Hotmart (hotmart_save_account).
+//   O mesmo endereço serve todas as contas.
 //
 // Precisa de "Verify JWT" DESLIGADO — a Hotmart não envia JWT; a segurança
 // vem do hottok.
@@ -77,11 +78,19 @@ Deno.serve(async (req) => {
 
   const admin = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
 
+  // Várias contas Hotmart na mesma marca (brand_hotmart_accounts, migração
+  // 88): serve o hottok de qualquer uma. Sem contas, usa o do 86.
   const { data: settings } = await admin.from("brand_hotmart_settings").select("hottok_ref, enabled").eq("brand_id", brandId).maybeSingle();
-  if (!settings?.hottok_ref || !settings.enabled) return json({ error: "Não autorizado." }, 401);
-  const { data: expected } = await admin.rpc("vault_read_secret", { p_id: settings.hottok_ref });
+  if (!settings?.enabled) return json({ error: "Não autorizado." }, 401);
+  const { data: accounts } = await admin.from("brand_hotmart_accounts").select("hottok_ref").eq("brand_id", brandId);
+  const refs = [...new Set([...(accounts || []).map((a) => a.hottok_ref), settings.hottok_ref].filter(Boolean))];
   const received = str(req.headers.get("x-hotmart-hottok") || body?.hottok, 300);
-  if (!expected || !received || !safeEqual(received, expected)) return json({ error: "Não autorizado." }, 401);
+  let authorized = false;
+  for (const ref of refs) {
+    const { data: expected } = await admin.rpc("vault_read_secret", { p_id: ref });
+    if (expected && received && safeEqual(received, expected)) authorized = true;
+  }
+  if (!authorized) return json({ error: "Não autorizado." }, 401);
 
   const event = str(body?.event, 60).toUpperCase();
   const data = body?.data || {};
