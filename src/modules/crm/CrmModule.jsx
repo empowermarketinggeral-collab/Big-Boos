@@ -3,9 +3,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import {
-  ArrowLeft, Plus, X, Trash2, Pencil, Phone, Mail, Search, GripVertical, Download, Upload, Link2,
+  ArrowLeft, Plus, X, Trash2, Pencil, Phone, Mail, Search, GripVertical, Download, Upload, Link2, ShoppingBag, Flame,
 } from "lucide-react";
 import LeadIntakeModal from "./LeadIntakeModal.jsx";
+import HotmartModal from "./HotmartModal.jsx";
 import { parseCsv, findColumn, normalizePhone } from "../../shared/csv.js";
 import TagsView from "./TagsView.jsx";
 
@@ -39,6 +40,8 @@ function mapContactRow(row) {
     optedInEmail: !!row.opted_in_email,
     birthDate: row.birth_date || "",
     referredBy: row.referred_by || "",
+    leadScore: row.lead_score || 0,
+    lifecycle: row.custom_fields?.ciclo_vida || "",
     tags: (row.contact_tags || []).map((ct) => ct.tags).filter(Boolean),
     createdAt: row.created_at,
   };
@@ -462,6 +465,7 @@ function mapDealRow(row) {
     title: row.title,
     value: row.value,
     status: row.status,
+    lostReason: row.lost_reason || "",
     createdAt: row.created_at,
   };
 }
@@ -498,9 +502,11 @@ function useCreateDeal(brandId, pipelineId) {
 function useUpdateDealStage(pipelineId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, stage }) => {
+    mutationFn: async ({ id, stage, lostReason }) => {
       const status = stage.is_won ? "won" : stage.is_lost ? "lost" : "open";
-      const { error } = await supabase.from("deals").update({ stage_id: stage.id, status }).eq("id", id);
+      const patch = { stage_id: stage.id, status };
+      if (lostReason !== undefined) patch.lost_reason = lostReason || null;
+      const { error } = await supabase.from("deals").update(patch).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["crm_deals", pipelineId] }),
@@ -685,6 +691,8 @@ function ContactsView({ brand, session }) {
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [showLeadIntake, setShowLeadIntake] = useState(false);
+  const [showHotmart, setShowHotmart] = useState(false);
+  const [hottestFirst, setHottestFirst] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(null);
   const [importResult, setImportResult] = useState(null);
   const [importError, setImportError] = useState("");
@@ -696,6 +704,8 @@ function ContactsView({ brand, session }) {
     if (!q) return true;
     return ct.name.toLowerCase().includes(q) || ct.email.toLowerCase().includes(q) || ct.phone.includes(q);
   });
+  // "Mais quentes": pontuação mais alta primeiro (quem contactar primeiro).
+  if (hottestFirst) contacts.sort((a, b) => b.leadScore - a.leadScore);
 
   const onFileSelected = async (e) => {
     const file = e.target.files?.[0];
@@ -736,8 +746,18 @@ function ContactsView({ brand, session }) {
           <button onClick={() => fileInputRef.current?.click()} style={btnGhost} disabled={importContacts.isPending}>
             <Upload size={13} /> {importContacts.isPending ? "A importar…" : "Importar"}
           </button>
+          <button
+            onClick={() => setHottestFirst((v) => !v)}
+            style={hottestFirst ? { ...btnGhost, color: c.bossText, borderColor: c.bossText } : btnGhost}
+            aria-pressed={hottestFirst}
+          >
+            <Flame size={13} /> Mais quentes
+          </button>
           <button onClick={() => setShowLeadIntake(true)} style={btnGhost}>
             <Link2 size={13} /> Entrada de leads
+          </button>
+          <button onClick={() => setShowHotmart(true)} style={btnGhost}>
+            <ShoppingBag size={13} /> Hotmart
           </button>
           <button onClick={() => { setEditing(null); setShowForm(true); }} style={btnPrimary}>
             <Plus size={14} /> Novo contacto
@@ -768,6 +788,7 @@ function ContactsView({ brand, session }) {
         />
       )}
       {showLeadIntake && <LeadIntakeModal brand={brand} onClose={() => setShowLeadIntake(false)} />}
+      {showHotmart && <HotmartModal brand={brand} onClose={() => setShowHotmart(false)} />}
 
       {contactsQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A carregar…</div>}
 
@@ -803,8 +824,21 @@ function ContactsView({ brand, session }) {
               <div style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", gap: 12, marginTop: 2, flexWrap: "wrap" }}>
                 {ct.phone && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Phone size={11} /> {ct.phone}</span>}
                 {ct.email && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Mail size={11} /> {ct.email}</span>}
+                {ct.lifecycle && <span>{ct.lifecycle}</span>}
               </div>
             </div>
+            {ct.leadScore > 0 && (
+              <span
+                title="Pontuação (0-100): probabilidade de avançar"
+                style={{
+                  ...sans, fontSize: 12.5, fontWeight: 700, borderRadius: 999, padding: "3px 9px", flexShrink: 0,
+                  color: ct.leadScore >= 60 ? "#fff" : c.bossText,
+                  background: ct.leadScore >= 60 ? c.roseSolid : `color-mix(in srgb, ${c.bossText} 12%, transparent)`,
+                }}
+              >
+                {ct.leadScore}
+              </span>
+            )}
             <div style={{ display: "flex", gap: 5, flexWrap: "wrap", maxWidth: 200 }}>
               {ct.tags.map((tag) => (
                 <span key={tag.id} style={{ ...sans, fontSize: 12.5, fontWeight: 600, color: "#fff", background: tag.color, borderRadius: 999, padding: "3px 8px" }}>
@@ -897,6 +931,9 @@ function NewDealModal({ brandId, pipelineId, stageId, contacts, onClose, session
   );
 }
 
+// Motivos de perda: alimentam os fluxos de resgate (preço, timing…).
+const LOST_REASONS = ["Preço", "Timing", "Sem tempo", "Escolheu outra formação", "Sem resposta", "Não qualificada", "Outro"];
+
 function DealDrawer({ deal, stages, pipelineId, brandId, onClose, session }) {
   const updateStage = useUpdateDealStage(pipelineId);
   const deleteDeal = useDeleteDeal(pipelineId);
@@ -934,6 +971,23 @@ function DealDrawer({ deal, stages, pipelineId, brandId, onClose, session }) {
         >
           {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
+
+        {stages.find((s) => s.id === deal.stageId)?.is_lost && (
+          <>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 6 }}>Motivo da perda</div>
+            <select
+              style={{ ...inputStyle, marginBottom: 18, borderColor: deal.lostReason ? c.lineStrong : c.rose }}
+              value={LOST_REASONS.includes(deal.lostReason) || !deal.lostReason ? deal.lostReason : "Outro"}
+              onChange={(e) => {
+                const stage = stages.find((s) => s.id === deal.stageId);
+                updateStage.mutate({ id: deal.id, stage, lostReason: e.target.value });
+              }}
+            >
+              <option value="">Escolhe o motivo</option>
+              {LOST_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </>
+        )}
 
         <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 8 }}>Notas</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>

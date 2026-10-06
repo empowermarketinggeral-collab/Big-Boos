@@ -24,11 +24,16 @@ function useManagedTags(brandId) {
     queryKey: ["tags_manage", brandId],
     enabled: !!brandId,
     queryFn: async () => {
-      const [tagsRes, autosRes, stepsRes] = await Promise.all([
+      const [tagsRes, autosRes, stepsRes, rulesRes, levelsRes] = await Promise.all([
         supabase.from("tags").select("id, name, color, created_at, contact_tags(count)").eq("brand_id", brandId).order("name"),
         supabase.from("automations").select("id, name, trigger_config").eq("brand_id", brandId),
         supabase.from("automation_steps").select("automation_id, config").eq("brand_id", brandId),
+        supabase.from("lead_score_rules").select("tag_id, points, reset").eq("brand_id", brandId),
+        supabase.from("lead_score_levels").select("tag_id, min_score").eq("brand_id", brandId),
       ]);
+      // Sem a migração 86 estas duas tabelas não existem: as tags funcionam na mesma.
+      const rules = new Map((rulesRes.data || []).map((r) => [r.tag_id, r]));
+      const levels = new Map((levelsRes.data || []).map((l) => [l.tag_id, l.min_score]));
       if (tagsRes.error) throw tagsRes.error;
       if (autosRes.error) throw autosRes.error;
       if (stepsRes.error) throw stepsRes.error;
@@ -56,6 +61,9 @@ function useManagedTags(brandId) {
         color: t.color || DEFAULT_COLOR,
         contactCount: t.contact_tags?.[0]?.count ?? 0,
         automations: [...(usage.get(t.id)?.values() || [])],
+        points: rules.get(t.id)?.points ?? 0,
+        resetScore: !!rules.get(t.id)?.reset,
+        level: levels.get(t.id) ?? null,
       }));
     },
   });
@@ -76,9 +84,15 @@ function useTagMutations(brandId) {
     onSuccess: refresh,
   });
   const update = useMutation({
-    mutationFn: async ({ id, name, color }) => {
+    mutationFn: async ({ id, name, color, points, resetScore }) => {
       const { error } = await supabase.from("tags").update({ name, color }).eq("id", id);
       if (error) throw error;
+      // Pontuação: a tag soma (ou tira) pontos a quem a recebe, ou repõe a 0.
+      if (points === undefined) return;
+      const res = points || resetScore
+        ? await supabase.from("lead_score_rules").upsert({ brand_id: brandId, tag_id: id, points: points || 0, reset: !!resetScore }, { onConflict: "tag_id" })
+        : await supabase.from("lead_score_rules").delete().eq("tag_id", id);
+      if (res.error) throw res.error;
     },
     onSuccess: refresh,
   });
@@ -116,14 +130,19 @@ function TagRow({ tag, onSave, onDelete, saving }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(tag.name);
   const [color, setColor] = useState(tag.color);
+  const [points, setPoints] = useState(String(tag.points || ""));
+  const [resetScore, setResetScore] = useState(tag.resetScore);
   const [error, setError] = useState("");
 
-  const startEdit = () => { setName(tag.name); setColor(tag.color); setError(""); setEditing(true); };
+  const startEdit = () => { setName(tag.name); setColor(tag.color); setPoints(String(tag.points || "")); setResetScore(tag.resetScore); setError(""); setEditing(true); };
   const save = async () => {
     const trimmed = name.trim();
     if (!trimmed) { setError("O nome é obrigatório."); return; }
+    const pts = Number(points) || 0;
+    if (pts < -100 || pts > 100) { setError("Os pontos vão de -100 a 100."); return; }
     try {
-      await onSave({ id: tag.id, name: trimmed, color });
+      const scoreChanged = Math.round(pts) !== (tag.points || 0) || resetScore !== tag.resetScore;
+      await onSave({ id: tag.id, name: trimmed, color, ...(scoreChanged ? { points: Math.round(pts), resetScore } : {}) });
       setEditing(false);
     } catch (err) {
       setError(friendlyError(err));
@@ -138,6 +157,15 @@ function TagRow({ tag, onSave, onDelete, saving }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <input style={inputStyle} value={name} maxLength={60} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && save()} autoFocus />
           <ColorPicker value={color} onChange={setColor} />
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <label style={{ ...sans, fontSize: 13.5, color: c.mist, display: "flex", alignItems: "center", gap: 6 }}>
+              Pontos ao receber
+              <input style={{ ...inputStyle, width: 80 }} type="number" value={points} disabled={resetScore} onChange={(e) => setPoints(e.target.value)} placeholder="0" />
+            </label>
+            <label style={{ ...sans, fontSize: 13.5, color: c.mist, display: "flex", alignItems: "center", gap: 6 }}>
+              <input type="checkbox" checked={resetScore} onChange={(e) => setResetScore(e.target.checked)} /> Repõe a pontuação a 0
+            </label>
+          </div>
           {error && <div style={{ ...sans, fontSize: 13.5, color: c.rose }}>{error}</div>}
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={save} disabled={saving} style={btnPrimary}><Check size={13} /> Guardar</button>
@@ -156,6 +184,8 @@ function TagRow({ tag, onSave, onDelete, saving }) {
         <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
           {tag.contactCount} {tag.contactCount === 1 ? "contacto" : "contactos"}
           {tag.automations.length > 0 && `, usada em ${tag.automations.length} ${tag.automations.length === 1 ? "automação" : "automações"}`}
+          {tag.resetScore ? ", repõe a pontuação a 0" : tag.points ? `, ${tag.points > 0 ? "+" : ""}${tag.points} pontos` : ""}
+          {tag.level !== null && `, dada ao chegar a ${tag.level} pontos`}
         </div>
       </div>
       <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>

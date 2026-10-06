@@ -31,7 +31,12 @@ const FIELD_TYPES = [
   { value: "textarea", label: "Texto longo" },
   { value: "select", label: "Escolha (lista)" },
   { value: "choice", label: "Escolha (botões)" },
+  { value: "consent", label: "Consentimento (RGPD)" },
 ];
+
+// Campos cuja resposta pode ir para um campo personalizado do contacto
+// (field.customField, ex.: trilho) — ver trg_form_submission_created (86).
+const CUSTOM_FIELD_TYPES = ["text", "textarea", "select", "choice"];
 
 // Quiz: cada pergunta de escolha tem opções com pontos — "certo/errado com
 // valor fixo" é só o caso em que uma opção tem pontos e as outras 0;
@@ -325,7 +330,27 @@ function FieldRow({ field, onChange, onRemove, onMove, isFirst, isLast, isQuiz }
             {MAPS_TO_OPTIONS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         )}
+        {field.type === "consent" && (
+          <label style={{ ...sans, fontSize: 12.5, color: c.mist, display: "flex", alignItems: "center", gap: 5 }}>
+            <input type="checkbox" checked={!!field.consentAlsoMessaging} onChange={(e) => onChange({ ...field, consentAlsoMessaging: e.target.checked || undefined })} />
+            Inclui WhatsApp e SMS
+          </label>
+        )}
+        {CUSTOM_FIELD_TYPES.includes(field.type) && !field.mapsTo && (
+          <input
+            value={field.customField || ""}
+            onChange={(e) => onChange({ ...field, customField: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 40) || undefined })}
+            placeholder="Guardar no campo (ex: trilho)"
+            title="A resposta fica guardada neste campo personalizado do contacto"
+            style={{ ...sans, fontSize: 12.5, color: c.ink, background: c.folha, border: `1px solid ${c.lineStrong}`, borderRadius: 6, padding: "5px 8px", outline: "none", width: 190 }}
+          />
+        )}
       </div>
+      {field.type === "consent" && (
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.5 }}>
+          Escreve no rótulo o texto que a pessoa aceita (ex: Aceito receber emails da Dreams Academy com conteúdos e ofertas). Marcado, o contacto fica com consentimento de email.
+        </div>
+      )}
       {field.type === "select" && (
         <input
           value={optionsText}
@@ -785,6 +810,7 @@ export default function FormsModule({ brand, onBack }) {
 // Resposta legível: nas perguntas por botões guarda-se o id da opção (ou a
 // lista de ids, com várias respostas) — mostra-se o texto da opção.
 function answerText(field, value) {
+  if (field.type === "consent") return value === true ? "Sim" : "Não";
   if (field.type === "choice") {
     const ids = Array.isArray(value) ? value : [value];
     return ids.map((id) => (field.options || []).find((o) => o.id === id)?.label || id).join(", ");
@@ -867,6 +893,14 @@ function PublicField({ field, value, onChange, font }) {
           ))}
         </div>
       </div>
+    );
+  }
+  if (field.type === "consent") {
+    return (
+      <label style={{ ...sans, fontFamily, fontSize: 14, color: "#2A2438", display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer", lineHeight: 1.5 }}>
+        <input type="checkbox" required={field.required} checked={value === true} onChange={(e) => onChange(e.target.checked)} style={{ marginTop: 3 }} />
+        <span>{field.label}{field.required && <span style={{ color: "#D3455B" }}> *</span>}</span>
+      </label>
     );
   }
   const htmlType = field.type === "email" ? "email" : field.type === "phone" ? "tel" : "text";

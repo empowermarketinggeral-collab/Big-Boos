@@ -38,6 +38,59 @@ function renderForContact(text, contact, escape = true) {
   return { ok, value };
 }
 
+// Links assinados para a função email-click — mesmo formato do automations-run:
+// {{clique:tag|destino}} (destino = URL ou campo do contacto com um URL),
+// {{anular_subscricao}}, pixel de abertura e cabeçalho List-Unsubscribe.
+const CLICK_BASE = `${Deno.env.get("SUPABASE_URL")}/functions/v1/email-click`;
+
+function b64url(bytes) {
+  return btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+let linkKey = null;
+async function signLink(payload) {
+  if (!linkKey) {
+    const secret = Deno.env.get("EMAIL_LINK_SECRET") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    linkKey = await crypto.subtle.importKey("raw", new TextEncoder().encode(`email-link:${secret}`), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  }
+  return b64url(await crypto.subtle.sign("HMAC", linkKey, new TextEncoder().encode(payload))).slice(0, 32);
+}
+
+async function emailLink(brandId, contactId, action, extra = {}) {
+  const p = b64url(new TextEncoder().encode(JSON.stringify({ b: brandId, c: contactId, a: action, ...extra })));
+  return `${CLICK_BASE}?p=${p}&s=${await signLink(p)}${action === "o" ? "&o=1" : ""}`;
+}
+
+// Links da marca (CRM → Hotmart): {{link_<código>}}, hífens passam a "_".
+async function brandLinks(admin, brandId) {
+  const vars = {};
+  const { data } = await admin.from("hotmart_products").select("slug, checkout_url").eq("brand_id", brandId);
+  for (const p of data || []) if (p.checkout_url) vars[`link_${p.slug.replace(/-/g, "_")}`] = p.checkout_url;
+  return vars;
+}
+
+// Devolve null se um link não tiver destino válido (o contacto é saltado).
+async function renderTrackedLinks(text, brandId, contact, vars = {}) {
+  let out = text || "";
+  if (out.includes("{{anular_subscricao}}")) out = out.split("{{anular_subscricao}}").join(await emailLink(brandId, contact.id, "u"));
+  for (const m of [...out.matchAll(/\{\{\s*clique:([^|{}]*)(?:\|([^{}]*))?\}\}/g)]) {
+    const tag = m[1].trim();
+    const dest = (m[2] || "").trim();
+    let target = "";
+    if (/^https?:\/\//i.test(dest)) target = dest;
+    else if (dest) {
+      const value = contact.custom_fields?.[dest] ?? vars[dest];
+      if (!value || !/^https?:\/\//i.test(String(value))) return null;
+      target = String(value);
+    }
+    const extra = {};
+    if (tag) extra.t = tag;
+    if (target) extra.u = target;
+    out = out.replace(m[0], await emailLink(brandId, contact.id, "c", extra));
+  }
+  return out;
+}
+
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
@@ -71,6 +124,9 @@ Deno.serve(async (req) => {
   }
   if (campaign.status === "sent" || campaign.status === "sending") {
     return json({ error: "Esta campanha já foi enviada." }, 400);
+  }
+  if (/\[AJUSTAR/.test(`${campaign.subject} ${campaign.body_html || ""}`)) {
+    return json({ error: "A campanha ainda tem texto por preencher ([AJUSTAR]). Edita-a antes de enviar." }, 400);
   }
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
@@ -108,6 +164,7 @@ Deno.serve(async (req) => {
   }
 
   const from = domain.from_name ? `${domain.from_name} <${domain.from_email}>` : domain.from_email;
+  const links = await brandLinks(adminClient, campaign.brand_id);
 
   await adminClient.from("email_campaigns").update({ status: "sending" }).eq("id", campaignId);
 
@@ -118,15 +175,21 @@ Deno.serve(async (req) => {
       continue;
     }
     const subject = renderForContact(campaign.subject, contact, false);
-    const html = renderForContact(campaign.body_html || "", contact);
+    const tracked = await renderTrackedLinks(campaign.body_html || "", campaign.brand_id, contact, links);
+    const html = tracked === null ? { ok: false, value: "" } : renderForContact(tracked, contact);
     if (!subject.ok || !html.ok) {
       skipped++;
       continue;
     }
+    const unsubscribe = await emailLink(campaign.brand_id, contact.id, "u");
+    const openPixel = `<img src="${await emailLink(campaign.brand_id, contact.id, "o")}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0">`;
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to: contact.email, subject: subject.value, html: html.value }),
+      body: JSON.stringify({
+        from, to: contact.email, subject: subject.value, html: html.value + openPixel,
+        headers: { "List-Unsubscribe": `<${unsubscribe}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+      }),
     });
     const data = await res.json();
     if (!res.ok) {

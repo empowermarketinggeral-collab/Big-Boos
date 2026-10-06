@@ -52,8 +52,16 @@ const ACTION_TYPES = [
   { value: "http_request", label: "Pedido HTTP (webhook)" },
 ];
 
-const triggerLabel = (value) => TRIGGER_TYPES.find((t) => t.value === value)?.label || value;
-const actionLabel = (value) => ACTION_TYPES.find((a) => a.value === value)?.label || value;
+// Tipos criados por migrações (ex: Dreams Academy, 87) que ainda não se
+// escolhem no editor, mas que aparecem com nome legível.
+const OTHER_LABELS = {
+  deal_stage_changed: "Negócio mudou de fase no pipeline",
+  create_deal: "Criar negócio no pipeline",
+  move_pipeline_stage: "Mover negócio de fase",
+  notify_team: "Avisar a equipa",
+};
+const triggerLabel = (value) => TRIGGER_TYPES.find((t) => t.value === value)?.label || OTHER_LABELS[value] || value;
+const actionLabel = (value) => ACTION_TYPES.find((a) => a.value === value)?.label || OTHER_LABELS[value] || value;
 
 /* ---------------------------------------------------------
    DATA
@@ -360,6 +368,7 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
     Object.entries(step?.config?.fields || {}).map(([k, v]) => `${k}=${v}`).join("\n")
   );
   const [optional, setOptional] = useState(!!step?.config?.optional);
+  const [requireConsent, setRequireConsent] = useState(!!step?.config?.requireConsent);
   const untilField = step?.type === "wait" ? step?.config?.untilField : null;
   const [error, setError] = useState("");
 
@@ -382,6 +391,7 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
     const kept = step?.action_type === actionType ? step.config || {} : {};
     const config = { ...kept, ...baseConfig };
     if (optional) config.optional = true; else delete config.optional;
+    if (actionType === "send_email" && requireConsent) config.requireConsent = true; else delete config.requireConsent;
     return { type: "action", position: step?.position ?? position, action_type: actionType, config };
   };
 
@@ -502,6 +512,12 @@ function StepFormModal({ brandId, automationId, step, tags, position, onClose })
               <label style={{ ...sans, fontSize: 14, color: c.mist, display: "flex", gap: 8, alignItems: "center" }}>
                 <input type="checkbox" checked={optional} onChange={(e) => setOptional(e.target.checked)} />
                 Opcional: se o contacto não tiver este canal ou o envio falhar, continua a automação
+              </label>
+            )}
+            {actionType === "send_email" && (
+              <label style={{ ...sans, fontSize: 14, color: c.mist, display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="checkbox" checked={requireConsent} onChange={(e) => setRequireConsent(e.target.checked)} />
+                Email de marketing: só segue para quem deu consentimento de email (os outros saltam este passo)
               </label>
             )}
 

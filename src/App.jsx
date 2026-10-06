@@ -9,6 +9,7 @@ import { PrivacyPage, TermsPage } from "./modules/legal/LegalPage.jsx";
 import ClientApp from "./modules/clientapp/ClientApp.jsx";
 import ConnectGooglePage, { ConnectGoogleResultPage } from "./modules/booking/ConnectGooglePage.jsx";
 import CreativesSharePage from "./modules/creatives/CreativesSharePage.jsx";
+import { EmailConfirmedPage, EmailUnsubscribePage } from "./modules/email/EmailActionPage.jsx";
 
 // Exemplar de design: só existe em desenvolvimento (não entra no build de produção).
 const DesignSpecimen = import.meta.env.DEV ? lazy(() => import("./design/DesignSpecimen.jsx")) : null;
@@ -54,6 +55,8 @@ function App() {
         <Route path="/criativos/:token" element={<CreativesSharePage />} />
         <Route path="/ligar-agenda/:token" element={<ConnectGooglePage />} />
         <Route path="/ligar-agenda-resultado" element={<ConnectGoogleResultPage />} />
+        <Route path="/email/confirmado" element={<EmailConfirmedPage />} />
+        <Route path="/email/anular" element={<EmailUnsubscribePage />} />
         <Route path="*" element={<BigBossPrototype />} />
       </Routes>
     </BrowserRouter>
