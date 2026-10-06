@@ -66,10 +66,10 @@
 
 /* logótipos (SVG em public/brand) e selo de aprovado */
 .bbx-logo { display: block; background-repeat: no-repeat; background-position: center; background-size: contain; }
-.bbx-logo-empilhado { height: 150px; aspect-ratio: 510.35 / 360.03; background-image: url(/brand/empilhado/bigboss-empilhado-sobre-branco.svg); }
+.bbx-logo-empilhado { height: 150px; aspect-ratio: 420.59 / 312.96; background-image: url(/brand/empilhado/bigboss-empilhado-sobre-branco.svg); }
 :root[data-theme="dark"] .bbx-logo-empilhado { background-image: url(/brand/empilhado/bigboss-empilhado-sobre-roxo.svg); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bbx-logo-empilhado { background-image: url(/brand/empilhado/bigboss-empilhado-sobre-roxo.svg); } }
-.bbx-logo-compacto-roxo { height: 26px; aspect-ratio: 660.35 / 112.5; background-image: url(/brand/compacto/bigboss-compacto-sobre-roxo.svg); }
+.bbx-logo-compacto-roxo { height: 26px; aspect-ratio: 437.95 / 106; background-image: url(/brand/compacto/bigboss-compacto-sobre-roxo.svg); }
 .bbx-row.flash { animation: bbx-flash 1000ms ease-out; }
 @keyframes bbx-flash { from { background: var(--bb-boss-suave); } to { background: transparent; } }
 

@@ -20,7 +20,7 @@ Quem manda é quem põe o ponto final. Um ponto dourado fecha o nome, o monogram
 | Dourado texto | #8A6A22 | links e realces sobre papel |
 | Grafite | #4A4642 | texto secundário |
 | Linha | #D9D2C5 | divisões |
-| Roxo Big Boss | #7C52A8 | cor do produto Big Boss |
+| Roxo Big Boss | #30154C | cor do produto Big Boss (o roxo profundo da régua da app) |
 | Norte Bússola | #1F5C5A | cor do produto Bússola |
 
 ## Tipografia
@@ -29,5 +29,7 @@ Quem manda é quem põe o ponto final. Um ponto dourado fecha o nome, o monogram
 - Texto: Quicksand 500/600 (a mesma do Big Boss).
 
 ## Regras
-Proposta de família (por decidir): todos os nomes escritos da mesma forma, "Nome." em Bodoni Moda 900 com ponto dourado sobre a cor do produto, mais "by Empower Boss". Ícones: "Boss." (marca-mãe), "Big." em roxo (Big Boss) e a rosa-dos-ventos do atual símbolo do Big Boss passa para a Bússola. Se for aprovada, é preciso atualizar `public/brand/` e o ícone da app.
+Família do ponto (aprovada): todos os nomes escritos da mesma forma, "Nome." em Bodoni Moda 900 com ponto dourado sobre a cor do produto, mais "by Empower Boss". Ícones: "Boss." (marca-mãe), "Big." em roxo profundo (Big Boss; "B." no favicon) e a rosa-dos-ventos para a Bússola, com o ponto dourado no centro, sobre o verde.
+
+Os logótipos do Big Boss em `public/brand/` e os ícones da app (favicon, PNG, manifesto) são gerados por `docs/marca/gerar-logo-bigboss.py` (fontes Bodoni Moda Black opsz 11 e Quicksand 600 do Google Fonts): `python3 docs/marca/gerar-logo-bigboss.py <pasta_fontes> .`
 Cantos vivos, sem gradientes, sem sombras suaves, sem pontos médios nem setas nos textos. Produtos assinam "by Empower Boss" e usam a sua cor como fundo, sempre com o ponto dourado.

@@ -2403,7 +2403,7 @@ function Sidebar({ active, onNavigate, session, roleInfo, onLogout }) {
         <img
           src="/brand/compacto/bigboss-compacto-sobre-roxo.svg"
           alt="Big Boss by Empower Boss"
-          style={{ display: "block", height: 28, width: "auto", maxWidth: "100%" }}
+          style={{ display: "block", height: 34, width: "auto", maxWidth: "100%" }}
         />
       </div>
       <nav className="bb-sidebar-nav" aria-label="Principal" style={{ flex: 1, padding: "8px 12px", overflowY: "auto" }}>
