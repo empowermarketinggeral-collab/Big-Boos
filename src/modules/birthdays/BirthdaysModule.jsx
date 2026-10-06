@@ -5,7 +5,7 @@ import { c, sans, serif, display, inputStyle, btnPrimary, btnGhost, Modal, CAN_M
 import { ArrowLeft, Plus, Upload, Pencil, Trash2, Check, ExternalLink, Bell, Cake, Search } from "lucide-react";
 import ApprovalSeal from "../../design/ApprovalSeal.jsx";
 import {
-  MONTHS, FIELD_LABELS, ageOn, daysBetween, daysInMonth, detectColumns, dmLabel, nextOccurrence, occurrenceIn,
+  MONTHS, FIELD_LABELS, ageOn, detectDateOrder, daysBetween, daysInMonth, detectColumns, dmLabel, nextOccurrence, occurrenceIn,
   planImport, profileLink, rowsFromTable, tableFromText, todayLocal, whenLabel,
 } from "./birthdaysLogic.js";
 
@@ -217,6 +217,7 @@ function ImportModal({ brand, userId, existing, hasSettings, onClose, onDone }) 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
+  const [dateOrder, setDateOrder] = useState("auto");
 
   const load = (raw) => {
     setError("");
@@ -233,7 +234,9 @@ function ImportModal({ brand, userId, existing, hasSettings, onClose, onDone }) 
     try { const raw = await readTextFile(file); setText(raw); load(raw); } catch { setError("Não consegui ler o ficheiro."); }
   };
 
-  const rows = useMemo(() => (table && mapping ? rowsFromTable(table, mapping) : []), [table, mapping]);
+  const rows = useMemo(() => (table && mapping ? rowsFromTable(table, mapping, new Date().getFullYear(), dateOrder) : []), [table, mapping, dateOrder]);
+  const detected = useMemo(() => (table && mapping && mapping.date >= 0 ? detectDateOrder(table.slice(1).map((r) => r[mapping.date])) : null), [table, mapping]);
+  const effectiveOrder = dateOrder === "auto" ? detected?.order || "dmy" : dateOrder;
   const plan = useMemo(() => planImport(rows, existing), [rows, existing]);
   const canImport = mapping && mapping.name >= 0 && (mapping.date >= 0 || (mapping.day >= 0 && mapping.month >= 0)) && (plan.creates.length + plan.updates.length) > 0;
 
@@ -317,6 +320,16 @@ function ImportModal({ brand, userId, existing, hasSettings, onClose, onDone }) 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10, marginBottom: 14 }}>
             {["name", "date", "member", "profile", "notes"].map(fieldSelect)}
           </div>
+          {mapping.date >= 0 && (
+            <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginBottom: 14, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <label htmlFor="b-ordem" style={{ fontWeight: 700 }}>Formato das datas:</label>
+              <select id="b-ordem" value={dateOrder} onChange={(e) => setDateOrder(e.target.value)} style={{ ...inputStyle, width: "auto", minHeight: 36 }}>
+                <option value="auto">Automático ({effectiveOrder === "mdy" ? "mês/dia" : "dia/mês"}{detected && !detected.certain ? ", não tenho a certeza" : ""})</option>
+                <option value="dmy">Dia/mês (ex.: 17/01 = 17 de janeiro)</option>
+                <option value="mdy">Mês/dia (ex.: 01/17 = 17 de janeiro)</option>
+              </select>
+            </div>
+          )}
           {mapping.date < 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 14 }}>
               {["day", "month", "year"].map(fieldSelect)}

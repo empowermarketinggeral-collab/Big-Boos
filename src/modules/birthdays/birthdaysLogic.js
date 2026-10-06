@@ -28,7 +28,8 @@ const fullYear = (yy, nowYear) => {
 const plainWord = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 // Devolve { day, month, year|null } ou null se não perceber.
-export function parseBirthday(raw, nowYear = new Date().getFullYear()) {
+// order: "dmy" (dia/mês, o normal em Portugal) ou "mdy" (mês/dia, comum em folhas do Google). Só conta para a/b.
+export function parseBirthday(raw, nowYear = new Date().getFullYear(), order = "dmy") {
   let s = String(raw ?? "").trim();
   if (!s) return null;
 
@@ -49,6 +50,7 @@ export function parseBirthday(raw, nowYear = new Date().getFullYear()) {
   m = s.match(/^(\d{1,2})[-/.](\d{1,2})(?:[-/.](\d{2}|\d{4}))?$/); // 15/03/1960, 15-3, 15.03.60
   if (m) {
     let d = Number(m[1]), mo = Number(m[2]);
+    if (order === "mdy") [d, mo] = [mo, d];
     if (!validDM(d, mo) && validDM(mo, d)) [d, mo] = [mo, d]; // 03/15/1960 (só quando não há dúvida)
     if (!validDM(d, mo)) return null;
     return { day: d, month: mo, year: m[3] ? fullYear(Number(m[3]), nowYear) : null };
@@ -67,6 +69,22 @@ export function parseBirthday(raw, nowYear = new Date().getFullYear()) {
     return validDM(d, mo) ? { day: d, month: mo, year: m[3] ? Number(m[3]) : null } : null;
   }
   return null;
+}
+
+// Olha para a coluna toda: um valor como 01/17 só pode ser mês/dia; 17/01 só dia/mês.
+// Devolve { order: "dmy"|"mdy", certain: boolean }.
+export function detectDateOrder(values) {
+  let dayFirst = 0, monthFirst = 0;
+  for (const v of values) {
+    const m = String(v ?? "").trim().match(/^(\d{1,2})[-/.](\d{1,2})(?:[-/.](\d{2}|\d{4}))?$/);
+    if (!m) continue;
+    const a = Number(m[1]), b = Number(m[2]);
+    if (a > 12 && b <= 12) dayFirst++;
+    else if (b > 12 && a <= 12) monthFirst++;
+  }
+  if (monthFirst > 0 && dayFirst === 0) return { order: "mdy", certain: true };
+  if (dayFirst > 0 && monthFirst === 0) return { order: "dmy", certain: true };
+  return { order: "dmy", certain: false };
 }
 
 /* ---------- Colunas ---------- */
@@ -99,7 +117,9 @@ export const FIELD_LABELS = {
 /* ---------- Folha → linhas ---------- */
 
 // mapping: { name, date, day, month, year, member, profile, notes } → índice da coluna (-1 = ignorar)
-export function rowsFromTable(table, mapping, nowYear = new Date().getFullYear()) {
+// dateOrder: "auto" (deteta pela coluna), "dmy" ou "mdy".
+export function rowsFromTable(table, mapping, nowYear = new Date().getFullYear(), dateOrder = "auto") {
+  const order = dateOrder === "auto" ? detectDateOrder(mapping.date >= 0 ? table.slice(1).map((r) => r[mapping.date]) : []).order : dateOrder;
   const cell = (r, i) => (i >= 0 && i < r.length ? String(r[i] ?? "").trim() : "");
   const out = [];
   for (let n = 1; n < table.length; n++) {
@@ -109,7 +129,7 @@ export function rowsFromTable(table, mapping, nowYear = new Date().getFullYear()
     let bd = null;
     let problem = "";
     if (mapping.date >= 0 && cell(r, mapping.date)) {
-      bd = parseBirthday(cell(r, mapping.date), nowYear);
+      bd = parseBirthday(cell(r, mapping.date), nowYear, order);
       if (!bd) problem = `data não reconhecida: «${cell(r, mapping.date)}»`;
     } else if (mapping.day >= 0 && mapping.month >= 0) {
       const day = Number(cell(r, mapping.day));
