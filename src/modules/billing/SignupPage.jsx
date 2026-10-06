@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
 import { c, sans, serif, display } from "../../shared/theme.jsx";
@@ -126,13 +126,13 @@ function AccountStep({ plan, onBack }) {
         <ArrowLeft size={14} /> Escolher outro plano
       </button>
       <form onSubmit={submit} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 28 }}>
-        <div style={{ ...serif, fontSize: 21, color: c.ink, marginBottom: 4 }}>Criar a tua agência</div>
+        <div style={{ ...serif, fontSize: 21, color: c.ink, marginBottom: 4 }}>Criar a tua conta</div>
         <div style={{ ...sans, fontSize: 14, color: c.mist, marginBottom: 22 }}>Plano {plan.name} — {plan.contact_sales ? "personalizado" : `${money(plan.price_cents, plan.currency)}/mês`}</div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Nome da agência</div>
-            <input value={agencyName} onChange={(e) => setAgencyName(e.target.value)} placeholder="A tua agência" style={fieldStyle} />
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Nome do negócio ou da agência</div>
+            <input value={agencyName} onChange={(e) => setAgencyName(e.target.value)} placeholder="O teu negócio" style={fieldStyle} />
           </div>
           <div>
             <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>O teu nome</div>
@@ -140,7 +140,7 @@ function AccountStep({ plan, onBack }) {
           </div>
           <div>
             <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Email</div>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@agencia.com" style={fieldStyle} />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@negocio.pt" style={fieldStyle} />
           </div>
           <div>
             <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Password</div>
@@ -158,8 +158,26 @@ function AccountStep({ plan, onBack }) {
   );
 }
 
+// O site (empower-boss-site) abre /registar?plano=starter|growth|negocio
+// para saltar a escolha do plano e ir logo para a conta e o pagamento.
+function planSlug(name) {
+  return String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
 export default function SignupPage() {
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const plansQuery = usePlans();
+  const wanted = planSlug(new URLSearchParams(window.location.search).get("plano"));
+
+  const [autoPicked, setAutoPicked] = useState(false);
+
+  // Só uma vez: "Escolher outro plano" tem de poder voltar à lista.
+  useEffect(() => {
+    if (autoPicked || !wanted || !plansQuery.data) return;
+    const match = plansQuery.data.find((p) => !p.contact_sales && planSlug(p.name).split(/\s+/).includes(wanted));
+    if (match) setSelectedPlan(match);
+    setAutoPicked(true);
+  }, [autoPicked, wanted, plansQuery.data]);
 
   return (
     <div style={{ minHeight: "100vh", background: c.paper, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20, ...sans }}>

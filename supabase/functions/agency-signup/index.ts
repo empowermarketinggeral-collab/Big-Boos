@@ -32,6 +32,38 @@ async function stripeRequest(secretKey, path, params) {
   return data;
 }
 
+async function stripeGet(secretKey, path) {
+  const res = await fetch(`https://api.stripe.com/v1/${path}`, { headers: { Authorization: `Bearer ${secretKey}` } });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || "Falha ao comunicar com o Stripe.");
+  return data;
+}
+
+// Plano sem stripe_price_id (ex.: "Negócio", migração 91): procura o preço
+// pela lookup_key e, se não existir, cria produto e preço mensal no Stripe.
+// Guarda o id no plano para as próximas compras.
+async function ensurePlanPrice(admin, secretKey, plan) {
+  if (plan.stripe_price_id) return plan.stripe_price_id;
+  const lookupKey = `bigboss_plano_${plan.id}`;
+  const found = await stripeGet(secretKey, `prices?active=true&limit=1&lookup_keys[]=${encodeURIComponent(lookupKey)}`);
+  let priceId = found?.data?.[0]?.id;
+  if (!priceId) {
+    const product = await stripeRequest(secretKey, "products", { name: `Big Boss ${plan.name}`, "metadata[plan_id]": plan.id });
+    const price = await stripeRequest(secretKey, "prices", {
+      product: product.id,
+      currency: String(plan.currency || "EUR").toLowerCase(),
+      unit_amount: String(plan.price_cents),
+      "recurring[interval]": plan.billing_interval || "month",
+      lookup_key: lookupKey,
+      tax_behavior: "inclusive",
+      "metadata[plan_id]": plan.id,
+    });
+    priceId = price.id;
+  }
+  await admin.from("plans").update({ stripe_price_id: priceId }).eq("id", plan.id);
+  return priceId;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -60,8 +92,21 @@ Deno.serve(async (req) => {
   const { data: existingProfile } = await admin.from("profiles").select("id").eq("id", userId).maybeSingle();
   if (existingProfile) return json({ error: "Esta conta já está associada a um perfil." }, 400);
 
-  const { data: plan } = await admin.from("plans").select("id, stripe_price_id, name, contact_sales").eq("id", planId).eq("scope", "agency").maybeSingle();
-  if (!plan || plan.contact_sales || !plan.stripe_price_id) return json({ error: "Plano inválido para registo direto." }, 400);
+  const { data: plan } = await admin
+    .from("plans")
+    .select("id, stripe_price_id, name, contact_sales, price_cents, currency, billing_interval")
+    .eq("id", planId).eq("scope", "agency").eq("status", "active").is("agency_id", null)
+    .maybeSingle();
+  if (!plan || plan.contact_sales || !(plan.price_cents > 0)) return json({ error: "Plano inválido para registo direto." }, 400);
+
+  const secretKey = Deno.env.get("STRIPE_SECRET_KEY");
+  if (!secretKey) return json({ error: "Chave do Stripe não configurada." }, 500);
+  let priceId;
+  try {
+    priceId = await ensurePlanPrice(admin, secretKey, plan);
+  } catch (err) {
+    return json({ error: err.message || "Não foi possível preparar o pagamento." }, 500);
+  }
 
   const { data: agency, error: agencyError } = await admin
     .from("agencies")
@@ -83,18 +128,16 @@ Deno.serve(async (req) => {
     return json({ error: profileError.message }, 500);
   }
 
-  const secretKey = Deno.env.get("STRIPE_SECRET_KEY");
-  if (!secretKey) return json({ error: "Chave do Stripe não configurada." }, 500);
-
-  const customer = await stripeRequest(secretKey, "customers", { name: agencyName, "metadata[agency_id]": agency.id });
+  const customer = await stripeRequest(secretKey, "customers", { name: agencyName, email, "metadata[agency_id]": agency.id });
 
   const session = await stripeRequest(secretKey, "checkout/sessions", {
     mode: "subscription",
     customer: customer.id,
-    "line_items[0][price]": plan.stripe_price_id,
+    "line_items[0][price]": priceId,
     "line_items[0][quantity]": "1",
     "subscription_data[metadata][agency_id]": agency.id,
     "subscription_data[metadata][plan_id]": planId,
+    locale: "pt",
     success_url: successUrl,
     cancel_url: cancelUrl,
   });
