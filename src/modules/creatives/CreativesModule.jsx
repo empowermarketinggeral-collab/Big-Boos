@@ -104,7 +104,7 @@ function NewProjectModal({ brandId, userId, onClose, onCreated, position }) {
 }
 
 /* ---------- Link de partilha ---------- */
-function ShareModal({ project, brandId, userId, onClose }) {
+function ShareModal({ project, brandId, userId, options = [], versionsOf = () => [], onClose }) {
   const linkQ = useShareLink(project.id);
   const invalidate = useInvalidateCreatives();
   const [busy, setBusy] = useState(false);
@@ -129,6 +129,18 @@ function ShareModal({ project, brandId, userId, onClose }) {
     if (err) { setError("Não foi possível desativar o link."); return; }
     invalidate("creative_share_link");
   };
+  // Rascunhos não aparecem ao cliente: daqui envia-se de uma vez os que já têm design.
+  const drafts = options.filter((o) => o.status === "draft");
+  const ready = drafts.filter((o) => versionsOf(o.id).length > 0);
+  const sentCount = options.filter((o) => o.status !== "draft").length;
+  const sendDrafts = async () => {
+    setBusy(true);
+    setError("");
+    const { error: err } = await supabase.from("creative_options").update({ status: "sent" }).in("id", ready.map((o) => o.id));
+    setBusy(false);
+    if (err) { setError(`Não foi possível enviar as opções: ${err.message}`); return; }
+    invalidate("creative_options");
+  };
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(url);
@@ -143,6 +155,17 @@ function ShareModal({ project, brandId, userId, onClose }) {
     <Modal title="Partilhar com o cliente" onClose={onClose} width={520}>
       <div style={{ ...sans, fontSize: 14, color: c.mist, lineHeight: 1.6, marginBottom: 14 }}>
         O cliente abre o link sem criar conta, vê as opções marcadas como <b>Enviada</b>, comenta e aprova ou pede alterações. Os rascunhos nunca aparecem.
+      </div>
+      <div style={{ background: c.paper, borderRadius: 6, padding: "12px 14px", marginBottom: 16, ...sans, fontSize: 14, color: c.ink, lineHeight: 1.5 }}>
+        <div><b>{sentCount}</b> {sentCount === 1 ? "opção visível" : "opções visíveis"} para o cliente{drafts.length ? `, ${drafts.length} em rascunho (o cliente não as vê)` : ""}.</div>
+        {ready.length > 0 && (
+          <button type="button" onClick={sendDrafts} disabled={busy} style={{ ...btnPrimary, marginTop: 10 }}>
+            <Send size={14} /> {busy ? "A enviar…" : `Enviar ao cliente ${ready.length === 1 ? "a opção em rascunho" : `as ${ready.length} opções em rascunho`}`}
+          </button>
+        )}
+        {drafts.length > ready.length && (
+          <div style={{ fontSize: 12.5, color: c.mist, marginTop: 8 }}>{drafts.length - ready.length === 1 ? "Uma opção ainda não tem design" : `${drafts.length - ready.length} opções ainda não têm design`}: adiciona-o antes de enviar.</div>
+        )}
       </div>
       {linkQ.isLoading && <div style={{ ...sans, fontSize: 14, color: c.mist }}>A carregar…</div>}
       {!linkQ.isLoading && !token && (
@@ -325,7 +348,7 @@ function OptionDetail({ option, project, versions, canManage, session, onBack, o
       status, decided_at: decided ? new Date().toISOString() : null, decided_by_name: decided ? session.name || "Equipa" : null,
     }).eq("id", option.id);
     setBusy(false);
-    if (err) { setError("Não foi possível mudar o estado."); return; }
+    if (err) { setError(`Não foi possível mudar o estado: ${err.message}`); return; }
     invalidate("creative_options");
   };
   const saveTitle = async () => {
@@ -352,7 +375,7 @@ function OptionDetail({ option, project, versions, canManage, session, onBack, o
   };
 
   const actions = {
-    draft: [["sent", "Marcar como enviada", Send, true]],
+    draft: [["sent", "Enviar ao cliente", Send, true]],
     sent: [["approved", "Aprovar", Check, true], ["rejected", "Rejeitar", null, false], ["draft", "Voltar a rascunho", RotateCcw, false]],
     approved: [["sent", "Reabrir (voltar a enviada)", RotateCcw, false]],
     rejected: [["sent", "Reabrir (voltar a enviada)", RotateCcw, false]],
@@ -381,6 +404,9 @@ function OptionDetail({ option, project, versions, canManage, session, onBack, o
         </div>
       )}
 
+      {canManage && option.status === "draft" && (
+        <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginTop: 8 }}>Rascunho: o cliente ainda não vê esta opção. Carrega em «Enviar ao cliente» para ela aparecer no link de partilha.</div>
+      )}
       {canManage && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0 20px" }}>
           {actions.map(([status, label, Icon, primary]) => (
@@ -544,7 +570,7 @@ function ProjectView({ project, brand, canManage, session, onDeleted }) {
         })}
       </div>
 
-      {share && <ShareModal project={project} brandId={brand.id} userId={session.id} onClose={() => setShare(false)} />}
+      {share && <ShareModal project={project} brandId={brand.id} userId={session.id} options={options} versionsOf={versionsOf} onClose={() => setShare(false)} />}
       {confirmDelete && (
         <Confirm title="Apagar trabalho" confirmLabel="Apagar" busy={busy} onConfirm={del} onClose={() => setConfirmDelete(false)}>
           Apagar <b>{project.title}</b> com todas as opções, versões e ficheiros? Esta ação não pode ser desfeita.
