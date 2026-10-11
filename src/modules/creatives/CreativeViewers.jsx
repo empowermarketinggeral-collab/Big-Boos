@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ExternalLink, RotateCw, Columns2, X, Check } from "lucide-react";
 import { c, sans, serif, btnGhost } from "../../shared/theme.jsx";
-import { safeHttpUrl } from "./creativesKinds.js";
+import { safeHttpUrl, isVideoPath } from "./creativesKinds.js";
 
 /* ---------------------------------------------------------
    VISTAS DE CADA TIPO DE TRABALHO
@@ -235,13 +235,21 @@ function IdentityViewer({ content, urls }) {
   );
 }
 
-/* ---------- Galeria (redes sociais / outro) ---------- */
+/* ---------- Galeria (redes sociais / outro): imagens e vídeos ---------- */
 function GalleryViewer({ content, urls }) {
-  const images = content.images || [];
-  if (!images.length) return <Placeholder style={{ minHeight: 120 }}>Sem imagens nesta versão.</Placeholder>;
+  const media = content.images || [];
+  if (!media.length) return <Placeholder style={{ minHeight: 120 }}>Sem imagens nem vídeos nesta versão.</Placeholder>;
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
-      {images.map((p, i) => <ZoomImg key={p} src={urls[p]} alt={`Imagem ${i + 1}`} style={{ borderRadius: 6, border: `1px solid ${c.line}` }} />)}
+      {media.map((p, i) =>
+        isVideoPath(p) ? (
+          urls[p] ? (
+            <video key={p} src={urls[p]} controls playsInline preload="metadata" aria-label={`Vídeo ${i + 1}`} style={{ display: "block", width: "100%", borderRadius: 6, border: `1px solid ${c.line}`, background: "#000" }} />
+          ) : <Placeholder key={p} style={{ minHeight: 160 }}>A carregar…</Placeholder>
+        ) : (
+          <ZoomImg key={p} src={urls[p]} alt={`Imagem ${i + 1}`} style={{ borderRadius: 6, border: `1px solid ${c.line}` }} />
+        )
+      )}
     </div>
   );
 }

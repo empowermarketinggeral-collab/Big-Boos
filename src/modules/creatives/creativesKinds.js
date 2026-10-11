@@ -6,8 +6,8 @@ export const KINDS = {
   business_card: { label: "Cartão de visita", short: "Cartão", icon: CreditCard, hint: "Frente e verso, com botão para virar." },
   landing_page: { label: "Landing page", short: "Landing page", icon: Globe, hint: "Pré-visualização em computador e telemóvel." },
   brand_identity: { label: "Identidade visual", short: "Identidade", icon: Palette, hint: "Logótipo, paleta de cores, tipografias e aplicações." },
-  social_media: { label: "Redes sociais", short: "Redes sociais", icon: Share2, hint: "Galeria de imagens (posts, capas, stories)." },
-  other: { label: "Outro", short: "Outro", icon: Shapes, hint: "Galeria de imagens para qualquer outro trabalho." },
+  social_media: { label: "Redes sociais", short: "Redes sociais", icon: Share2, hint: "Galeria de imagens e vídeos (posts, carrosséis, reels, stories)." },
+  other: { label: "Outro", short: "Outro", icon: Shapes, hint: "Galeria de imagens e vídeos para qualquer outro trabalho." },
 };
 export const KIND_ORDER = ["business_card", "landing_page", "brand_identity", "social_media", "other"];
 
@@ -31,13 +31,19 @@ export function contentPaths(content, brandId) {
   return [...out];
 }
 
-// A imagem que representa a opção na grelha.
+// Vídeos (Redes sociais / Outro): reconhecidos pela extensão do caminho.
+export const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
+export const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // limite do bucket "creatives"
+export const isVideoPath = (path) => /\.(mp4|mov|m4v|webm)$/i.test(String(path || ""));
+
+// A imagem (ou o vídeo) que representa a opção na grelha.
 export function coverPath(kind, content) {
   if (!content) return null;
   if (kind === "business_card") return content.front || content.back || null;
   if (kind === "landing_page") return content.desktop || content.mobile || null;
   if (kind === "brand_identity") return content.logo || content.applications?.[0] || null;
-  return content.images?.[0] || null;
+  const media = content.images || [];
+  return media.find((p) => !isVideoPath(p)) || media[0] || null;
 }
 
 // Uma versão só vale a pena guardar se tiver pelo menos alguma coisa.
