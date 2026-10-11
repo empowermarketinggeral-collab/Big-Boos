@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
-import { IMAGE_TYPES, MAX_FILE_BYTES } from "./creativesKinds.js";
+import { IMAGE_TYPES, MAX_FILE_BYTES, VIDEO_TYPES, MAX_VIDEO_BYTES } from "./creativesKinds.js";
 
 const BUCKET = "creatives";
 const URL_TTL = 3600;
@@ -114,10 +114,19 @@ const safeName = (name) =>
     .replace(/[^A-Za-z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^[-.]+/, "").slice(-80) || "ficheiro";
 
 // O primeiro segmento do caminho é o id da marca (as políticas de storage verificam isso).
-export async function uploadCreativeFile(brandId, projectId, file, { imageOnly = true } = {}) {
-  if (imageOnly && !IMAGE_TYPES.includes(file.type)) throw new Error(`${file.name}: só são aceites imagens PNG, JPG, WebP, GIF ou SVG.`);
-  if (file.size > MAX_FILE_BYTES) throw new Error(`${file.name}: o ficheiro passa os 25 MB.`);
-  const path = `${brandId}/${projectId}/${crypto.randomUUID()}-${safeName(file.name)}`;
+export async function uploadCreativeFile(brandId, projectId, file, { imageOnly = true, allowVideo = false } = {}) {
+  const isVideo = VIDEO_TYPES.includes(file.type);
+  if (isVideo && !allowVideo) throw new Error(`${file.name}: aqui só são aceites imagens.`);
+  if (imageOnly && !isVideo && !IMAGE_TYPES.includes(file.type)) {
+    throw new Error(allowVideo ? `${file.name}: só são aceites imagens (PNG, JPG, WebP, GIF, SVG) ou vídeos (MP4, MOV, WebM).` : `${file.name}: só são aceites imagens PNG, JPG, WebP, GIF ou SVG.`);
+  }
+  if (isVideo && file.size > MAX_VIDEO_BYTES) throw new Error(`${file.name}: o vídeo passa os 50 MB. Exporta-o mais leve (ex: 1080p, H.264).`);
+  if (!isVideo && file.size > MAX_FILE_BYTES) throw new Error(`${file.name}: o ficheiro passa os 25 MB.`);
+  let name = safeName(file.name);
+  // O vídeo é reconhecido pela extensão: garante que o caminho a tem.
+  const videoExt = { "video/mp4": ".mp4", "video/quicktime": ".mov", "video/webm": ".webm" }[file.type];
+  if (videoExt && !/\.(mp4|mov|m4v|webm)$/i.test(name)) name += videoExt;
+  const path = `${brandId}/${projectId}/${crypto.randomUUID()}-${name}`;
   const { error } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type || "application/octet-stream" });
   if (error) throw new Error(`Não foi possível carregar ${file.name}.`);
   return path;

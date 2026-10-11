@@ -6,7 +6,7 @@ import ApprovalSeal from "../../design/ApprovalSeal.jsx";
 import VersionViewer from "./CreativeViewers.jsx";
 import VersionEditor from "./VersionEditor.jsx";
 import {
-  KINDS, KIND_ORDER, STATUS, contentPaths, coverPath, formatBytes, formatWhen,
+  KINDS, KIND_ORDER, STATUS, contentPaths, coverPath, formatBytes, formatWhen, isVideoPath,
 } from "./creativesKinds.js";
 import {
   removeCreativeFiles, signedDownloadUrl, uploadCreativeFile, useCreativeComments, useCreativeOptions,
@@ -436,13 +436,15 @@ function OptionDetail({ option, project, versions, canManage, session, onBack, o
 }
 
 /* ---------- Grelha de opções de um trabalho ---------- */
-function OptionCard({ option, project, versions, onOpen, coverUrl }) {
+function OptionCard({ option, project, versions, onOpen, coverUrl, coverIsVideo }) {
   const latest = versions[versions.length - 1];
   const approved = option.status === "approved";
   return (
     <button type="button" onClick={onOpen} style={{ textAlign: "left", padding: 0, cursor: "pointer", background: c.folha, border: `${approved ? 2 : 1}px solid ${approved ? c.sage : c.line}`, borderRadius: 8, overflow: "hidden", display: "flex", flexDirection: "column" }}>
       <div style={{ aspectRatio: "4 / 3", background: c.folha2, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-        {coverUrl ? <img src={coverUrl} alt="" style={{ width: "100%", height: "100%", objectFit: project.kind === "landing_page" ? "cover" : "contain", objectPosition: "top" }} /> : <span style={{ ...sans, fontSize: 13, color: c.mist }}>{latest ? "A carregar…" : "Sem design"}</span>}
+        {coverUrl && coverIsVideo ? <video src={coverUrl} muted playsInline preload="metadata" style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000" }} />
+          : coverUrl ? <img src={coverUrl} alt="" style={{ width: "100%", height: "100%", objectFit: project.kind === "landing_page" ? "cover" : "contain", objectPosition: "top" }} />
+          : <span style={{ ...sans, fontSize: 13, color: c.mist }}>{latest ? "A carregar…" : "Sem design"}</span>}
       </div>
       <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
         <div style={{ ...serif, fontSize: 16, color: c.ink }}>{option.title}</div>
@@ -538,7 +540,7 @@ function ProjectView({ project, brand, canManage, session, onDeleted }) {
         {sorted.map((o) => {
           const v = versionsOf(o.id);
           const cover = coverPath(project.kind, v[v.length - 1]?.content);
-          return <OptionCard key={o.id} option={o} project={project} versions={v} coverUrl={cover ? urlsQ.data?.[cover] : null} onOpen={() => setOpenId(o.id)} />;
+          return <OptionCard key={o.id} option={o} project={project} versions={v} coverUrl={cover ? urlsQ.data?.[cover] : null} coverIsVideo={isVideoPath(cover)} onOpen={() => setOpenId(o.id)} />;
         })}
       </div>
 

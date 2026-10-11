@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Upload, Trash2, Plus, X } from "lucide-react";
 import { c, sans, inputStyle, btnPrimary, btnGhost, Modal } from "../../shared/theme.jsx";
-import { HEX_RE, KINDS, contentPaths, isContentEmpty, safeHttpUrl } from "./creativesKinds.js";
+import { HEX_RE, KINDS, contentPaths, isContentEmpty, safeHttpUrl, isVideoPath } from "./creativesKinds.js";
 import { removeCreativeFiles, uploadCreativeFile, useSignedUrls } from "./creativesData.js";
 
 /* ---------------------------------------------------------
@@ -23,10 +23,13 @@ function Field({ title, hint, children }) {
   );
 }
 
-function Thumb({ src, onRemove, name }) {
+function Thumb({ src, onRemove, name, video }) {
   return (
     <div style={{ position: "relative", width: 96, height: 96, border: `1px solid ${c.line}`, borderRadius: 6, background: c.folha2, overflow: "hidden", flexShrink: 0 }}>
-      {src ? <img src={src} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ ...sans, fontSize: 11, color: c.mist, padding: 6 }}>A carregar…</div>}
+      {!src ? <div style={{ ...sans, fontSize: 12, color: c.mist, padding: 6 }}>A carregar…</div>
+        : video ? <video src={src} muted playsInline preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        : <img src={src} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+      {video && <span style={{ ...sans, position: "absolute", left: 4, bottom: 4, fontSize: 12, fontWeight: 700, color: "#fff", background: "rgba(23,21,31,0.78)", borderRadius: 4, padding: "1px 6px" }}>Vídeo</span>}
       <button type="button" onClick={onRemove} aria-label={`Remover ${name}`} style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: 999, border: "none", background: "rgba(23,21,31,0.78)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
         <X size={13} />
       </button>
@@ -49,13 +52,13 @@ export default function VersionEditor({ kind, brandId, projectId, versionNumber,
 
   const set = (patch) => setContent((prev) => ({ ...prev, ...patch }));
 
-  const upload = async (field, files, multiple) => {
+  const upload = async (field, files, multiple, allowVideo = false) => {
     setError("");
     setBusy(field);
     try {
       const paths = [];
       for (const file of files) {
-        const path = await uploadCreativeFile(brandId, projectId, file);
+        const path = await uploadCreativeFile(brandId, projectId, file, { allowVideo });
         uploaded.current.add(path);
         setLocal((prev) => ({ ...prev, [path]: URL.createObjectURL(file) }));
         paths.push(path);
@@ -69,24 +72,24 @@ export default function VersionEditor({ kind, brandId, projectId, versionNumber,
     }
   };
 
-  const ImagePicker = ({ field, title, hint, multiple = false }) => {
+  const ImagePicker = ({ field, title, hint, multiple = false, allowVideo = false }) => {
     const value = content[field];
     const list = multiple ? value || [] : value ? [value] : [];
     return (
       <Field title={title} hint={hint}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           {list.map((p) => (
-            <Thumb key={p} src={preview(p)} name={title} onRemove={() => set({ [field]: multiple ? list.filter((x) => x !== p) : null })} />
+            <Thumb key={p} src={preview(p)} name={title} video={isVideoPath(p)} onRemove={() => set({ [field]: multiple ? list.filter((x) => x !== p) : null })} />
           ))}
           {(multiple || list.length === 0) && (
             <>
               <input
                 ref={(el) => { inputs.current[field] = el; }}
-                type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" multiple={multiple} style={{ display: "none" }}
-                onChange={(e) => { const files = [...(e.target.files || [])]; e.target.value = ""; if (files.length) upload(field, files, multiple); }}
+                type="file" accept={`image/png,image/jpeg,image/webp,image/gif,image/svg+xml${allowVideo ? ",video/mp4,video/quicktime,video/webm" : ""}`} multiple={multiple} style={{ display: "none" }}
+                onChange={(e) => { const files = [...(e.target.files || [])]; e.target.value = ""; if (files.length) upload(field, files, multiple, allowVideo); }}
               />
               <button type="button" onClick={() => inputs.current[field]?.click()} disabled={busy === field} style={btnGhost}>
-                <Upload size={14} /> {busy === field ? "A carregar…" : multiple ? "Adicionar imagens" : "Carregar imagem"}
+                <Upload size={14} /> {busy === field ? "A carregar…" : allowVideo ? "Adicionar imagens ou vídeos" : multiple ? "Adicionar imagens" : "Carregar imagem"}
               </button>
             </>
           )}
@@ -188,7 +191,7 @@ export default function VersionEditor({ kind, brandId, projectId, versionNumber,
       )}
 
       {(kind === "social_media" || kind === "other") && (
-        ImagePicker({ field: "images", title: "Imagens", hint: "Posts, capas, stories… Mostram-se pela ordem em que as adicionares.", multiple: true })
+        ImagePicker({ field: "images", title: "Imagens e vídeos", hint: "Posts, carrosséis, reels, stories… Podes misturar imagens e vídeos (MP4, MOV ou WebM, até 50 MB). Mostram-se pela ordem em que os adicionares.", multiple: true, allowVideo: true })
       )}
 
       <Field title="O que mudou nesta versão (opcional)">
