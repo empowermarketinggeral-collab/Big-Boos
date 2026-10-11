@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, Send, MessageCircle, CheckCircle2, AlertCircle, Plus, Trash2, FileText, RefreshCw, UserPlus, Calculator, Info } from "lucide-react";
+import { useUrlState } from "../../shared/urlState.js";
 
 /* ---------------------------------------------------------
    WHATSAPP — Inbox ligado à Meta Cloud API (WhatsApp Business)
@@ -1215,7 +1216,7 @@ const TABS = [{ k: "inbox", l: "Inbox" }, { k: "templates", l: "Templates" }, { 
 export default function WhatsappModule({ brand, onBack }) {
   const accountQuery = useWhatsappAccount(brand.id);
   const usageQuery = useWaUsage(brand.id);
-  const [tab, setTab] = useState("inbox");
+  const [tab, setTab] = useUrlState("aba", "inbox");
   const [showStart, setShowStart] = useState(false);
 
   return (
