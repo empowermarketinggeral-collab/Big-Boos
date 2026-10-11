@@ -33,6 +33,7 @@ import PaymentReminderBanner from "./modules/billing/PaymentReminderBanner.jsx";
 import ThemeToggle from "./design/ThemeToggle.jsx";
 import BrandLogo from "./design/BrandLogo.jsx";
 import ApprovalSeal from "./design/ApprovalSeal.jsx";
+import { setParams, useUrlState } from "./shared/urlState.js";
 import { c, sans, serif, StatusDot, Eyebrow, ChartCard, CAN_MANAGE_ROLES, Modal, btnPrimary, btnGhost, display } from "./shared/theme.jsx";
 
 /* ---------------------------------------------------------
@@ -3631,7 +3632,7 @@ function ContentForm({ brandId, session, onDone, initialDate, mode = "create", i
 
 function ConteudosView({ brand, onBack, session }) {
   const { t } = useT();
-  const [view, setView] = useState("lista");
+  const [view, setView] = useUrlState("aba", "lista");
   const [openId, setOpenId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
@@ -6436,7 +6437,7 @@ function MinhasTarefas({ session }) {
 }
 
 function CentroComandoModule({ session }) {
-  const [tab, setTab] = useState("geral");
+  const [tab, setTab] = useUrlState("aba", "geral");
   const tabs = [
     { key: "geral", label: "Calendário Geral" },
     { key: "pessoal", label: "Calendário Pessoal" },
@@ -10029,13 +10030,37 @@ export default function BigBossPrototype() {
   );
 }
 
+// Onde se está (secção, marca, módulo da marca) vem do URL: ?v=&marca=&m=
+// (ver src/shared/urlState.js). Assim o refresh não volta ao início.
+function readNavFromUrl() {
+  const p = new URLSearchParams(window.location.search);
+  const brandId = p.get("marca") || null;
+  return { nav: p.get("v") || (brandId ? "marcas" : "painel"), brandId, sub: brandId ? p.get("m") || null : null };
+}
+
 function BigBossPrototypeInner() {
   const [session, setSession] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [nav, setNav] = useState("painel");
-  const [brandId, setBrandId] = useState(null);
-  const [sub, setSub] = useState(null);
+  const [place, setPlace] = useState(readNavFromUrl);
+  const { brandId, sub } = place;
+  let nav = place.nav;
   const [addBrandError, setAddBrandError] = useState("");
+
+  // Muda de sítio e escreve-o no URL (push = o "Voltar" do browser volta aqui).
+  // O separador dentro do módulo (aba/vista) recomeça sempre que se muda de sítio.
+  const navigate = (next, { push = true } = {}) => {
+    setPlace(next);
+    setParams({ v: next.nav === "painel" ? null : next.nav, marca: next.brandId, m: next.sub, aba: null, vista: null }, { push });
+  };
+  const setNav = (key) => navigate({ nav: key, brandId: null, sub: null });
+  const setBrandId = (id) => navigate({ nav: "marcas", brandId: id, sub: null });
+  const setSub = (key) => navigate({ nav: "marcas", brandId, sub: key });
+
+  useEffect(() => {
+    const onPop = () => setPlace(readNavFromUrl());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   const brandsQuery = useBrands(authChecked && !!session && !session.profileMissing);
   const addBrandMutation = useAddBrand();
@@ -10046,6 +10071,7 @@ function BigBossPrototypeInner() {
   // ficar visível — não deve mexer na navegação) de um login/logout
   // a sério (esse sim deve voltar ao painel).
   const sessionUserIdRef = useRef(null);
+  const hadUserRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -10054,6 +10080,7 @@ function BigBossPrototypeInner() {
       if (!active) return;
       if (data.session?.user) {
         sessionUserIdRef.current = data.session.user.id;
+        hadUserRef.current = true;
         setSession(await loadSessionFromAuthUser(data.session.user));
       }
       setAuthChecked(true);
@@ -10066,9 +10093,7 @@ function BigBossPrototypeInner() {
           sessionUserIdRef.current = null;
           setSession(null);
           setAuthChecked(true);
-          setNav("painel");
-          setBrandId(null);
-          setSub(null);
+          navigate({ nav: "painel", brandId: null, sub: null }, { push: false });
           return;
         }
         const isSameUser = sessionUserIdRef.current === authSession.user.id;
@@ -10077,11 +10102,12 @@ function BigBossPrototypeInner() {
         sessionUserIdRef.current = authSession.user.id;
         setSession(loaded);
         setAuthChecked(true);
-        if (!isSameUser) {
-          setNav("painel");
-          setBrandId(null);
-          setSub(null);
+        // Outro utilizador (não o primeiro carregamento, nem um refresh de
+        // token): volta ao painel. No primeiro carregamento fica onde o URL diz.
+        if (!isSameUser && hadUserRef.current) {
+          navigate({ nav: "painel", brandId: null, sub: null }, { push: false });
         }
+        hadUserRef.current = true;
       }
     );
 
@@ -10130,27 +10156,21 @@ function BigBossPrototypeInner() {
   };
 
   const roleInfo = ROLES.find((r) => r.key === session.role) || ROLES[0];
+  // Um URL guardado (ou partilhado) pode apontar para uma secção que este
+  // perfil não vê: mostra o painel.
+  const navAllowed = NAV_ACCESS[session.role];
+  if (navAllowed && navAllowed !== "all" && !navAllowed.includes(nav)) nav = "painel";
 
   const previewAs = (roleKey) => {
     setSession((prev) => ({ ...prev, role: roleKey }));
     const allowed = NAV_ACCESS[roleKey];
     if (allowed !== "all" && allowed && !allowed.includes(nav)) {
       setNav("painel");
-      setBrandId(null);
-      setSub(null);
     }
   };
 
-  const openBrand = (id) => {
-    setBrandId(id);
-    setSub(null);
-    setNav("marcas");
-  };
-  const goToNav = (key) => {
-    setNav(key);
-    setBrandId(null);
-    setSub(null);
-  };
+  const openBrand = (id) => setBrandId(id);
+  const goToNav = (key) => setNav(key);
   const addBrand = async () => {
     setAddBrandError("");
     try {
@@ -10177,11 +10197,18 @@ function BigBossPrototypeInner() {
         canManage={session.role === "admin_geral" || session.role === "agencia_admin"}
       />
     );
+  } else if (nav === "marcas" && brandId && brandsQuery.isSuccess && !brand) {
+    content = (
+      <div className="bb-page" style={{ padding: "8px 40px 60px", ...sans }}>
+        <div style={{ fontSize: 14.5, color: c.mist, marginBottom: 12 }}>Esta marca não existe ou não tens acesso a ela.</div>
+        <button onClick={() => setNav("marcas")} style={btnGhost}>Ver as marcas</button>
+      </div>
+    );
   } else if (nav === "marcas" && brandId) {
     content = brand ? (
       <MarcaDetail
         brand={brand}
-        onBack={() => setBrandId(null)}
+        onBack={() => setNav("marcas")}
         sub={sub}
         onOpenSub={setSub}
         session={session}

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, MessageSquare, AlertCircle, CheckCircle2, Plus, Trash2, Send } from "lucide-react";
+import { useUrlState } from "../../shared/urlState.js";
 
 /* ---------------------------------------------------------
    SMS — via Twilio. Módulo do EMPOWER OS.
@@ -532,7 +533,7 @@ export default function SmsModule({ brand, onBack }) {
   const accountQuery = useSmsAccount(brand.id);
   const messagesQuery = useSmsMessages(brand.id);
   const usageQuery = useSmsUsage(brand.id);
-  const [tab, setTab] = useState("envios");
+  const [tab, setTab] = useUrlState("aba", "envios");
   const [showSend, setShowSend] = useState(false);
 
   return (

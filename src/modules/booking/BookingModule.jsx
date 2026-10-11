@@ -13,6 +13,7 @@ import GoogleCalendarPanel from "./GoogleCalendarPanel.jsx";
 import AgendaCalendar from "./AgendaCalendar.jsx";
 import { ClientAppSection, StripeAccountSection, PacksSection } from "./ClientAppAdmin.jsx";
 import { ArrowLeft, Plus, Trash2, Pencil, Link2, CheckCircle2, Calendar as CalendarIcon, User, History, Upload, CreditCard } from "lucide-react";
+import { useUrlState } from "../../shared/urlState.js";
 
 async function uploadStaffPhoto(brandId, staffId, file) {
   const ext = file.name.split(".").pop();
@@ -1322,7 +1323,7 @@ export default function BookingModule({ brand, onBack, session }) {
   const [slugInput, setSlugInput] = useState("");
   const [copied, setCopied] = useState(false);
   const [selectedStaffId, setSelectedStaffId] = useState(null);
-  const [tab, setTab] = useState("agenda");
+  const [tab, setTab] = useUrlState("aba", "agenda");
   const [contactFor, setContactFor] = useState(null);
   const servicesQuery = useServices(brand.id);
   const staffQuery = useStaff(brand.id);

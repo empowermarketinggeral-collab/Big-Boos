@@ -7,6 +7,7 @@ import { ContactPicker } from "./ClientAppAdmin.jsx";
 import { normalizePhone } from "../../shared/csv.js";
 import { money } from "./publicBooking.js";
 import { MoneyInput, parseMoney, moneyInputValue } from "./ServiceOptions.jsx";
+import { useUrlState } from "../../shared/urlState.js";
 
 /* ---------------------------------------------------------
    AGENDA — calendário das marcações da marca.
@@ -541,7 +542,7 @@ export default function AgendaCalendar({ brand, session, onOpenContact }) {
   const staticsQuery = useAgendaStatics(brand.id);
   const statics = staticsQuery.data || { staff: [], services: [], links: [] };
   const isNarrow = typeof window !== "undefined" && window.innerWidth < 720;
-  const [view, setView] = useState(isNarrow ? "day" : "week");
+  const [view, setView] = useUrlState("vista", isNarrow ? "day" : "week");
   const [cursor, setCursor] = useState(() => startOfDay(new Date()));
   const [staffFilter, setStaffFilter] = useState(null); // null = ainda não escolhido
   const [openAppt, setOpenAppt] = useState(null);

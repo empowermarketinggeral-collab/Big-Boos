@@ -9,6 +9,7 @@ import LeadIntakeModal from "./LeadIntakeModal.jsx";
 import HotmartModal from "./HotmartModal.jsx";
 import { parseCsv, findColumn, normalizePhone } from "../../shared/csv.js";
 import TagsView from "./TagsView.jsx";
+import { useUrlState } from "../../shared/urlState.js";
 
 /* ---------------------------------------------------------
    CRM — Contactos + Pipeline (Kanban) + Negócios
@@ -1361,7 +1362,7 @@ function PipelineView({ brand, session }) {
    MÓDULO
 --------------------------------------------------------- */
 export default function CrmModule({ brand, onBack, session }) {
-  const [tab, setTab] = useState("pipeline");
+  const [tab, setTab] = useUrlState("aba", "pipeline");
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1080 }}>
