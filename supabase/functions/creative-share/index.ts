@@ -5,7 +5,9 @@
 // Ações:
 //   { action: "view", token }
 //   { action: "decide", token, optionId, decision: "approved"|"rejected", name, comment? }
-//   { action: "comment", token, optionId, name, body, version? }
+//   { action: "comment", token, optionId, name, body, version?, target? }
+//   target = caminho de uma imagem da versão (comentário nessa imagem,
+//   também dentro de um carrossel).
 //
 // Só mostra opções já enviadas (nunca rascunhos). Os ficheiros estão num
 // bucket privado: a função devolve URLs assinadas e temporárias (1 hora)
@@ -83,7 +85,7 @@ async function view(admin, project) {
     ? await admin.from("creative_versions").select("option_id, version, note, content, created_at").in("option_id", ids).order("version", { ascending: true })
     : { data: [] };
   const { data: comments } = ids.length
-    ? await admin.from("creative_comments").select("option_id, version, author_name, from_client, body, created_at").in("option_id", ids).order("created_at", { ascending: true })
+    ? await admin.from("creative_comments").select("option_id, version, author_name, from_client, body, target, created_at").in("option_id", ids).order("created_at", { ascending: true })
     : { data: [] };
 
   const paths = new Set();
@@ -108,7 +110,7 @@ async function view(admin, project) {
     out.push({
       id: o.id, title: o.title, status: o.status, decidedAt: o.decided_at, decidedByName: o.decided_by_name, finalFiles,
       versions: (versions || []).filter((v) => v.option_id === o.id).map((v) => ({ version: v.version, note: v.note, content: v.content, createdAt: v.created_at })),
-      comments: (comments || []).filter((c) => c.option_id === o.id).map((c) => ({ version: c.version, authorName: c.author_name, fromClient: c.from_client, body: c.body, createdAt: c.created_at })),
+      comments: (comments || []).filter((c) => c.option_id === o.id).map((c) => ({ version: c.version, authorName: c.author_name, fromClient: c.from_client, body: c.body, target: c.target || null, createdAt: c.created_at })),
     });
   }
   return { project: { title: project.title, kind: project.kind }, brand: { name: brand?.name || "", logoUrl: brand?.logo_url || null }, options: out, urls };
@@ -158,7 +160,17 @@ Deno.serve(async (req) => {
     const { count } = await admin.from("creative_comments").select("id", { count: "exact", head: true }).eq("option_id", option.id).eq("from_client", true);
     if ((count || 0) >= MAX_CLIENT_COMMENTS_PER_OPTION) return json({ error: "Limite de comentários atingido. Fale diretamente com a equipa." }, 429);
     const version = Number.isInteger(body.version) ? body.version : null;
-    const { error } = await admin.from("creative_comments").insert({ option_id: option.id, brand_id: option.brand_id, version, author_name: name, from_client: true, body: text });
+    // A imagem comentada tem de existir nessa versão desta opção.
+    let target = null;
+    if (body.target != null && body.target !== "") {
+      if (typeof body.target !== "string" || version == null) return json({ error: "Imagem inválida." }, 400);
+      const { data: v } = await admin.from("creative_versions").select("content").eq("option_id", option.id).eq("version", version).maybeSingle();
+      const paths = new Set();
+      collectPaths(v?.content, project.brand_id, paths);
+      if (!paths.has(body.target)) return json({ error: "Imagem inválida." }, 400);
+      target = body.target;
+    }
+    const { error } = await admin.from("creative_comments").insert({ option_id: option.id, brand_id: option.brand_id, version, author_name: name, from_client: true, body: text, target });
     if (error) return json({ error: "Não foi possível guardar o comentário." }, 500);
     await notifyTeam(admin, project, `${name} comentou «${option.title}» (${project.title}): ${text}`);
     return json({ ok: true });

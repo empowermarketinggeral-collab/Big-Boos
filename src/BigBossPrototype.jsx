@@ -2341,8 +2341,6 @@ const NAV = [
   { key: "reunioes", label: "Reuniões", icon: Handshake },
   { key: "propostas", label: "Propostas", icon: FileText },
   { key: "contratos", label: "Contratos", icon: FileSignature },
-  { key: "mapa-crescimento", label: "Mapa de Crescimento", icon: TrendingUp },
-  { key: "portfolio", label: "Portfólio", icon: Layers },
   { key: "link", label: "Link na Bio", icon: Link2 },
   { key: "precificacao", label: "Calculadora", icon: Calculator },
   { key: "centro", label: "Centro de Comando", icon: Calendar },
@@ -2357,9 +2355,9 @@ const NAV = [
 // nunca a lista de agências, equipa interna, propostas ou ferramentas de gestão.
 const NAV_ACCESS = {
   admin_geral: "all",
-  membro: ["painel", "marcas", "reunioes", "propostas", "contratos", "portfolio", "link", "precificacao", "centro", "conhecimento", "equipa"],
-  agencia_admin: ["painel", "marcas", "reunioes", "propostas", "contratos", "portfolio", "link", "precificacao", "centro", "conhecimento", "equipa", "agencia-billing", "definicoes"],
-  agencia_membro: ["painel", "marcas", "reunioes", "propostas", "contratos", "portfolio", "link", "precificacao", "centro", "conhecimento"],
+  membro: ["painel", "marcas", "reunioes", "propostas", "contratos", "link", "precificacao", "centro", "conhecimento", "equipa"],
+  agencia_admin: ["painel", "marcas", "reunioes", "propostas", "contratos", "link", "precificacao", "centro", "conhecimento", "equipa", "agencia-billing", "definicoes"],
+  agencia_membro: ["painel", "marcas", "reunioes", "propostas", "contratos", "link", "precificacao", "centro", "conhecimento"],
   aprovador_marca: ["painel", "marcas", "conhecimento"],
   agencia_aprovador: ["painel", "marcas", "conhecimento"],
 };
@@ -10160,6 +10158,8 @@ function BigBossPrototypeInner() {
   // perfil não vê: mostra o painel.
   const navAllowed = NAV_ACCESS[session.role];
   if (navAllowed && navAllowed !== "all" && !navAllowed.includes(nav)) nav = "painel";
+  // Secções retiradas do menu (Portfólio, Mapa de Crescimento): links antigos vão para o painel.
+  if (!NAV.some((n) => n.key === nav)) nav = "painel";
 
   const previewAs = (roleKey) => {
     setSession((prev) => ({ ...prev, role: roleKey }));
@@ -10224,14 +10224,10 @@ function BigBossPrototypeInner() {
     content = <PropostasModule session={session} />;
   } else if (nav === "contratos") {
     content = <ContractsModule session={session} />;
-  } else if (nav === "mapa-crescimento") {
-    content = <GrowthMapsModule session={session} />;
   } else if (nav === "centro") {
     content = <CentroComandoModule session={session} />;
   } else if (nav === "conhecimento") {
     content = <BaseConhecimentoModule session={session} />;
-  } else if (nav === "portfolio") {
-    content = <PortfolioModule session={session} />;
   } else if (nav === "link") {
     content = <LinkNaBioModule session={session} />;
   } else if (nav === "precificacao") {

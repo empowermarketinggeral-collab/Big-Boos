@@ -6,7 +6,7 @@ import ApprovalSeal from "../../design/ApprovalSeal.jsx";
 import VersionViewer from "./CreativeViewers.jsx";
 import VersionEditor from "./VersionEditor.jsx";
 import {
-  KINDS, KIND_ORDER, STATUS, contentPaths, coverPath, formatBytes, formatWhen, isVideoPath,
+  KINDS, KIND_ORDER, STATUS, contentPaths, coverPath, formatBytes, formatWhen, isVideoPath, targetLabel,
 } from "./creativesKinds.js";
 import {
   removeCreativeFiles, signedDownloadUrl, uploadCreativeFile, useCreativeComments, useCreativeOptions,
@@ -187,7 +187,14 @@ function ShareModal({ project, brandId, userId, options = [], versionsOf = () =>
 }
 
 /* ---------- Detalhe de uma opção ---------- */
-function Comments({ option, canManage, session, version }) {
+// Etiqueta "Carrossel 2, imagem 3" de um comentário feito numa imagem.
+export function commentTargetLabel(versions, cm) {
+  if (!cm.target) return "";
+  const v = versions.find((x) => x.version === cm.version) || versions[versions.length - 1];
+  return targetLabel(v?.content, cm.target);
+}
+
+function Comments({ option, canManage, session, version, versions, target, setTarget, inputRef }) {
   const q = useCreativeComments(option.id);
   const invalidate = useInvalidateCreatives();
   const [text, setText] = useState("");
@@ -198,11 +205,12 @@ function Comments({ option, canManage, session, version }) {
     setBusy(true);
     setError("");
     const { error: err } = await supabase.from("creative_comments").insert({
-      option_id: option.id, brand_id: option.brand_id, version, author_name: (session.name || "Equipa").slice(0, 120), from_client: false, body: text.trim(),
+      option_id: option.id, brand_id: option.brand_id, version, author_name: (session.name || "Equipa").slice(0, 120), from_client: false, body: text.trim(), target: target || null,
     });
     setBusy(false);
     if (err) { setError("Não foi possível enviar o comentário."); return; }
     setText("");
+    setTarget(null);
     invalidate("creative_comments");
   };
   const remove = async (id) => {
@@ -221,6 +229,7 @@ function Comments({ option, canManage, session, version }) {
               <b style={{ color: c.ink }}>{cm.author_name}</b>
               <span>{cm.from_client ? "cliente" : "equipa"}</span>
               {cm.version && <span>v{cm.version}</span>}
+              {cm.target && <b style={{ color: c.bossText }}>{commentTargetLabel(versions, cm)}</b>}
               <span>{formatWhen(cm.created_at)}</span>
               {canManage && (
                 <button type="button" onClick={() => remove(cm.id)} aria-label="Apagar comentário" style={{ marginLeft: "auto", background: "none", border: "none", color: c.mist, cursor: "pointer", padding: 2 }}><Trash2 size={13} /></button>
@@ -230,9 +239,15 @@ function Comments({ option, canManage, session, version }) {
           </div>
         ))}
       </div>
+      {canManage && target && (
+        <div style={{ ...sans, fontSize: 13, color: c.ink, display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          A comentar: <b style={{ color: c.bossText }}>{targetLabel(versions.find((v) => v.version === version)?.content, target)}</b>
+          <button type="button" onClick={() => setTarget(null)} style={{ ...btnGhost, padding: "4px 10px", fontSize: 12.5 }}>Comentário geral</button>
+        </div>
+      )}
       {canManage && (
         <div style={{ display: "flex", gap: 8 }}>
-          <input value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} placeholder="Escreve uma nota para o cliente ou para a equipa…" onKeyDown={(e) => { if (e.key === "Enter") send(); }} style={inputStyle} />
+          <input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} placeholder="Escreve uma nota para o cliente ou para a equipa…" onKeyDown={(e) => { if (e.key === "Enter") send(); }} style={inputStyle} />
           <button type="button" onClick={send} disabled={busy || !text.trim()} style={btnPrimary}><Send size={14} /> Enviar</button>
         </div>
       )}
@@ -338,6 +353,14 @@ function OptionDetail({ option, project, versions, canManage, session, onBack, o
   useEffect(() => { setShown(latest); }, [latest]);
   const current = versions.find((v) => v.version === shown) || versions[versions.length - 1] || null;
   const urls = useSignedUrls(current ? contentPaths(current.content, option.brand_id) : []);
+  const commentsQ = useCreativeComments(option.id);
+  const [target, setTarget] = useState(null);
+  const commentInput = useRef(null);
+  const pickTarget = (path) => {
+    setTarget(path);
+    commentInput.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    commentInput.current?.focus({ preventScroll: true });
+  };
 
   const setStatus = async (status) => {
     setError("");
@@ -436,13 +459,13 @@ function OptionDetail({ option, project, versions, canManage, session, onBack, o
       <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
         {option.status === "approved" && <FinalFiles option={option} canManage={canManage} project={project} />}
         {current ? (
-          <VersionViewer kind={project.kind} content={current.content} urls={urls.data || {}} />
+          <VersionViewer kind={project.kind} content={current.content} urls={urls.data || {}} comments={commentsQ.data || []} onComment={canManage ? pickTarget : undefined} />
         ) : (
           <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>
             Esta opção ainda não tem design.{canManage ? " Carrega em «Adicionar o design» para criar a v1." : ""}
           </div>
         )}
-        <Comments option={option} canManage={canManage} session={session} version={current?.version ?? null} />
+        <Comments option={option} canManage={canManage} session={session} version={current?.version ?? null} versions={versions} target={target} setTarget={setTarget} inputRef={commentInput} />
       </div>
 
       {editing && (

@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { invokeFunction } from "../../lib/supabaseClient.js";
 import { c, sans, serif, display, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
 import { Download, Palette, Check, MessageSquare, RotateCcw } from "lucide-react";
 import ApprovalSeal from "../../design/ApprovalSeal.jsx";
 import VersionViewer from "./CreativeViewers.jsx";
-import { StatusPill } from "./CreativesModule.jsx";
-import { KINDS, formatBytes, formatWhen } from "./creativesKinds.js";
+import { StatusPill, commentTargetLabel } from "./CreativesModule.jsx";
+import { KINDS, formatBytes, formatWhen, targetLabel } from "./creativesKinds.js";
 
 /* ---------------------------------------------------------
    PÁGINA PÚBLICA DE OPÇÕES — /criativos/:token
@@ -36,8 +36,16 @@ function OptionPanel({ token, option, kind, urls, onChanged }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
+  const [target, setTarget] = useState(null);
+  const textRef = useRef(null);
+  const pickTarget = (path) => {
+    setTarget(path);
+    setDone("");
+    textRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    textRef.current?.focus({ preventScroll: true });
+  };
 
-  useEffect(() => { setShown(latest); }, [latest, option.id]);
+  useEffect(() => { setShown(latest); setTarget(null); }, [latest, option.id]);
   const current = option.versions.find((v) => v.version === shown) || option.versions[option.versions.length - 1] || null;
 
   const call = async (payload, successMessage) => {
@@ -49,6 +57,7 @@ function OptionPanel({ token, option, kind, urls, onChanged }) {
     try {
       await invokeFunction("creative-share", { token, optionId: option.id, name: name.trim(), ...payload });
       setText("");
+      setTarget(null);
       setDone(successMessage);
       await onChanged();
     } catch (err) {
@@ -95,7 +104,7 @@ function OptionPanel({ token, option, kind, urls, onChanged }) {
       {current?.note && <div style={{ fontSize: 14, color: c.mist, margin: "8px 0 12px" }}><b style={{ color: c.ink }}>v{current.version}:</b> {current.note}</div>}
 
       <div style={{ margin: "16px 0 28px" }}>
-        {current ? <VersionViewer kind={kind} content={current.content} urls={urls} /> : <div style={{ fontSize: 14.5, color: c.mist }}>Esta opção ainda não tem design.</div>}
+        {current ? <VersionViewer kind={kind} content={current.content} urls={urls} comments={option.comments} onComment={pickTarget} /> : <div style={{ fontSize: 14.5, color: c.mist }}>Esta opção ainda não tem design.</div>}
       </div>
 
       <section style={{ marginBottom: 24 }}>
@@ -105,7 +114,7 @@ function OptionPanel({ token, option, kind, urls, onChanged }) {
           {option.comments.map((cm, i) => (
             <div key={i} style={{ background: cm.fromClient ? c.bossSoft : c.folha, border: `1px solid ${c.line}`, borderRadius: 6, padding: "10px 12px" }}>
               <div style={{ fontSize: 12.5, color: c.mist, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <b style={{ color: c.ink }}>{cm.authorName}</b>{!cm.fromClient && <span>equipa</span>}{cm.version && <span>v{cm.version}</span>}<span>{formatWhen(cm.createdAt)}</span>
+                <b style={{ color: c.ink }}>{cm.authorName}</b>{!cm.fromClient && <span>equipa</span>}{cm.version && <span>v{cm.version}</span>}{cm.target && <b style={{ color: c.bossText }}>{commentTargetLabel(option.versions, cm)}</b>}<span>{formatWhen(cm.createdAt)}</span>
               </div>
               <div style={{ fontSize: 14.5, color: c.ink, whiteSpace: "pre-wrap", wordBreak: "break-word", marginTop: 4 }}>{cm.body}</div>
             </div>
@@ -119,9 +128,15 @@ function OptionPanel({ token, option, kind, urls, onChanged }) {
           <label htmlFor="criativos-nome" style={{ fontSize: 12.5, color: c.mist, display: "block", marginBottom: 5 }}>O seu nome</label>
           <input id="criativos-nome" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} autoComplete="name" style={inputStyle} />
         </div>
+        {target && (
+          <div style={{ fontSize: 13.5, color: c.ink, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            A comentar: <b style={{ color: c.bossText }}>{targetLabel(current?.content, target)}</b>
+            <button type="button" onClick={() => setTarget(null)} style={{ ...btnGhost, padding: "4px 10px", fontSize: 12.5 }}>Comentário geral</button>
+          </div>
+        )}
         <div>
           <label htmlFor="criativos-texto" style={{ fontSize: 12.5, color: c.mist, display: "block", marginBottom: 5 }}>Comentário (obrigatório se pedir alterações)</label>
-          <textarea id="criativos-texto" value={text} onChange={(e) => setText(e.target.value)} rows={3} maxLength={2000} placeholder="O que gostou ou o que quer que mudemos?" style={{ ...inputStyle, resize: "vertical" }} />
+          <textarea ref={textRef} id="criativos-texto" value={text} onChange={(e) => setText(e.target.value)} rows={3} maxLength={2000} placeholder="O que gostou ou o que quer que mudemos?" style={{ ...inputStyle, resize: "vertical" }} />
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {!approved && (
@@ -132,7 +147,7 @@ function OptionPanel({ token, option, kind, urls, onChanged }) {
           <button type="button" disabled={!!busy || !text.trim()} onClick={() => call({ action: "decide", decision: "rejected", comment: text }, "Recebemos o seu pedido de alterações. A equipa vai preparar uma nova versão.")} style={btnGhost}>
             <RotateCcw size={14} /> {busy === "decidererejected" ? "A enviar…" : "Pedir alterações"}
           </button>
-          <button type="button" disabled={!!busy || !text.trim()} onClick={() => call({ action: "comment", body: text, version: current?.version ?? null }, "Comentário enviado.")} style={btnGhost}>
+          <button type="button" disabled={!!busy || !text.trim()} onClick={() => call({ action: "comment", body: text, version: current?.version ?? null, target }, "Comentário enviado.")} style={btnGhost}>
             <MessageSquare size={14} /> {busy === "commentcomment" ? "A enviar…" : "Só comentar"}
           </button>
         </div>
@@ -200,7 +215,7 @@ export default function CreativesSharePage() {
         <h1 style={{ ...display, fontSize: 28, color: c.ink, margin: 0 }}>{project.title}</h1>
       </div>
       <div style={{ fontSize: 14.5, color: c.mist, lineHeight: 1.6, marginBottom: 20 }}>
-        Veja as opções preparadas para si. Pode comentar cada uma, aprovar a que preferir ou pedir alterações.
+        Veja as opções preparadas para si. Pode comentar cada uma (e cada imagem, no botão «Comentar» por cima dela), aprovar a que preferir ou pedir alterações.
       </div>
 
       {sorted.length === 0 && <div style={{ fontSize: 14.5, color: c.mist }}>Ainda não há opções para ver. A equipa avisa quando estiverem prontas.</div>}
