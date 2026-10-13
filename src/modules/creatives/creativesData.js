@@ -64,7 +64,7 @@ export function useCreativeComments(optionId) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("creative_comments")
-        .select("id, version, author_name, from_client, body, created_at")
+        .select("id, version, author_name, from_client, body, target, created_at")
         .eq("option_id", optionId)
         .order("created_at", { ascending: true });
       if (error) throw error;

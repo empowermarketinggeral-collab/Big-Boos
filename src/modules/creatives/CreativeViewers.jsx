@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { ExternalLink, RotateCw, Columns2, X, Check } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ExternalLink, RotateCw, Columns2, X, Check, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
 import { c, sans, serif, btnGhost } from "../../shared/theme.jsx";
-import { safeHttpUrl, isVideoPath } from "./creativesKinds.js";
+import { safeHttpUrl, isVideoPath, galleryPieces, pieceLabel } from "./creativesKinds.js";
 
 /* ---------------------------------------------------------
    VISTAS DE CADA TIPO DE TRABALHO
@@ -235,29 +235,112 @@ function IdentityViewer({ content, urls }) {
   );
 }
 
-/* ---------- Galeria (redes sociais / outro): imagens e vídeos ---------- */
-function GalleryViewer({ content, urls }) {
-  const media = content.images || [];
-  if (!media.length) return <Placeholder style={{ minHeight: 120 }}>Sem imagens nem vídeos nesta versão.</Placeholder>;
+/* ---------- Galeria (redes sociais / outro): peças, carrosséis e vídeos ---------- */
+// Botão "Comentar" por cima de cada imagem (só aparece quando há onComment).
+function CommentChip({ path, label, count, onComment }) {
+  if (!onComment) return null;
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
-      {media.map((p, i) =>
-        isVideoPath(p) ? (
-          urls[p] ? (
-            <video key={p} src={urls[p]} controls playsInline preload="metadata" aria-label={`Vídeo ${i + 1}`} style={{ display: "block", width: "100%", borderRadius: 6, border: `1px solid ${c.line}`, background: "#000" }} />
-          ) : <Placeholder key={p} style={{ minHeight: 160 }}>A carregar…</Placeholder>
-        ) : (
-          <ZoomImg key={p} src={urls[p]} alt={`Imagem ${i + 1}`} style={{ borderRadius: 6, border: `1px solid ${c.line}` }} />
-        )
-      )}
+    <button
+      type="button" onClick={() => onComment(path)} aria-label={`Comentar ${label}${count ? ` (${count} comentários)` : ""}`}
+      style={{ ...sans, position: "absolute", right: 8, bottom: 8, display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 700, color: "#fff", background: "rgba(23,21,31,0.82)", border: "none", borderRadius: 999, padding: "5px 10px", cursor: "pointer" }}
+    >
+      <MessageSquare size={13} /> {count ? count : "Comentar"}
+    </button>
+  );
+}
+
+function Media({ path, url, label, fill }) {
+  if (!url) return <Placeholder style={{ minHeight: 160, height: fill ? "100%" : undefined }}>A carregar…</Placeholder>;
+  if (isVideoPath(path)) {
+    return <video src={url} controls playsInline preload="metadata" aria-label={label} style={{ display: "block", width: "100%", height: fill ? "100%" : undefined, objectFit: "contain", background: "#000" }} />;
+  }
+  return fill
+    ? <img src={url} alt={label} style={{ display: "block", width: "100%", height: "100%", objectFit: "contain" }} />
+    : <ZoomImg src={url} alt={label} />;
+}
+
+function CarouselViewer({ piece, index, urls, counts, onComment }) {
+  const track = useRef(null);
+  const [at, setAt] = useState(0);
+  const [zoom, setZoom] = useState(null);
+  const total = piece.paths.length;
+  const go = (i) => {
+    const el = track.current;
+    if (!el) return;
+    const next = Math.max(0, Math.min(total - 1, i));
+    el.scrollTo({ left: next * el.clientWidth, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  };
+  const onScroll = () => {
+    const el = track.current;
+    if (el && el.clientWidth) setAt(Math.round(el.scrollLeft / el.clientWidth));
+  };
+  const nav = { position: "absolute", top: "50%", transform: "translateY(-50%)", width: 36, height: 36, borderRadius: 999, border: "none", background: "rgba(23,21,31,0.72)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 };
+  return (
+    <div>
+      <div style={{ position: "relative", border: `1px solid ${c.line}`, borderRadius: 6, overflow: "hidden", background: c.folha2 }}>
+        <div ref={track} onScroll={onScroll} style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", aspectRatio: "4 / 5" }}>
+          {piece.paths.map((p, i) => {
+            const label = `Carrossel ${index + 1}, imagem ${i + 1}`;
+            return (
+              <div key={p} style={{ position: "relative", flex: "0 0 100%", scrollSnapAlign: "start", height: "100%" }}>
+                {isVideoPath(p) || !urls[p] ? <Media path={p} url={urls[p]} label={label} fill /> : (
+                  <button type="button" onClick={() => setZoom(p)} aria-label={`Ampliar ${label}`} style={{ padding: 0, border: "none", background: "none", cursor: "zoom-in", display: "block", width: "100%", height: "100%" }}>
+                    <img src={urls[p]} alt={label} style={{ display: "block", width: "100%", height: "100%", objectFit: "contain" }} />
+                  </button>
+                )}
+                <CommentChip path={p} label={label} count={counts[p]} onComment={onComment} />
+              </div>
+            );
+          })}
+        </div>
+        {at > 0 && <button type="button" onClick={() => go(at - 1)} aria-label="Imagem anterior" style={{ ...nav, left: 8 }}><ChevronLeft size={18} /></button>}
+        {at < total - 1 && <button type="button" onClick={() => go(at + 1)} aria-label="Imagem seguinte" style={{ ...nav, right: 8 }}><ChevronRight size={18} /></button>}
+        <span style={{ ...sans, position: "absolute", top: 8, right: 8, fontSize: 12.5, fontWeight: 700, color: "#fff", background: "rgba(23,21,31,0.72)", borderRadius: 999, padding: "2px 9px" }}>{at + 1}/{total}</span>
+      </div>
+      <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 8 }} aria-hidden="true">
+        {piece.paths.map((p, i) => (
+          <button key={p} type="button" tabIndex={-1} onClick={() => go(i)} style={{ width: 7, height: 7, borderRadius: 999, border: "none", padding: 0, cursor: "pointer", background: i === at ? c.bossText : c.lineStrong }} />
+        ))}
+      </div>
+      {zoom && urls[zoom] && <Lightbox src={urls[zoom]} alt="" onClose={() => setZoom(null)} />}
     </div>
   );
 }
 
-export default function VersionViewer({ kind, content, urls }) {
+function GalleryViewer({ content, urls, comments = [], onComment }) {
+  const pieces = galleryPieces(content);
+  if (!pieces.length) return <Placeholder style={{ minHeight: 120 }}>Sem imagens nem vídeos nesta versão.</Placeholder>;
+  const counts = {};
+  for (const cm of comments) if (cm.target) counts[cm.target] = (counts[cm.target] || 0) + 1;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 280px), 1fr))", gap: 16, alignItems: "start" }}>
+      {pieces.map((piece, i) => {
+        const label = `${pieceLabel(piece)} ${i + 1}`;
+        return (
+          <figure key={piece.id} style={{ margin: 0 }}>
+            {piece.type === "carousel" ? (
+              <CarouselViewer piece={piece} index={i} urls={urls} counts={counts} onComment={onComment} />
+            ) : (
+              <div style={{ position: "relative", border: `1px solid ${c.line}`, borderRadius: 6, overflow: "hidden" }}>
+                <Media path={piece.paths[0]} url={urls[piece.paths[0]]} label={label} />
+                <CommentChip path={piece.paths[0]} label={label} count={counts[piece.paths[0]]} onComment={onComment} />
+              </div>
+            )}
+            <figcaption style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 6 }}>
+              {label}{piece.type === "carousel" ? ` (${piece.paths.length} imagens, desliza para ver)` : ""}
+            </figcaption>
+          </figure>
+        );
+      })}
+    </div>
+  );
+}
+
+// comments/onComment: só a galeria usa (comentar cada imagem, também dentro de um carrossel).
+export default function VersionViewer({ kind, content, urls, comments, onComment }) {
   const data = content || {};
   if (kind === "business_card") return <CardViewer content={data} urls={urls} />;
   if (kind === "landing_page") return <LandingViewer content={data} urls={urls} />;
   if (kind === "brand_identity") return <IdentityViewer content={data} urls={urls} />;
-  return <GalleryViewer content={data} urls={urls} />;
+  return <GalleryViewer content={data} urls={urls} comments={comments} onComment={onComment} />;
 }

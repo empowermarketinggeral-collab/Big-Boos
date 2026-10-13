@@ -6,7 +6,7 @@ export const KINDS = {
   business_card: { label: "Cartão de visita", short: "Cartão", icon: CreditCard, hint: "Frente e verso, com botão para virar." },
   landing_page: { label: "Landing page", short: "Landing page", icon: Globe, hint: "Pré-visualização em computador e telemóvel." },
   brand_identity: { label: "Identidade visual", short: "Identidade", icon: Palette, hint: "Logótipo, paleta de cores, tipografias e aplicações." },
-  social_media: { label: "Redes sociais", short: "Redes sociais", icon: Share2, hint: "Galeria de imagens e vídeos (posts, carrosséis, reels, stories)." },
+  social_media: { label: "Redes sociais", short: "Redes sociais", icon: Share2, hint: "Posts, carrosséis (várias imagens numa só peça), vídeos e reels." },
   other: { label: "Outro", short: "Outro", icon: Shapes, hint: "Galeria de imagens e vídeos para qualquer outro trabalho." },
 };
 export const KIND_ORDER = ["business_card", "landing_page", "brand_identity", "social_media", "other"];
@@ -36,13 +36,41 @@ export const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
 export const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // limite do bucket "creatives"
 export const isVideoPath = (path) => /\.(mp4|mov|m4v|webm)$/i.test(String(path || ""));
 
+// Redes sociais / Outro: o conteúdo é uma lista de peças
+// { pieces: [{ id, type: "single" | "carousel", paths: [...] }] }.
+// Um carrossel junta várias imagens (ou vídeos) numa só peça. Versões antigas
+// guardavam só { images: [...] }: cada ficheiro passa a ser uma peça simples.
+export function galleryPieces(content) {
+  if (Array.isArray(content?.pieces)) {
+    return content.pieces
+      .filter((p) => p && Array.isArray(p.paths) && p.paths.length)
+      .map((p, i) => ({ id: String(p.id || i), type: p.type === "carousel" ? "carousel" : "single", paths: p.paths.filter((x) => typeof x === "string") }));
+  }
+  return (content?.images || []).map((path) => ({ id: path, type: "single", paths: [path] }));
+}
+
+export const pieceLabel = (piece) => (piece.type === "carousel" ? "Carrossel" : isVideoPath(piece.paths[0]) ? "Vídeo" : "Imagem");
+
+// Nome legível de uma imagem comentada (o alvo do comentário é o caminho do ficheiro).
+export function targetLabel(content, path) {
+  if (!path) return "";
+  const pieces = galleryPieces(content);
+  for (let i = 0; i < pieces.length; i++) {
+    const idx = pieces[i].paths.indexOf(path);
+    if (idx === -1) continue;
+    const base = `${pieceLabel(pieces[i])} ${i + 1}`;
+    return pieces[i].type === "carousel" ? `${base}, imagem ${idx + 1}` : base;
+  }
+  return "Imagem";
+}
+
 // A imagem (ou o vídeo) que representa a opção na grelha.
 export function coverPath(kind, content) {
   if (!content) return null;
   if (kind === "business_card") return content.front || content.back || null;
   if (kind === "landing_page") return content.desktop || content.mobile || null;
   if (kind === "brand_identity") return content.logo || content.applications?.[0] || null;
-  const media = content.images || [];
+  const media = galleryPieces(content).flatMap((p) => p.paths);
   return media.find((p) => !isVideoPath(p)) || media[0] || null;
 }
 
@@ -52,7 +80,7 @@ export function isContentEmpty(kind, content) {
   if (kind === "business_card") return !content.front && !content.back;
   if (kind === "landing_page") return !content.desktop && !content.mobile && !content.url;
   if (kind === "brand_identity") return !content.logo && !(content.colors || []).length && !(content.fonts || []).length && !(content.applications || []).length;
-  return !(content.images || []).length;
+  return !galleryPieces(content).length;
 }
 
 export const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"];

@@ -8,7 +8,7 @@ Papéis em `profiles.role`: `admin_geral` (vê tudo), `membro` (equipa da agênc
 
 ## Como o utilizador faz deploy (importante)
 - **Frontend**: commit + push para `main` → Vercel. Só faz commit/push depois de o utilizador dizer que sim.
-- **SQL**: migrações numeradas em `supabase/NN_nome.sql` (a próxima é a 90 — há uma sessão em paralelo a mexer no mesmo repositório; confirma sempre o `ls supabase/*.sql` antes de escrever, porque este número pode já estar desatualizado). O utilizador cola-as à mão no SQL Editor do Supabase, por ordem. Escreve sempre migrações que se possam correr uma vez e diz-lhe o que correr.
+- **SQL**: migrações numeradas em `supabase/NN_nome.sql` (a próxima é a 93 — há uma sessão em paralelo a mexer no mesmo repositório; confirma sempre o `ls supabase/*.sql` antes de escrever, porque este número pode já estar desatualizado). O utilizador cola-as à mão no SQL Editor do Supabase, por ordem. Escreve sempre migrações que se possam correr uma vez e diz-lhe o que correr.
 - **Edge Functions**: o utilizador cola o código no Dashboard do Supabase, função a função. Por isso **cada `supabase/functions/<nome>/index.ts` tem de ser autossuficiente** — sem imports de pastas partilhadas (`_shared` não funciona). A duplicação de código entre funções é aceite de propósito.
 - Ao entregar funções alteradas, dá o código completo (ou envia os ficheiros) e diz se "Verify JWT" fica ligado. Desligado só em: webhooks (`stripe-webhook`, `twilio-whatsapp-webhook`, `whatsapp-webhook`, `lead-intake` — este autentica com token por marca), `agency-signup`, funções chamadas por cron e páginas públicas de marcação.
 - Segredos globais (ex: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) vivem em Edge Function Secrets (`Deno.env.get`). Segredos por marca (tokens Twilio/Meta/Resend/redes sociais) vão para o Vault via `vault_upsert_secret` e guarda-se só a referência na tabela.
@@ -77,6 +77,7 @@ WhatsApp via Meta direta ou Twilio (`whatsapp_accounts.provider`); o utilizador 
 
 ## Criativos (opções de design por cliente)
 - Módulo "Criativos" de cada marca (`src/modules/creatives/`, migração 85): abas por tipo de trabalho (`creative_projects`: cartão de visita, landing page, identidade visual, redes sociais, outro) → opções (`creative_options`: rascunho/enviada/aprovada/rejeitada) → versões (`creative_versions`, conteúdo em jsonb por tipo, número atribuído por `creative_add_version`) + comentários e ficheiros finais (`final_files`, na opção aprovada).
+- Redes sociais/Outro: conteúdo `{pieces:[{id, type:"single"|"carousel", paths}]}` (versões antigas `{images}` leem-se como peças simples, `galleryPieces`). Carrossel = várias imagens numa peça, vista a deslizar. Comentários numa imagem: `creative_comments.target` = caminho do ficheiro (migração 92; `creative-share` confirma que existe na versão).
 - Ficheiros no bucket privado `creatives` (primeiro segmento = id da marca; sempre por URL assinada, nunca públicos). Equipa escreve (`can_manage_brand`); o cliente com login só lê opções que não sejam rascunho.
 - Cliente sem login: link `/criativos/:token` (token em `creative_share_links`, só a equipa o lê; função `creative-share`, JWT desligado) vê só opções enviadas, comenta, aprova ou pede alterações; a equipa recebe notificação (área `criativos`). Os ficheiros finais só saem com a opção aprovada.
 
