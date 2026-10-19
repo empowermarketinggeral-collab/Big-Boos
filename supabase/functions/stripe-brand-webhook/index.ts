@@ -8,6 +8,8 @@
 //   - checkout.session.completed, type=pack_purchase → pack ativo (validade
 //     conta a partir do pagamento);
 //   - checkout.session.expired → liberta a marcação / anula o pack por pagar.
+//   - checkout.session.async_payment_succeeded / _failed → pagamentos que
+//     chegam mais tarde (ex: Multibanco): confirma ou liberta.
 //
 // A assinatura é verificada com o segredo do webhook DESSA marca (Vault),
 // e só se mexe em linhas dessa marca.
@@ -176,12 +178,16 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ received: true, ignored: "outra marca" }), { status: 200, headers: { "Content-Type": "application/json" } });
   }
 
-  if (event.type === "checkout.session.completed" && session.payment_status === "paid") {
+  // Multibanco e outros pagamentos diferidos: "completed" chega com
+  // payment_status "unpaid" e o dinheiro só entra no async_payment_succeeded.
+  const paid = (event.type === "checkout.session.completed" && session.payment_status === "paid")
+    || event.type === "checkout.session.async_payment_succeeded";
+  if (paid) {
     if (meta.type === "booking_deposit" && meta.appointment_id) await confirmDeposit(admin, brandId, meta.appointment_id);
     if (meta.type === "pack_purchase" && meta.client_pack_id) await activatePack(admin, brandId, meta.client_pack_id, session);
   }
 
-  if (event.type === "checkout.session.expired") {
+  if (event.type === "checkout.session.expired" || event.type === "checkout.session.async_payment_failed") {
     if (meta.type === "booking_deposit" && meta.appointment_id) {
       await admin.from("booking_appointments").update({ status: "cancelled", deposit_status: "failed" })
         .eq("id", meta.appointment_id).eq("brand_id", brandId).eq("status", "pending_payment");

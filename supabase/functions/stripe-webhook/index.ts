@@ -4,7 +4,9 @@
 // "Add endpoint": https://<project>.supabase.co/functions/v1/stripe-webhook
 // Eventos a subscrever: customer.subscription.created,
 // customer.subscription.updated, customer.subscription.deleted,
-// checkout.session.completed.
+// checkout.session.completed, checkout.session.async_payment_succeeded,
+// checkout.session.async_payment_failed (pagamentos que chegam mais tarde,
+// ex: Multibanco).
 //
 // Precisa de "Verify JWT" DESLIGADO (o Stripe não manda um JWT do
 // Supabase) — a segurança aqui vem da verificação da assinatura
@@ -172,7 +174,15 @@ Deno.serve(async (req) => {
   // subscrição. booking-create cria a marcação como "pending_payment"
   // e só aqui, com o pagamento confirmado, é que passa a "confirmed"
   // e sai a mensagem de confirmação ao cliente.
-  if (event.type === "checkout.session.completed") {
+  // Multibanco e outros pagamentos diferidos: "completed" chega com
+  // payment_status "unpaid" e o dinheiro só entra no async_payment_succeeded.
+  const depositPaid = (event.type === "checkout.session.completed" && event.data.object?.payment_status === "paid")
+    || event.type === "checkout.session.async_payment_succeeded";
+  if (event.type === "checkout.session.async_payment_failed" && event.data.object?.metadata?.type === "booking_deposit" && event.data.object?.metadata?.appointment_id) {
+    await admin.from("booking_appointments").update({ status: "cancelled", deposit_status: "failed" })
+      .eq("id", event.data.object.metadata.appointment_id).eq("status", "pending_payment");
+  }
+  if (depositPaid) {
     const session = event.data.object;
     if (session.mode === "payment" && session.metadata?.type === "booking_deposit") {
       const appointmentId = session.metadata?.appointment_id;

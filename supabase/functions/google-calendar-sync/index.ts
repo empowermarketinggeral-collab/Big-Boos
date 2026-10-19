@@ -15,7 +15,7 @@
 // modo de teste >7 dias), marca a ligação como "precisa de voltar a ligar" e
 // cria UMA notificação interna.
 //
-// Só aceita pedidos com a chave service role (o cron envia-a). "Verify JWT"
+// Só aceita pedidos com uma chave service role (o cron envia-a). "Verify JWT"
 // DESLIGADO. Segredos: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -39,6 +39,24 @@ function safeEqual(a, b) {
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
+}
+
+// O cron manda a chave service role guardada no Vault. Pode não ser
+// igual, letra a letra, à que a função recebe (ex: chave nova "sb_secret_…"
+// contra a antiga em JWT): nesse caso confirma-a no próprio Supabase —
+// só uma chave service role consegue listar utilizadores na API de admin.
+async function isServiceKey(bearer, serviceRoleKey) {
+  if (!bearer) return false;
+  if (serviceRoleKey && safeEqual(bearer, serviceRoleKey)) return true;
+  try {
+    const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/auth/v1/admin/users?page=1&per_page=1`, {
+      headers: { apikey: bearer, Authorization: `Bearer ${bearer}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 // Chamada à API do Google Agenda com tempo-limite; nunca lança.
@@ -275,7 +293,7 @@ Deno.serve(async (req) => {
 
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-  if (!serviceRoleKey || !safeEqual(bearer, serviceRoleKey)) return json({ error: "Sem permissão." }, 401);
+  if (!(await isServiceKey(bearer, serviceRoleKey))) return json({ error: "Sem permissão." }, 401);
   if (!Deno.env.get("GOOGLE_CLIENT_ID") || !Deno.env.get("GOOGLE_CLIENT_SECRET")) return json({ error: "Faltam GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET." }, 500);
 
   const admin = createClient(Deno.env.get("SUPABASE_URL"), serviceRoleKey);

@@ -81,6 +81,19 @@ function useAgendaSchedule(brandId, from, to) {
   });
 }
 
+// Ocupado no Google Agenda de cada profissional (sincronizado de 5 em 5 min).
+function useAgendaExternalBusy(brandId, from, to) {
+  return useQuery({
+    queryKey: ["agenda_busy", brandId, from.toISOString(), to.toISOString()],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("booking_external_busy").select("staff_id, starts_at, ends_at")
+        .eq("brand_id", brandId).lt("starts_at", to.toISOString()).gt("ends_at", from.toISOString());
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
 function useAgendaStatics(brandId) {
   return useQuery({
     queryKey: ["agenda_statics", brandId],
@@ -162,7 +175,7 @@ function EventBlock({ appt, color, top, height, left, width, onClick, compact })
 }
 
 // Uma coluna da grelha horária (um dia, ou um dia de uma profissional).
-function DayColumn({ date, appts, gridStart, gridEnd, colorFor, blocked, onSlot, onOpen, compact }) {
+function DayColumn({ date, appts, gridStart, gridEnd, colorFor, blocked, busy = [], onSlot, onOpen, compact }) {
   const height = ((gridEnd - gridStart) / 60) * HOUR_PX;
   const items = layoutLanes(
     appts.map((a) => {
@@ -184,6 +197,11 @@ function DayColumn({ date, appts, gridStart, gridEnd, colorFor, blocked, onSlot,
     <div onClick={click} style={{ position: "relative", height, borderLeft: `1px solid ${c.line}`, cursor: "copy" }}>
       {blocked.map((b, i) => (
         <div key={i} style={{ position: "absolute", left: 0, right: 0, top: ((b.from - gridStart) / 60) * HOUR_PX, height: ((b.to - b.from) / 60) * HOUR_PX, background: `color-mix(in srgb, ${c.ink} 6%, transparent)`, pointerEvents: "none" }} />
+      ))}
+      {busy.map((b, i) => (
+        <div key={`g${i}`} title="Ocupado no Google Agenda" style={{ ...sans, position: "absolute", left: 0, right: 0, top: ((b.from - gridStart) / 60) * HOUR_PX, height: ((b.to - b.from) / 60) * HOUR_PX, background: `color-mix(in srgb, ${c.amber} 12%, transparent)`, borderLeft: `3px dashed ${c.amber}`, fontSize: 12.5, color: c.mist, padding: "2px 6px", overflow: "hidden", pointerEvents: "none" }}>
+          {!compact && "Google"}
+        </div>
       ))}
       {Array.from({ length: (gridEnd - gridStart) / 60 }).map((_, i) => (
         <div key={i} style={{ position: "absolute", left: 0, right: 0, top: i * HOUR_PX, borderTop: `1px solid ${c.line}`, pointerEvents: "none" }} />
@@ -227,7 +245,7 @@ function TimeGrid({ columns, gridStart, gridEnd, colorFor, onSlot, onOpen, minCo
           ))}
         </div>
         {columns.map((col) => (
-          <DayColumn key={col.key} date={col.date} appts={col.appts} gridStart={gridStart} gridEnd={gridEnd} colorFor={colorFor} blocked={col.blocked} onSlot={(d, m) => onSlot(d, m, col.staffId)} onOpen={onOpen} compact={col.compact} />
+          <DayColumn key={col.key} date={col.date} appts={col.appts} gridStart={gridStart} gridEnd={gridEnd} colorFor={colorFor} blocked={col.blocked} busy={col.busy} onSlot={(d, m) => onSlot(d, m, col.staffId)} onOpen={onOpen} compact={col.compact} />
         ))}
       </div>
     </div>
@@ -415,6 +433,10 @@ function NewAppointmentModal({ brandId, statics, initial, onClose }) {
           .eq("brand_id", brandId).eq("staff_id", staffId).in("status", ["confirmed", "pending_payment"])
           .lt("starts_at", end.toISOString()).gt("ends_at", start.toISOString()).limit(1);
         if (clash?.length) return { clash: clash[0].customer_name };
+        const { data: gbusy } = await supabase.from("booking_external_busy").select("id")
+          .eq("brand_id", brandId).eq("staff_id", staffId)
+          .lt("starts_at", end.toISOString()).gt("ends_at", start.toISOString()).limit(1);
+        if (gbusy?.length) return { google: true };
       }
 
       let c2 = contact;
@@ -449,6 +471,7 @@ function NewAppointmentModal({ brandId, statics, initial, onClose }) {
       return { ok: true };
     },
     onSuccess: (res) => {
+      if (res?.google) { setWarning(`${staff.find((s) => s.id === staffId)?.name} tem esse horário ocupado no Google Agenda.`); return; }
       if (res?.clash) { setWarning(`${staff.find((s) => s.id === staffId)?.name} já tem uma marcação nesse horário (${res.clash}).`); return; }
       invalidate();
       onClose();
@@ -558,6 +581,7 @@ export default function AgendaCalendar({ brand, session, onOpenContact }) {
   const [from, to] = visibleRange(view, cursor);
   const apptsQuery = useAgendaAppointments(brand.id, from, to);
   const scheduleQuery = useAgendaSchedule(brand.id, from, to);
+  const busyQuery = useAgendaExternalBusy(brand.id, from, to);
   const filter = staffFilter || "all";
   const appts = (apptsQuery.data || []).filter((a) => filter === "all" || a.staff_id === filter);
   const colorFor = useMemo(() => {
@@ -587,6 +611,20 @@ export default function AgendaCalendar({ brand, session, onOpenContact }) {
     return blocks;
   };
 
+  // Ocupado no Google de uma profissional num dia (em minutos do dia).
+  const busyFor = (staffId, date) => {
+    if (!staffId) return [];
+    const dayStart = startOfDay(date).getTime();
+    const out = [];
+    for (const b of busyQuery.data || []) {
+      if (b.staff_id !== staffId) continue;
+      const s = Math.max(new Date(b.starts_at).getTime(), dayStart);
+      const e = Math.min(new Date(b.ends_at).getTime(), dayStart + 86400000);
+      if (e > s) out.push({ from: Math.max(gridStart, (s - dayStart) / 60000), to: Math.min(gridEnd, (e - dayStart) / 60000) });
+    }
+    return out.filter((b) => b.to > b.from);
+  };
+
   const move = (dir) => {
     if (view === "day") setCursor(addDays(cursor, dir));
     else if (view === "week") setCursor(addDays(cursor, 7 * dir));
@@ -603,10 +641,10 @@ export default function AgendaCalendar({ brand, session, onOpenContact }) {
   if (view === "day" && filter === "all") {
     columns = statics.staff.map((s) => ({
       key: s.id, title: s.name, color: colorFor(s.id), staffId: s.id, date: cursor,
-      appts: appts.filter((a) => a.staff_id === s.id && sameDay(new Date(a.starts_at), cursor)), blocked: blockedFor(s.id, cursor),
+      appts: appts.filter((a) => a.staff_id === s.id && sameDay(new Date(a.starts_at), cursor)), blocked: blockedFor(s.id, cursor), busy: busyFor(s.id, cursor),
     }));
   } else if (view === "day") {
-    columns = [{ key: "one", title: statics.staff.find((s) => s.id === filter)?.name || "", staffId: filter, date: cursor, appts: appts.filter((a) => sameDay(new Date(a.starts_at), cursor)), blocked: blockedFor(filter, cursor) }];
+    columns = [{ key: "one", title: statics.staff.find((s) => s.id === filter)?.name || "", staffId: filter, date: cursor, appts: appts.filter((a) => sameDay(new Date(a.starts_at), cursor)), blocked: blockedFor(filter, cursor), busy: busyFor(filter, cursor) }];
   } else if (view === "week") {
     columns = Array.from({ length: 7 }, (_, i) => {
       const d = addDays(from, i);
@@ -615,6 +653,7 @@ export default function AgendaCalendar({ brand, session, onOpenContact }) {
         title: `${DAY_NAMES[d.getDay()]} ${d.getDate()}`,
         appts: appts.filter((a) => sameDay(new Date(a.starts_at), d)),
         blocked: filter === "all" ? [] : blockedFor(filter, d),
+        busy: filter === "all" ? [] : busyFor(filter, d),
       };
     });
   }
@@ -660,7 +699,7 @@ export default function AgendaCalendar({ brand, session, onOpenContact }) {
           onOpen={setOpenAppt}
         />
       )}
-      <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>Clique num espaço livre para marcar. A cinzento: fora do horário ou de folga.</div>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>Clique num espaço livre para marcar. A cinzento: fora do horário ou de folga. Com traço âmbar: ocupado no Google Agenda da profissional.</div>
 
       {openAppt && <AppointmentModal brandId={brand.id} appt={openAppt} staff={statics.staff} onClose={() => setOpenAppt(null)} onOpenContact={(ct) => { setOpenAppt(null); onOpenContact(ct); }} />}
       {newAt && staticsQuery.isSuccess && <NewAppointmentModal brandId={brand.id} statics={statics} initial={newAt} onClose={() => setNewAt(null)} />}

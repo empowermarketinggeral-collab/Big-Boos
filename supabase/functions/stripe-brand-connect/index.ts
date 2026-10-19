@@ -98,6 +98,8 @@ Deno.serve(async (req) => {
     url: webhookUrl,
     "enabled_events[0]": "checkout.session.completed",
     "enabled_events[1]": "checkout.session.expired",
+    "enabled_events[2]": "checkout.session.async_payment_succeeded",
+    "enabled_events[3]": "checkout.session.async_payment_failed",
     description: "Big Boss: sinais de marcações e packs",
   });
   if (!endpoint.ok || !endpoint.data?.secret) {

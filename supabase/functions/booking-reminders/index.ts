@@ -8,6 +8,11 @@
 // desta, incluindo o histórico importado), com o texto de visit_messages
 // para esse número ou, sem ele, message_template. {{avaliacao}} = link de
 // avaliação; sem link, a frase que o tem sai do texto.
+//
+// Sinais por pagar há mais de 35 minutos: antes de cancelar pergunta ao
+// Stripe como ficou o checkout. Pago (o webhook falhou) → confirma e envia
+// a confirmação. Multibanco à espera de pagamento → mantém até a hora da
+// marcação. Só cancela o que de facto não foi pago.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -100,6 +105,33 @@ async function sendEmail(admin, brandId, toEmail, subject, html, contactId) {
   if (!res.ok) throw new Error(data?.message || "Falha ao enviar email.");
 }
 
+// Chave do Stripe da marca (Vault) ou, sem ela, a global.
+async function stripeKeyFor(admin, brandId) {
+  const { data: account } = await admin.from("brand_stripe_accounts").select("secret_key_ref").eq("brand_id", brandId).maybeSingle();
+  if (account?.secret_key_ref) {
+    const { data: key } = await admin.rpc("vault_read_secret", { p_id: account.secret_key_ref });
+    if (key) return key;
+  }
+  return Deno.env.get("STRIPE_SECRET_KEY") || null;
+}
+
+// "paid" | "waiting" (Multibanco por pagar) | "unpaid" | null (não deu para saber)
+async function checkoutState(key, sessionId) {
+  try {
+    const res = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`, {
+      headers: { Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return res.status === 404 ? "unpaid" : null;
+    const session = await res.json();
+    if (session.payment_status === "paid" || session.payment_status === "no_payment_required") return "paid";
+    if (session.status === "complete") return "waiting";
+    return "unpaid";
+  } catch {
+    return null;
+  }
+}
+
 async function notify(admin, appt, setting, defaultText, templateOverride) {
   const vars = {
     nome: appt.customer_name,
@@ -146,11 +178,30 @@ Deno.serve(async () => {
     const cutoff = new Date(now - 35 * 60000).toISOString();
     const { data: expired } = await admin
       .from("booking_appointments")
-      .select("id")
+      .select("*, booking_services(name)")
       .eq("status", "pending_payment")
-      .lt("created_at", cutoff);
+      .lt("created_at", cutoff)
+      .limit(200);
+    const keys = new Map();
     for (const appt of expired || []) {
-      await admin.from("booking_appointments").update({ status: "cancelled", deposit_status: "failed" }).eq("id", appt.id);
+      if (appt.stripe_checkout_session_id) {
+        if (!keys.has(appt.brand_id)) keys.set(appt.brand_id, await stripeKeyFor(admin, appt.brand_id));
+        const key = keys.get(appt.brand_id);
+        const state = key ? await checkoutState(key, appt.stripe_checkout_session_id) : null;
+        if (state === null) continue; // Stripe sem resposta: tenta no próximo ciclo
+        if (state === "paid") {
+          const { data: updated } = await admin.from("booking_appointments").update({ status: "confirmed", deposit_status: "paid" })
+            .eq("id", appt.id).eq("status", "pending_payment").select("id");
+          if (updated?.length) {
+            const { data: setting } = await admin.from("booking_reminder_settings").select("*")
+              .eq("brand_id", appt.brand_id).eq("type", "confirmation").eq("enabled", true).maybeSingle();
+            if (setting) await notifySafe(admin, appt, setting, (v) => `A tua marcação de ${v.servico} ficou confirmada para ${v.data} às ${v.hora}.`);
+          }
+          continue;
+        }
+        if (state === "waiting" && new Date(appt.starts_at).getTime() > now) continue;
+      }
+      await admin.from("booking_appointments").update({ status: "cancelled", deposit_status: "failed" }).eq("id", appt.id).eq("status", "pending_payment");
       expiredPending++;
     }
   }

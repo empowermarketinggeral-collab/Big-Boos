@@ -1269,6 +1269,9 @@ function PaymentSettingsSection({ brand }) {
   });
 
   const persist = (patch) => save.mutate({ enabled: s.enabled, percentage: s.percentage, scope: s.scope, exemptTagId: s.exempt_tag_id, ...patch });
+  // Serviço sem preço não tem sinal a cobrar: a marcação fica confirmada sem pagar.
+  const servicesQuery = useServices(brand.id);
+  const noPrice = (servicesQuery.data || []).filter((sv) => sv.status === "active" && !(Number(sv.price) > 0));
 
   return (
     <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
@@ -1299,6 +1302,11 @@ function PaymentSettingsSection({ brand }) {
               <option value="new_customers">Só clientes novos (sem marcação anterior)</option>
             </select>
           </div>
+          {noPrice.length > 0 && (
+            <div style={{ ...sans, fontSize: 13.5, color: c.amber, lineHeight: 1.5 }}>
+              {noPrice.length === 1 ? "Este serviço não tem preço e é marcado sem sinal" : `Estes ${noPrice.length} serviços não têm preço e são marcados sem sinal`}: {noPrice.map((sv) => sv.name).join(", ")}. Põe o preço em Serviços se o sinal também se aplica.
+            </div>
+          )}
           {s.scope === "new_customers" && (
             <div>
               <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Clientes com esta tag contam como clientes antigas (não pagam sinal)</div>
