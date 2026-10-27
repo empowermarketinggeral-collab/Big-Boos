@@ -218,7 +218,7 @@ function ConnectEmailForm({ brandId, onConnected }) {
       <Eyebrow>Email</Eyebrow>
       <h1 style={{ ...display, fontSize: 24, color: c.ink, marginBottom: 8 }}>Ligar o domínio desta marca</h1>
       <p style={{ ...sans, fontSize: 14.5, color: c.mist, lineHeight: 1.6, marginBottom: 22 }}>
-        Precisas de um domínio verificado no Resend e de uma API key. Segue <strong>docs/GUIA_EMAIL_RESEND.md</strong> se ainda não os tiveres.
+        Precisa de um domínio verificado no Resend e de uma chave API (começa por <strong>re_</strong>). Os emails automáticos e as campanhas desta marca passam a sair deste endereço.
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
