@@ -700,10 +700,16 @@ function ContactsView({ brand, session }) {
   const [selected, setSelected] = useState(() => new Set());
   const toggleSelected = (id) => setSelected((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
 
+  const [tagFilter, setTagFilter] = useState("");
+  // Tags que existem nos contactos (para o filtro), por ordem alfabética.
+  const filterTags = [...new Map((contactsQuery.data || []).flatMap((ct) => ct.tags).map((t) => [t.id, t])).values()]
+    .sort((a, b) => a.name.localeCompare(b.name, "pt"));
   const contacts = (contactsQuery.data || []).filter((ct) => {
+    if (tagFilter && !ct.tags.some((t) => t.id === tagFilter)) return false;
     const q = query.trim().toLowerCase();
     if (!q) return true;
-    return ct.name.toLowerCase().includes(q) || ct.email.toLowerCase().includes(q) || ct.phone.includes(q);
+    return ct.name.toLowerCase().includes(q) || ct.email.toLowerCase().includes(q) || ct.phone.includes(q)
+      || ct.tags.some((t) => t.name.toLowerCase().includes(q));
   });
   // "Mais quentes": pontuação mais alta primeiro (quem contactar primeiro).
   if (hottestFirst) contacts.sort((a, b) => b.leadScore - a.leadScore);
@@ -735,6 +741,10 @@ function ContactsView({ brand, session }) {
             placeholder="Pesquisar contactos…"
           />
         </div>
+        <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} aria-label="Filtrar por tag" style={{ ...inputStyle, width: "auto", minWidth: 170, maxWidth: 260 }}>
+          <option value="">Todas as tags</option>
+          {filterTags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
             onClick={() => downloadCsv(`${brand.name}-contactos.csv`, contactsToCsv(contactsQuery.data || []))}
@@ -806,7 +816,7 @@ function ContactsView({ brand, session }) {
               return next;
             })}
           />
-          {query.trim() ? `Selecionar os ${contacts.length} da pesquisa` : `Selecionar todos (${contacts.length})`}
+          {query.trim() || tagFilter ? `Selecionar os ${contacts.length} da pesquisa` : `Selecionar todos (${contacts.length})`}
         </label>
       )}
 
