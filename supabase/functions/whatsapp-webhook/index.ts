@@ -29,6 +29,37 @@ async function verifyMetaSignature(rawBody, signatureHeader, appSecret) {
   return diff === 0;
 }
 
+const digitsOf = (v) => String(v || "").replace(/\D/g, "");
+
+// Liga a conversa à ficha do CRM pelo telemóvel; cria o contacto se não existir.
+async function contactFor(admin, brandId, phone, profileName) {
+  const digits = digitsOf(phone);
+  if (digits.length < 8) return null;
+  const e164 = `+${digits}`;
+  const { data: exact } = await admin.from("contacts").select("id").eq("brand_id", brandId).in("phone", [e164, digits]).limit(1);
+  if (exact?.[0]) return exact[0].id;
+  const { data: similar } = await admin.from("contacts").select("id, phone").eq("brand_id", brandId).ilike("phone", `%${digits.slice(-3)}`).limit(200);
+  const match = (similar || []).filter((c) => digitsOf(c.phone).slice(-9) === digits.slice(-9));
+  if (match.length === 1) return match[0].id;
+  const { data: created } = await admin.from("contacts")
+    .insert({ brand_id: brandId, name: String(profileName || e164).slice(0, 120), phone: e164, source: "whatsapp", opted_in_whatsapp: true })
+    .select("id").single();
+  return created?.id || null;
+}
+
+// Tipos da Meta → tipos aceites pela tabela (áudio, autocolantes, etc. ficam como documento/texto).
+function messageRow(message) {
+  const t = message.type || "text";
+  if (t === "text") return { type: "text", body: message.text?.body || "" };
+  if (t === "image") return { type: "image", body: message.image?.caption ? `[Imagem] ${message.image.caption}` : "[Imagem]" };
+  if (t === "video") return { type: "video", body: message.video?.caption ? `[Vídeo] ${message.video.caption}` : "[Vídeo]" };
+  if (t === "document") return { type: "document", body: `[Documento] ${message.document?.filename || ""}`.trim() };
+  if (t === "audio") return { type: "document", body: "[Áudio]" };
+  if (t === "button") return { type: "text", body: message.button?.text || "[Botão]" };
+  if (t === "interactive") return { type: "text", body: message.interactive?.button_reply?.title || message.interactive?.list_reply?.title || "[Resposta]" };
+  return { type: "text", body: `[${t}]` };
+}
+
 Deno.serve(async (req) => {
   const url = new URL(req.url);
 
@@ -91,30 +122,39 @@ Deno.serve(async (req) => {
             .maybeSingle()
         ).data;
 
+        const profileName = (value.contacts || []).find((c) => c.wa_id === from)?.profile?.name;
+        const contactId = await contactFor(adminClient, account.brand_id, from, profileName);
+
         if (!conversation) {
           const { data: created } = await adminClient
             .from("whatsapp_conversations")
-            .insert({ brand_id: account.brand_id, wa_contact_phone: from })
+            .insert({ brand_id: account.brand_id, wa_contact_phone: from, contact_id: contactId })
             .select("id")
             .single();
           conversation = created;
         }
+        if (!conversation) continue;
 
         const windowExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
         await adminClient
           .from("whatsapp_conversations")
           .update({ last_message_at: new Date().toISOString(), window_expires_at: windowExpires, status: "open" })
           .eq("id", conversation.id);
+        if (contactId) {
+          await adminClient.from("whatsapp_conversations").update({ contact_id: contactId }).eq("id", conversation.id).is("contact_id", null);
+        }
 
-        await adminClient.from("whatsapp_messages").insert({
+        const row = messageRow(message);
+        const { error: insertError } = await adminClient.from("whatsapp_messages").insert({
           brand_id: account.brand_id,
           conversation_id: conversation.id,
           direction: "inbound",
           wa_message_id: message.id,
-          type: message.type || "text",
-          body: message.text?.body || null,
+          type: row.type,
+          body: row.body,
           status: "delivered",
         });
+        if (insertError) console.error("whatsapp-webhook: não foi possível guardar a mensagem", insertError.message);
       }
     }
   }
