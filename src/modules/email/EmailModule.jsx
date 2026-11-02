@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
+import { supabase, invokeFunction, fetchAll } from "../../lib/supabaseClient.js";
+import { VariableChips, RecipientSummary, useVariableInsert } from "../../shared/MessageVariables.jsx";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, Plus, Trash2, Mail, Send } from "lucide-react";
 
@@ -157,9 +158,7 @@ function useContacts(brandId) {
     queryKey: ["crm_contacts_light", brandId],
     enabled: !!brandId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("contacts").select("id, name, email, opted_in_email").eq("brand_id", brandId);
-      if (error) throw error;
-      return data;
+      return fetchAll(() => supabase.from("contacts").select("id, name, email, opted_in_email").eq("brand_id", brandId).order("id"));
     },
   });
 }
@@ -181,9 +180,7 @@ function useContactTagMap(brandId) {
     queryKey: ["crm_contact_tags_map", brandId],
     enabled: !!brandId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("contact_tags").select("contact_id, tag_id").eq("brand_id", brandId);
-      if (error) throw error;
-      return data;
+      return fetchAll(() => supabase.from("contact_tags").select("contact_id, tag_id").eq("brand_id", brandId).order("contact_id").order("tag_id"));
     },
   });
 }
@@ -284,7 +281,6 @@ function CampaignEditor({ brand, campaign, domain, onBack }) {
   const [subject, setSubject] = useState(campaign.subject || "");
   const [bodyHtml, setBodyHtml] = useState(campaign.body_html || "");
   const [tagIds, setTagIds] = useState([]);
-  const [allOptedIn, setAllOptedIn] = useState(true);
   const [saved, setSaved] = useState(false);
   const [showSend, setShowSend] = useState(false);
   const [sendResult, setSendResult] = useState(null);
@@ -297,14 +293,15 @@ function CampaignEditor({ brand, campaign, domain, onBack }) {
   const sendsQuery = useSends(campaign.id);
 
   const toggleTag = (id) => setTagIds((t) => (t.includes(id) ? t.filter((x) => x !== id) : [...t, id]));
+  const subjectVars = useVariableInsert(subject, setSubject);
+  const bodyVars = useVariableInsert(bodyHtml, setBodyHtml);
 
-  const recipientIds = (() => {
-    const contacts = (contactsQuery.data || []).filter((ct) => ct.opted_in_email && ct.email);
-    if (allOptedIn || tagIds.length === 0) return contacts.map((ct) => ct.id);
-    const map = tagMapQuery.data || [];
-    const withTag = new Set(map.filter((m) => tagIds.includes(m.tag_id)).map((m) => m.contact_id));
-    return contacts.filter((ct) => withTag.has(ct.id)).map((ct) => ct.id);
-  })();
+  // Sem tags escolhidas = todos; com tags = quem tiver pelo menos uma delas.
+  // Só recebe quem tem consentimento e o dado de contacto na ficha.
+  const withTag = tagIds.length ? new Set((tagMapQuery.data || []).filter((m) => tagIds.includes(m.tag_id)).map((m) => m.contact_id)) : null;
+  const audience = (contactsQuery.data || []).filter((ct) => !withTag || withTag.has(ct.id));
+  const recipientIds = audience.filter((ct) => ct.opted_in_email && ct.email).map((ct) => ct.id);
+  const loadingRecipients = contactsQuery.isLoading || tagMapQuery.isLoading;
 
   const save = async () => {
     setError("");
@@ -371,11 +368,13 @@ function CampaignEditor({ brand, campaign, domain, onBack }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
               <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Assunto</div>
-              <input style={inputStyle} value={subject} onChange={(e) => setSubject(e.target.value)} disabled={isSent} placeholder="Assunto do email" />
+              <input ref={subjectVars.ref} style={inputStyle} value={subject} onChange={(e) => setSubject(e.target.value)} disabled={isSent} placeholder="Assunto do email" />
+              {!isSent && <VariableChips onInsert={subjectVars.insert} hint={false} />}
             </div>
             <div>
               <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Corpo (aceita HTML simples)</div>
-              <textarea rows={8} style={{ ...inputStyle, resize: "vertical" }} value={bodyHtml} onChange={(e) => setBodyHtml(e.target.value)} disabled={isSent} />
+              <textarea ref={bodyVars.ref} rows={8} style={{ ...inputStyle, resize: "vertical" }} value={bodyHtml} onChange={(e) => setBodyHtml(e.target.value)} disabled={isSent} />
+              {!isSent && <VariableChips onInsert={bodyVars.insert} />}
             </div>
           </div>
         </div>
@@ -383,11 +382,7 @@ function CampaignEditor({ brand, campaign, domain, onBack }) {
         {!isSent && (
           <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
             <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Destinatários</div>
-            <label style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
-              <input type="checkbox" checked={allOptedIn} onChange={(e) => setAllOptedIn(e.target.checked)} />
-              Todos os contactos com consentimento de email
-            </label>
-            {!allOptedIn && (
+            <div style={{ ...sans, fontSize: 13, color: c.mist, marginBottom: 10 }}>Escolha as tags de quem deve receber. Sem nenhuma tag escolhida, recebem todos os contactos com consentimento de email.</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {(tagsQuery.data || []).map((t) => (
                   <button
@@ -404,10 +399,7 @@ function CampaignEditor({ brand, campaign, domain, onBack }) {
                   </button>
                 ))}
               </div>
-            )}
-            <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginTop: 12 }}>
-              {recipientIds.length} contacto(s) vão receber este email.
-            </div>
+            {loadingRecipients ? <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginTop: 12 }}>A contar os contactos…</div> : <RecipientSummary tagged={tagIds.length ? audience.length : recipientIds.length} reachable={recipientIds.length} channelLabel="email" />}
             <button
               onClick={() => setShowSend(true)}
               disabled={!subject.trim() || recipientIds.length === 0}

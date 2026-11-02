@@ -16,6 +16,29 @@ function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
+// Variáveis por contacto: {{primeiro_nome}}, {{nome}}, {{telefone}}, {{email}}
+// e campos personalizados; {{campo|reserva}} usa a reserva se faltar o dado
+// (reserva vazia = fica em branco). Sem valor nem reserva → ok=false.
+function renderForContact(text, contact) {
+  if (!text) return { ok: true, value: text || "" };
+  let ok = true;
+  const value = String(text).replace(/\{\{\s*(\w+)\s*(?:\|([^{}]*))?\}\}/g, (_m, key, fallback) => {
+    let v;
+    if (key === "primeiro_nome") v = (contact.name || "").trim().split(/\s+/)[0];
+    else if (key === "nome") v = contact.name;
+    else if (key === "email") v = contact.email;
+    else if (key === "telefone" || key === "telemovel") v = contact.phone;
+    else v = contact.custom_fields?.[key];
+    if (v === undefined || v === null || String(v).trim() === "") {
+      if (fallback !== undefined) return fallback;
+      ok = false;
+      return "";
+    }
+    return String(v);
+  });
+  return { ok, value };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -55,7 +78,7 @@ Deno.serve(async (req) => {
 
   const { data: contacts } = await adminClient
     .from("contacts")
-    .select("id, phone, opted_in_sms")
+    .select("id, name, email, phone, opted_in_sms, custom_fields")
     .in("id", contactIds)
     .eq("brand_id", campaign.brand_id);
 
@@ -67,11 +90,16 @@ Deno.serve(async (req) => {
       skipped++;
       continue;
     }
+    const text = renderForContact(campaign.body, contact);
+    if (!text.ok || !text.value.trim()) {
+      skipped++;
+      continue;
+    }
 
     const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${account.account_sid}/Messages.json`, {
       method: "POST",
       headers: { Authorization: `Basic ${btoa(`${account.account_sid}:${token}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ From: account.from_number, To: contact.phone, Body: campaign.body }),
+      body: new URLSearchParams({ From: account.from_number, To: contact.phone, Body: text.value }),
     });
     const data = await res.json();
 
@@ -80,7 +108,7 @@ Deno.serve(async (req) => {
       campaign_id: campaignId,
       contact_id: contact.id,
       to_number: contact.phone,
-      body: campaign.body,
+      body: text.value,
       direction: "outbound",
       provider_ref: data?.sid || null,
       status: res.ok ? "sent" : "failed",

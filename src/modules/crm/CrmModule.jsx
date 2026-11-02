@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "../../lib/supabaseClient.js";
+import { supabase, fetchAll } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import {
   ArrowLeft, Plus, X, Trash2, Pencil, Phone, Mail, Search, GripVertical, Download, Upload, Link2, ShoppingBag, Flame,
@@ -53,28 +53,40 @@ function useContacts(brandId) {
     queryKey: ["crm_contacts", brandId],
     enabled: !!brandId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const data = await fetchAll(() => supabase
         .from("contacts")
         .select("*, contact_tags(tag_id, tags(id,name,color))")
         .eq("brand_id", brandId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
+        .order("created_at", { ascending: false })
+        .order("id"));
       return data.map(mapContactRow);
     },
   });
 }
 
+// Email ou telefone já usados noutro contacto da marca: diz qual, em português.
+function friendlyContactError(error) {
+  const msg = String(error?.message || "");
+  if (msg.includes("idx_contacts_brand_email")) return new Error("Já existe outro contacto com este email. Procure-o na lista ou use outro email.");
+  if (msg.includes("idx_contacts_brand_phone")) return new Error("Já existe outro contacto com este telemóvel. Procure-o na lista ou use outro número.");
+  return error;
+}
+
 function useSaveContact(brandId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name, email, phone, source, optedInEmail, optedInWhatsapp, birthDate, referredBy, createdBy }) => {
+    mutationFn: async ({ id, name, email: rawEmail, phone: rawPhone, source, optedInEmail, optedInWhatsapp, birthDate, referredBy, createdBy }) => {
       const extra = { birth_date: birthDate || null, referred_by: referredBy || null };
+      // Vazio fica null: o email e o telefone são únicos por marca, e dois
+      // contactos com "" contavam como repetidos (e a ficha não gravava).
+      const email = String(rawEmail || "").trim() || null;
+      const phone = String(rawPhone || "").trim() || null;
       if (id) {
         const { error } = await supabase
           .from("contacts")
           .update({ name, email, phone, source, opted_in_email: optedInEmail, opted_in_whatsapp: optedInWhatsapp, ...extra })
           .eq("id", id);
-        if (error) throw error;
+        if (error) throw friendlyContactError(error);
         return id;
       }
       const { data, error } = await supabase
@@ -82,7 +94,7 @@ function useSaveContact(brandId) {
         .insert({ brand_id: brandId, name, email, phone, source, opted_in_email: optedInEmail, opted_in_whatsapp: optedInWhatsapp, ...extra, created_by: createdBy })
         .select()
         .single();
-      if (error) throw error;
+      if (error) throw friendlyContactError(error);
       return data.id;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["crm_contacts", brandId] }),
@@ -238,7 +250,10 @@ function useToggleContactTag(brandId, contactId) {
   return useMutation({
     mutationFn: async ({ tagId, active }) => {
       if (active) {
-        const { error } = await supabase.from("contact_tags").insert({ brand_id: brandId, contact_id: contactId, tag_id: tagId });
+        const { error } = await supabase.from("contact_tags").upsert(
+          { brand_id: brandId, contact_id: contactId, tag_id: tagId },
+          { onConflict: "contact_id,tag_id", ignoreDuplicates: true }
+        );
         if (error) throw error;
       } else {
         const { error } = await supabase.from("contact_tags").delete().eq("contact_id", contactId).eq("tag_id", tagId);
@@ -570,7 +585,18 @@ function ContactFormModal({ brandId, contact, contacts, onClose, session }) {
   const tagsQuery = useTags(brandId);
   const [error, setError] = useState("");
 
-  const activeTagIds = new Set((contact?.tags || []).map((t) => t.id));
+  // As tags gravam-se logo ao tocar; o estado local mostra-as já postas.
+  const [activeTagIds, setActiveTagIds] = useState(() => new Set((contact?.tags || []).map((t) => t.id)));
+  const setTag = (tagId, active) => {
+    setError("");
+    setActiveTagIds((prev) => { const next = new Set(prev); if (active) next.add(tagId); else next.delete(tagId); return next; });
+    toggleTag.mutate({ tagId, active }, {
+      onError: (err) => {
+        setActiveTagIds((prev) => { const next = new Set(prev); if (active) next.delete(tagId); else next.add(tagId); return next; });
+        setError(`Não foi possível ${active ? "pôr" : "tirar"} a tag: ${err.message}`);
+      },
+    });
+  };
 
   const save = async () => {
     if (!name.trim()) { setError("O nome é obrigatório."); return; }
@@ -584,8 +610,18 @@ function ContactFormModal({ brandId, contact, contacts, onClose, session }) {
 
   const addTag = async () => {
     if (!newTag.trim()) return;
-    const tag = await createTag.mutateAsync(newTag.trim());
-    if (contact?.id) toggleTag.mutate({ tagId: tag.id, active: true });
+    // Se a tag já existe (mesmo nome), usa essa em vez de dar erro.
+    const existing = (tagsQuery.data || []).find((t) => t.name.trim().toLowerCase() === newTag.trim().toLowerCase());
+    let tag = existing;
+    if (!tag) {
+      try {
+        tag = await createTag.mutateAsync(newTag.trim());
+      } catch (err) {
+        setError(`Não foi possível criar a tag: ${err.message}`);
+        return;
+      }
+    }
+    if (contact?.id) setTag(tag.id, true);
     setNewTag("");
   };
 
@@ -650,7 +686,7 @@ function ContactFormModal({ brandId, contact, contacts, onClose, session }) {
                 return (
                   <button
                     key={tag.id}
-                    onClick={() => toggleTag.mutate({ tagId: tag.id, active: !active })}
+                    onClick={() => setTag(tag.id, !active)}
                     style={{
                       ...sans, fontSize: 12.5, fontWeight: 600, padding: "5px 10px", borderRadius: 999, cursor: "pointer",
                       border: `1px solid ${active ? tag.color : c.line}`,
