@@ -22,7 +22,21 @@ function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
-const isHttpUrl = (v) => typeof v === "string" && /^https?:\/\//i.test(v);
+// Endereço de regresso do Stripe: tem de ser http(s) absoluto com um domínio
+// a sério (o Stripe recusa com "Not a valid URL" o que vem de iframes, webviews
+// ou páginas sem origem, ex: "null/agendar/…"). Sem um válido, usa o da app.
+function validReturnUrl(v) {
+  if (typeof v !== "string" || v.length > 2000) return null;
+  try {
+    const u = new URL(v);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    if (!u.hostname.includes(".") && u.hostname !== "localhost") return null;
+    return u.href;
+  } catch {
+    return null;
+  }
+}
+const appBaseUrl = () => (validReturnUrl(Deno.env.get("APP_URL") || "") || "https://big-boos.vercel.app").replace(/\/+$/, "");
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -78,7 +92,11 @@ Deno.serve(async (req) => {
   }).select("id").single();
   if (insertError) return json({ error: insertError.message }, 500);
 
-  const origin = req.headers.get("origin") || "";
+  // Para onde o Stripe devolve a cliente: o que a app pediu ou, se não servir, a app da marca.
+  const { data: brandRow } = await admin.from("brands").select("booking_slug, booking_style").eq("id", brandId).maybeSingle();
+  const packsUrl = validReturnUrl(brandRow?.booking_style?.appUrl || "")
+    || (brandRow?.booking_slug ? `${appBaseUrl()}/app/${brandRow.booking_slug}` : appBaseUrl());
+  const packsBase = `${packsUrl}${packsUrl.includes("?") ? "&" : "?"}tab=packs`;
   const params = new URLSearchParams({
     mode: "payment",
     "line_items[0][price_data][currency]": "eur",
@@ -90,8 +108,8 @@ Deno.serve(async (req) => {
     "metadata[client_pack_id]": clientPack.id,
     "metadata[validity_days]": String(pack.validity_days || 0),
     expires_at: String(Math.floor(Date.now() / 1000) + 31 * 60),
-    success_url: isHttpUrl(successUrl) ? successUrl : origin,
-    cancel_url: isHttpUrl(cancelUrl) ? cancelUrl : origin,
+    success_url: validReturnUrl(successUrl) || `${packsBase}&pago=1`,
+    cancel_url: validReturnUrl(cancelUrl) || packsBase,
   });
   if (pack.description) params.set("line_items[0][price_data][product_data][description]", pack.description.slice(0, 500));
   if (contact.email) params.set("customer_email", contact.email);

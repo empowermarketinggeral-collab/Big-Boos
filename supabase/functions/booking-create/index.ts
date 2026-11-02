@@ -69,7 +69,21 @@ function normalizePhone(raw, countryCode = "351") {
   return "+" + digits;
 }
 
-const isHttpUrl = (v) => typeof v === "string" && /^https?:\/\//i.test(v);
+// Endereço de regresso do Stripe: tem de ser http(s) absoluto com um domínio
+// a sério (o Stripe recusa com "Not a valid URL" o que vem de iframes, webviews
+// ou páginas sem origem, ex: "null/agendar/…"). Sem um válido, usa o da app.
+function validReturnUrl(v) {
+  if (typeof v !== "string" || v.length > 2000) return null;
+  try {
+    const u = new URL(v);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    if (!u.hostname.includes(".") && u.hostname !== "localhost") return null;
+    return u.href;
+  } catch {
+    return null;
+  }
+}
+const appBaseUrl = () => (validReturnUrl(Deno.env.get("APP_URL") || "") || "https://big-boos.vercel.app").replace(/\/+$/, "");
 
 async function sendWhatsappText(admin, brandId, toPhone, body) {
   const { data: account } = await admin.from("whatsapp_accounts").select("provider, phone_number_id, twilio_account_sid, access_token_ref").eq("brand_id", brandId).maybeSingle();
@@ -421,7 +435,15 @@ Deno.serve(async (req) => {
       await admin.from("booking_appointments").update({ status: "cancelled", deposit_status: "failed" }).eq("id", appt.id);
       return json({ error: "O pagamento de sinal não está configurado. Contacta a marca diretamente." }, 500);
     }
-    const origin = req.headers.get("origin") || "";
+    // Para onde o Stripe devolve a pessoa: o que a página pediu ou, se não servir, a página da marca.
+    let fallbackUrl = appBaseUrl();
+    const { data: brandRow } = await admin.from("brands").select("booking_slug, booking_style").eq("id", brandId).maybeSingle();
+    if (brandRow?.booking_slug) {
+      const ownApp = client ? validReturnUrl(brandRow.booking_style?.appUrl || "") : null;
+      fallbackUrl = ownApp || `${appBaseUrl()}${client ? `/app/${brandRow.booking_slug}?tab=appointments` : `/agendar/${brandRow.booking_slug}`}`;
+    }
+    const returnOk = validReturnUrl(successUrl) || `${fallbackUrl}${fallbackUrl.includes("?") ? "&" : "?"}pago=1`;
+    const returnCancel = validReturnUrl(cancelUrl) || fallbackUrl;
     const params = new URLSearchParams({
       mode: "payment",
       "line_items[0][price_data][currency]": "eur",
@@ -435,19 +457,31 @@ Deno.serve(async (req) => {
       // ao fim de ~30 min, quase ao mesmo tempo que a booking-reminders
       // liberta o horário.
       expires_at: String(Math.floor(Date.now() / 1000) + 31 * 60),
-      success_url: isHttpUrl(successUrl) ? successUrl : origin,
-      cancel_url: isHttpUrl(cancelUrl) ? cancelUrl : origin,
+      success_url: returnOk,
+      cancel_url: returnCancel,
     });
     if (email) params.set("customer_email", email);
-    const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${secretKey}`, "Content-Type": "application/x-www-form-urlencoded" },
-      body: params,
-    });
-    const session = await res.json();
+    const createCheckout = async () => {
+      const r = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${secretKey}`, "Content-Type": "application/x-www-form-urlencoded" },
+        body: params,
+      });
+      return { res: r, session: await r.json().catch(() => ({})) };
+    };
+    let { res, session } = await createCheckout();
+    // O Stripe recusou o endereço de regresso ou o email: tenta uma vez com o da marca / sem email.
+    const badParam = session?.error?.param;
+    if (!res.ok && (badParam === "success_url" || badParam === "cancel_url" || badParam === "customer_email")) {
+      console.error("booking-create: o Stripe recusou", badParam, session?.error?.message, { success_url: returnOk });
+      if (badParam === "customer_email") params.delete("customer_email");
+      else { params.set("success_url", `${fallbackUrl}${fallbackUrl.includes("?") ? "&" : "?"}pago=1`); params.set("cancel_url", fallbackUrl); }
+      ({ res, session } = await createCheckout());
+    }
     if (!res.ok) {
       await admin.from("booking_appointments").update({ status: "cancelled", deposit_status: "failed" }).eq("id", appt.id);
-      return json({ error: session?.error?.message || "Não foi possível iniciar o pagamento." }, 502);
+      console.error("booking-create: o Stripe recusou o checkout", { brand: brandId, param: session?.error?.param, message: session?.error?.message, success_url: returnOk });
+      return json({ error: "Não foi possível abrir o pagamento. Tente outra vez dentro de instantes ou contacte-nos." }, 502);
     }
     await admin.from("booking_appointments").update({ stripe_checkout_session_id: session.id }).eq("id", appt.id);
     return json({ ok: true, appointmentId: appt.id, paymentUrl: session.url, depositAmount });
