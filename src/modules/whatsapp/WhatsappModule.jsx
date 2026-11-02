@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
+import { supabase, invokeFunction, fetchAll } from "../../lib/supabaseClient.js";
+import { VariableChips, RecipientSummary, useVariableInsert } from "../../shared/MessageVariables.jsx";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, Send, MessageCircle, CheckCircle2, AlertCircle, Plus, Trash2, FileText, RefreshCw, UserPlus, Calculator, Info } from "lucide-react";
 import { useUrlState } from "../../shared/urlState.js";
@@ -225,9 +226,7 @@ function useContactTagMap(brandId) {
     queryKey: ["crm_contact_tags_map", brandId],
     enabled: !!brandId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("contact_tags").select("contact_id, tag_id").eq("brand_id", brandId);
-      if (error) throw error;
-      return data;
+      return fetchAll(() => supabase.from("contact_tags").select("contact_id, tag_id").eq("brand_id", brandId).order("contact_id").order("tag_id"));
     },
   });
 }
@@ -237,9 +236,7 @@ function useContactsWa(brandId) {
     queryKey: ["crm_contacts_wa", brandId],
     enabled: !!brandId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("contacts").select("id, name, phone, opted_in_whatsapp").eq("brand_id", brandId);
-      if (error) throw error;
-      return data;
+      return fetchAll(() => supabase.from("contacts").select("id, name, phone, opted_in_whatsapp").eq("brand_id", brandId).order("id"));
     },
   });
 }
@@ -673,9 +670,19 @@ function SendWaCampaignModal({ brandId, campaign, recipientCount, variableValues
   );
 }
 
+function TemplateVariableField({ label, value, onChange }) {
+  const vars = useVariableInsert(value, onChange);
+  return (
+    <div>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>{label}</div>
+      <input ref={vars.ref} style={inputStyle} value={value} onChange={(e) => onChange(e.target.value)} />
+      <VariableChips onInsert={vars.insert} hint={false} />
+    </div>
+  );
+}
+
 function WaCampaignEditor({ brandId, campaign, onBack }) {
   const [tagIds, setTagIds] = useState([]);
-  const [allOptedIn, setAllOptedIn] = useState(true);
   const [values, setValues] = useState([]);
   const [showSend, setShowSend] = useState(false);
   const [sendResult, setSendResult] = useState(null);
@@ -688,13 +695,12 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
 
   const toggleTag = (id) => setTagIds((t) => (t.includes(id) ? t.filter((x) => x !== id) : [...t, id]));
 
-  const recipientIds = (() => {
-    const contacts = (contactsQuery.data || []).filter((ct) => ct.opted_in_whatsapp && ct.phone);
-    if (allOptedIn || tagIds.length === 0) return contacts.map((ct) => ct.id);
-    const map = tagMapQuery.data || [];
-    const withTag = new Set(map.filter((m) => tagIds.includes(m.tag_id)).map((m) => m.contact_id));
-    return contacts.filter((ct) => withTag.has(ct.id)).map((ct) => ct.id);
-  })();
+  // Sem tags escolhidas = todos; com tags = quem tiver pelo menos uma delas.
+  // Só recebe quem tem consentimento e o dado de contacto na ficha.
+  const withTag = tagIds.length ? new Set((tagMapQuery.data || []).filter((m) => tagIds.includes(m.tag_id)).map((m) => m.contact_id)) : null;
+  const audience = (contactsQuery.data || []).filter((ct) => !withTag || withTag.has(ct.id));
+  const recipientIds = audience.filter((ct) => ct.opted_in_whatsapp && ct.phone).map((ct) => ct.id);
+  const loadingRecipients = contactsQuery.isLoading || tagMapQuery.isLoading;
 
   const sends = sendsQuery.data || [];
   const statusCounts = sends.reduce((acc, s) => ({ ...acc, [s.status]: (acc[s.status] || 0) + 1 }), {});
@@ -724,11 +730,7 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 640 }}>
           <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
             <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Destinatários</div>
-            <label style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
-              <input type="checkbox" checked={allOptedIn} onChange={(e) => setAllOptedIn(e.target.checked)} />
-              Todos os contactos com consentimento de WhatsApp
-            </label>
-            {!allOptedIn && (
+            <div style={{ ...sans, fontSize: 13, color: c.mist, marginBottom: 10 }}>Escolha as tags de quem deve receber. Sem nenhuma tag escolhida, recebem todos os contactos com consentimento de WhatsApp.</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {(tagsQuery.data || []).map((t) => (
                   <button
@@ -745,20 +747,16 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
                   </button>
                 ))}
               </div>
-            )}
-            <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginTop: 12 }}>{recipientIds.length} contacto(s) vão receber esta campanha.</div>
+            {loadingRecipients ? <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginTop: 12 }}>A contar os contactos…</div> : <RecipientSummary tagged={tagIds.length ? audience.length : recipientIds.length} reachable={recipientIds.length} channelLabel="WhatsApp" />}
           </div>
 
           {(template?.variables || []).length > 0 && (
             <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
               <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Variáveis do template</div>
-              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 10 }}>Os mesmos valores vão para todos os destinatários.</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 10 }}>Escreva o texto de cada variável ou use os botões para pôr os dados de cada pessoa (ex: o primeiro nome).</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {template.variables.map((label, i) => (
-                  <div key={i}>
-                    <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>{label || `Variável ${i + 1}`}</div>
-                    <input style={inputStyle} value={values[i] || ""} onChange={(e) => { const next = [...values]; next[i] = e.target.value; setValues(next); }} />
-                  </div>
+                  <TemplateVariableField key={i} label={label || `Variável ${i + 1}`} value={values[i] || ""} onChange={(v) => setValues((prev) => { const next = [...prev]; next[i] = v; return next; })} />
                 ))}
               </div>
             </div>

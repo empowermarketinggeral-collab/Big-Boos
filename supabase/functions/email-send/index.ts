@@ -26,6 +26,7 @@ function renderForContact(text, contact, escape = true) {
     if (key === "primeiro_nome") v = (contact.name || "").trim().split(/\s+/)[0];
     else if (key === "nome") v = contact.name;
     else if (key === "email") v = contact.email;
+    else if (key === "telefone" || key === "telemovel") v = contact.phone;
     else v = contact.custom_fields?.[key];
     if (v === undefined || v === null || String(v).trim() === "") {
       if (fallback !== undefined) return fallback;
@@ -151,7 +152,7 @@ Deno.serve(async (req) => {
 
   const { data: contacts } = await adminClient
     .from("contacts")
-    .select("id, name, email, opted_in_email, custom_fields")
+    .select("id, name, email, phone, opted_in_email, custom_fields")
     .in("id", contactIds)
     .eq("brand_id", campaign.brand_id);
 

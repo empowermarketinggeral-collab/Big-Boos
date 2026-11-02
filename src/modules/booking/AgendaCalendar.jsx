@@ -199,8 +199,8 @@ function DayColumn({ date, appts, gridStart, gridEnd, colorFor, blocked, busy = 
         <div key={i} style={{ position: "absolute", left: 0, right: 0, top: ((b.from - gridStart) / 60) * HOUR_PX, height: ((b.to - b.from) / 60) * HOUR_PX, background: `color-mix(in srgb, ${c.ink} 6%, transparent)`, pointerEvents: "none" }} />
       ))}
       {busy.map((b, i) => (
-        <div key={`g${i}`} title="Ocupado no Google Agenda" style={{ ...sans, position: "absolute", left: 0, right: 0, top: ((b.from - gridStart) / 60) * HOUR_PX, height: ((b.to - b.from) / 60) * HOUR_PX, background: `color-mix(in srgb, ${c.amber} 12%, transparent)`, borderLeft: `3px dashed ${c.amber}`, fontSize: 12.5, color: c.mist, padding: "2px 6px", overflow: "hidden", pointerEvents: "none" }}>
-          {!compact && "Google"}
+        <div key={`g${i}`} title={b.kind === "timeoff" ? `${b.label}: bloqueado` : b.label ? `${b.label}: ocupado no Google Agenda` : "Ocupado no Google Agenda"} style={{ ...sans, position: "absolute", left: 0, right: 0, top: ((b.from - gridStart) / 60) * HOUR_PX, height: ((b.to - b.from) / 60) * HOUR_PX, background: `color-mix(in srgb, ${b.kind === "timeoff" ? c.ink : c.amber} ${b.kind === "timeoff" ? 8 : 12}%, transparent)`, borderLeft: `3px dashed ${b.kind === "timeoff" ? c.mist : c.amber}`, fontSize: 12.5, color: c.mist, padding: "2px 6px", overflow: "hidden", pointerEvents: "none" }}>
+          {b.kind === "timeoff" ? `Bloqueado: ${b.label}` : b.label ? (compact ? b.label : `Google: ${b.label}`) : !compact && "Google"}
         </div>
       ))}
       {Array.from({ length: (gridEnd - gridStart) / 60 }).map((_, i) => (
@@ -612,15 +612,23 @@ export default function AgendaCalendar({ brand, session, onOpenContact }) {
   };
 
   // Ocupado no Google de uma profissional num dia (em minutos do dia).
+  // staffId = null: de todas as profissionais (vista "Todas"), com o nome de cada uma.
   const busyFor = (staffId, date) => {
-    if (!staffId) return [];
     const dayStart = startOfDay(date).getTime();
     const out = [];
     for (const b of busyQuery.data || []) {
-      if (b.staff_id !== staffId) continue;
+      if (staffId && b.staff_id !== staffId) continue;
       const s = Math.max(new Date(b.starts_at).getTime(), dayStart);
       const e = Math.min(new Date(b.ends_at).getTime(), dayStart + 86400000);
-      if (e > s) out.push({ from: Math.max(gridStart, (s - dayStart) / 60000), to: Math.min(gridEnd, (e - dayStart) / 60000) });
+      if (e > s) out.push({ from: Math.max(gridStart, (s - dayStart) / 60000), to: Math.min(gridEnd, (e - dayStart) / 60000), label: staffId ? "" : statics.staff.find((st) => st.id === b.staff_id)?.name || "" });
+    }
+    // Na vista "Todas": também as folgas/bloqueios de cada profissional.
+    if (!staffId) {
+      for (const t of scheduleQuery.data?.timeOff || []) {
+        const s = Math.max(new Date(t.starts_at).getTime(), dayStart);
+        const e = Math.min(new Date(t.ends_at).getTime(), dayStart + 86400000);
+        if (e > s) out.push({ kind: "timeoff", from: Math.max(gridStart, (s - dayStart) / 60000), to: Math.min(gridEnd, (e - dayStart) / 60000), label: statics.staff.find((st) => st.id === t.staff_id)?.name || "" });
+      }
     }
     return out.filter((b) => b.to > b.from);
   };
@@ -653,7 +661,7 @@ export default function AgendaCalendar({ brand, session, onOpenContact }) {
         title: `${DAY_NAMES[d.getDay()]} ${d.getDate()}`,
         appts: appts.filter((a) => sameDay(new Date(a.starts_at), d)),
         blocked: filter === "all" ? [] : blockedFor(filter, d),
-        busy: filter === "all" ? [] : busyFor(filter, d),
+        busy: busyFor(filter === "all" ? null : filter, d),
       };
     });
   }

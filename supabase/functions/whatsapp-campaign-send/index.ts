@@ -45,6 +45,29 @@ async function sendTemplateViaTwilio(accountSid, authToken, fromNumber, toPhone,
   return { ok: res.ok, id: data?.sid || null, error: data?.message };
 }
 
+// Variáveis por contacto: {{primeiro_nome}}, {{nome}}, {{telefone}}, {{email}}
+// e campos personalizados; {{campo|reserva}} usa a reserva se faltar o dado
+// (reserva vazia = fica em branco). Sem valor nem reserva → ok=false.
+function renderForContact(text, contact) {
+  if (!text) return { ok: true, value: text || "" };
+  let ok = true;
+  const value = String(text).replace(/\{\{\s*(\w+)\s*(?:\|([^{}]*))?\}\}/g, (_m, key, fallback) => {
+    let v;
+    if (key === "primeiro_nome") v = (contact.name || "").trim().split(/\s+/)[0];
+    else if (key === "nome") v = contact.name;
+    else if (key === "email") v = contact.email;
+    else if (key === "telefone" || key === "telemovel") v = contact.phone;
+    else v = contact.custom_fields?.[key];
+    if (v === undefined || v === null || String(v).trim() === "") {
+      if (fallback !== undefined) return fallback;
+      ok = false;
+      return "";
+    }
+    return String(v);
+  });
+  return { ok, value };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -92,7 +115,7 @@ Deno.serve(async (req) => {
 
   const { data: contacts } = await adminClient
     .from("contacts")
-    .select("id, phone, opted_in_whatsapp")
+    .select("id, name, email, phone, opted_in_whatsapp, custom_fields")
     .in("id", contactIds)
     .eq("brand_id", campaign.brand_id);
 
@@ -104,6 +127,14 @@ Deno.serve(async (req) => {
       skipped++;
       continue;
     }
+    // Variáveis do template com os dados desta pessoa (ex: {{primeiro_nome|}}).
+    const rendered = (variableValues || []).map((v) => renderForContact(String(v ?? ""), contact));
+    if (rendered.some((r) => !r.ok)) {
+      skipped++;
+      continue;
+    }
+    // O WhatsApp não aceita variáveis vazias: fica um espaço.
+    const contactValues = rendered.map((r) => (r.value.trim() ? r.value : " "));
 
     let conversation = (
       await adminClient.from("whatsapp_conversations").select("id").eq("brand_id", campaign.brand_id).eq("wa_contact_phone", contact.phone).maybeSingle()
@@ -118,8 +149,8 @@ Deno.serve(async (req) => {
     }
 
     const result = account.provider === "twilio"
-      ? await sendTemplateViaTwilio(account.twilio_account_sid, token, account.phone_number_id, contact.phone, template, variableValues)
-      : await sendTemplateViaMeta(account.phone_number_id, token, contact.phone, template, variableValues);
+      ? await sendTemplateViaTwilio(account.twilio_account_sid, token, account.phone_number_id, contact.phone, template, contactValues)
+      : await sendTemplateViaMeta(account.phone_number_id, token, contact.phone, template, contactValues);
 
     if (conversation) {
       await adminClient.from("whatsapp_messages").insert({

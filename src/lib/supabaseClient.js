@@ -11,6 +11,20 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// O Supabase devolve no máximo 1000 linhas por pedido. Isto vai buscando
+// página a página até ao fim. build() tem de devolver a query já ordenada
+// por uma coluna única (para as páginas não se sobreporem).
+export async function fetchAll(build, pageSize = 1000) {
+  const out = [];
+  for (let from = 0; from < 500000; from += pageSize) {
+    const { data, error } = await build().range(from, from + pageSize - 1);
+    if (error) throw error;
+    out.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+  return out;
+}
+
 // supabase.functions.invoke() só devolve "Edge Function returned a
 // non-2xx status code" quando a função falha — o corpo real do erro
 // (o que a nossa função escreveu com json({ error: "..." }, status))

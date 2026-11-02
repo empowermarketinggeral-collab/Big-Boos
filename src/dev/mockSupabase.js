@@ -245,3 +245,10 @@ export async function invokeFunction(name, body = {}) {
   }
   return {};
 }
+
+// Igual ao de lib/supabaseClient.js: na demonstração cada pedido devolve tudo de uma vez.
+export async function fetchAll(build) {
+  const { data, error } = await build();
+  if (error) throw error;
+  return data || [];
+}
