@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction, fetchAll } from "../../lib/supabaseClient.js";
-import { VariableChips, RecipientSummary, useVariableInsert, IncludeWithoutConsent, blockedContactIds, sendInBatches } from "../../shared/MessageVariables.jsx";
+import { VariableChips, RecipientSummary, useVariableInsert, IncludeWithoutConsent, blockedContactIds, sendInBatches, SendResultSummary, ScheduleCampaignModal, ScheduledNotice, scheduleCampaign, unscheduleCampaign, campaignStatusLabel } from "../../shared/MessageVariables.jsx";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
-import { ArrowLeft, Send, MessageCircle, CheckCircle2, AlertCircle, Plus, Trash2, FileText, RefreshCw, UserPlus, Calculator, Info } from "lucide-react";
+import { ArrowLeft, Send, MessageCircle, CheckCircle2, AlertCircle, Plus, Trash2, FileText, RefreshCw, UserPlus, Calculator, Info, Clock } from "lucide-react";
 import { useUrlState } from "../../shared/urlState.js";
 
 /* ---------------------------------------------------------
@@ -687,6 +687,8 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
   const [includeWithoutConsent, setIncludeWithoutConsent] = useState(false);
   const [values, setValues] = useState([]);
   const [showSend, setShowSend] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
+  const qc = useQueryClient();
   const [sendResult, setSendResult] = useState(null);
 
   const tagsQuery = useTags(brandId);
@@ -707,7 +709,19 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
 
   const sends = sendsQuery.data || [];
   const statusCounts = sends.reduce((acc, s) => ({ ...acc, [s.status]: (acc[s.status] || 0) + 1 }), {});
-  const isSent = campaign.status === "sent" || campaign.status === "sending";
+  const isScheduled = campaign.status === "scheduled";
+  // Agendada também fica fechada à edição (cancela-se o agendamento para mudar).
+  const isSent = campaign.status === "sent" || campaign.status === "sending" || isScheduled;
+  const refreshCampaigns = () => qc.invalidateQueries({ queryKey: ["whatsapp_campaigns", brandId] });
+  const schedule = async (at) => {
+    await scheduleCampaign("whatsapp_campaigns", campaign.id, { at, contactIds: recipientIds, includeWithoutConsent, variableValues: values, });
+    setShowSchedule(false);
+    refreshCampaigns();
+  };
+  const cancelSchedule = async () => {
+    await unscheduleCampaign("whatsapp_campaigns", campaign.id);
+    refreshCampaigns();
+  };
 
   return (
     <div>
@@ -719,7 +733,7 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
         Template: <strong>{template?.name || "—"}</strong>
       </div>
 
-      {isSent && (
+      {isSent && !isScheduled && (
         <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
           {["sent", "delivered", "read", "failed"].map((k) => (
             <span key={k} style={{ ...sans, fontSize: 12.5, fontWeight: 600, borderRadius: 999, padding: "5px 12px", background: c.paper, color: c.ink }}>
@@ -728,6 +742,8 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
           ))}
         </div>
       )}
+
+      <ScheduledNotice campaign={campaign} onCancel={cancelSchedule} />
 
       {!isSent && (
         <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 640 }}>
@@ -766,10 +782,19 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
             </div>
           )}
 
-          <button onClick={() => setShowSend(true)} disabled={recipientIds.length === 0} style={{ ...btnPrimary, width: "fit-content", display: "flex", alignItems: "center", gap: 6 }}>
-            <Send size={13} /> Enviar campanha
-          </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+            <button onClick={() => setShowSend(true)} disabled={recipientIds.length === 0} style={{ ...btnPrimary, display: "flex", alignItems: "center", gap: 6 }}>
+              <Send size={13} /> Enviar campanha
+            </button>
+            <button onClick={() => setShowSchedule(true)} disabled={recipientIds.length === 0} style={{ ...btnGhost, display: "flex", alignItems: "center", gap: 6 }}>
+              <Clock size={13} /> Agendar
+            </button>
+          </div>
         </div>
+      )}
+
+      {showSchedule && (
+        <ScheduleCampaignModal campaignName={campaign.name} recipientCount={recipientIds.length} onClose={() => setShowSchedule(false)} onConfirm={schedule} />
       )}
 
       {showSend && (
@@ -785,11 +810,7 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
 
       {sendResult && (
         <Modal title="Campanha enviada" onClose={() => setSendResult(null)} width={360}>
-          <div style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.8 }}>
-            <div>{sendResult.sent} enviados</div>
-            <div>{sendResult.skipped} ignorados (sem telefone ou sem consentimento)</div>
-            {sendResult.failed > 0 && <div style={{ color: c.rose }}>{sendResult.failed} falharam</div>}
-          </div>
+          <SendResultSummary result={sendResult} contactLabel="telefone" />
           <button onClick={() => setSendResult(null)} style={{ ...btnGhost, marginTop: 16 }}>Fechar</button>
         </Modal>
       )}
@@ -868,7 +889,7 @@ function WaCampaignsPanel({ brandId }) {
               <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>{cp.whatsapp_templates?.name || "sem template"}</div>
             </div>
             <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, borderRadius: 999, padding: "4px 10px", color: cp.status === "sent" ? c.sage : c.mist, background: cp.status === "sent" ? c.sageSoft : c.paper }}>
-              {cp.status === "sent" ? "Enviada" : cp.status === "sending" ? "A enviar" : "Rascunho"}
+              {campaignStatusLabel(cp)}
             </span>
             {cp.status === "draft" && (
               <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(cp); }} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 6, flexShrink: 0 }}>

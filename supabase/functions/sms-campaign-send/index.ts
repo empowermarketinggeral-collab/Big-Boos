@@ -50,6 +50,20 @@ async function blockedContacts(admin, brandId, contactIds) {
   return out;
 }
 
+// Números guardados sem indicativo ("912 345 678") ou com 00: a Twilio só aceita +351….
+function normalizePhone(raw) {
+  let p = String(raw || "").trim().replace(/[\s().-]/g, "");
+  if (p.startsWith("00")) p = "+" + p.slice(2);
+  if (!p.startsWith("+")) {
+    const d = p.replace(/\D/g, "");
+    if (/^[29]\d{8}$/.test(d)) p = "+351" + d;
+    else if (d.length >= 10) p = "+" + d;
+    else return "";
+  }
+  const digits = p.slice(1).replace(/\D/g, "");
+  return digits.length >= 8 && digits.length <= 15 ? "+" + digits : "";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -83,6 +97,7 @@ Deno.serve(async (req) => {
   const ignoreConsent = body.includeWithoutConsent === true;
   if (campaign.status === "sent") return json({ error: "Esta campanha já foi enviada." }, 400);
   if (campaign.status === "sending" && batchIndex === 0) return json({ error: "Esta campanha já está a ser enviada." }, 400);
+  if (!String(campaign.body || "").trim()) return json({ error: "A campanha não tem texto guardado. Escreva a mensagem e carregue em Guardar." }, 400);
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
@@ -103,8 +118,10 @@ Deno.serve(async (req) => {
   if (batchIndex === 0) await adminClient.from("sms_campaigns").update({ status: "sending" }).eq("id", campaignId);
 
   let sent = 0, skipped = 0, failed = 0;
+  const errors = new Set();
   for (const contact of contacts || []) {
-    if (!contact.phone || (!contact.opted_in_sms && !ignoreConsent) || blocked.has(contact.id)) {
+    const toPhone = normalizePhone(contact.phone);
+    if (!toPhone || (!contact.opted_in_sms && !ignoreConsent) || blocked.has(contact.id)) {
       skipped++;
       continue;
     }
@@ -117,7 +134,7 @@ Deno.serve(async (req) => {
     const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${account.account_sid}/Messages.json`, {
       method: "POST",
       headers: { Authorization: `Basic ${btoa(`${account.account_sid}:${token}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ From: account.from_number, To: contact.phone, Body: text.value }),
+      body: new URLSearchParams({ From: account.from_number, To: toPhone, Body: text.value }),
     });
     const data = await res.json();
 
@@ -125,7 +142,7 @@ Deno.serve(async (req) => {
       brand_id: campaign.brand_id,
       campaign_id: campaignId,
       contact_id: contact.id,
-      to_number: contact.phone,
+      to_number: toPhone,
       body: text.value,
       direction: "outbound",
       provider_ref: data?.sid || null,
@@ -134,10 +151,14 @@ Deno.serve(async (req) => {
     });
 
     if (res.ok) sent++;
-    else failed++;
+    else { failed++; if (data?.message) errors.add(data.message); }
   }
 
-  if (lastBatch) await adminClient.from("sms_campaigns").update({ status: "sent" }).eq("id", campaignId);
+  // Se ninguém recebeu, volta a rascunho para se poder corrigir e tentar de novo.
+  if (lastBatch) {
+    const { count } = await adminClient.from("sms_messages").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId).eq("status", "sent");
+    await adminClient.from("sms_campaigns").update({ status: count ? "sent" : "draft" }).eq("id", campaignId);
+  }
 
-  return json({ sent, skipped, failed });
+  return json({ sent, skipped, failed, errors: [...errors].slice(0, 5) });
 });

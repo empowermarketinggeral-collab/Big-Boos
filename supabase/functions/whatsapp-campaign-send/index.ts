@@ -79,6 +79,20 @@ async function blockedContacts(admin, brandId, contactIds) {
   return out;
 }
 
+// Números guardados sem indicativo ("912 345 678") ou com 00: a Twilio só aceita +351….
+function normalizePhone(raw) {
+  let p = String(raw || "").trim().replace(/[\s().-]/g, "");
+  if (p.startsWith("00")) p = "+" + p.slice(2);
+  if (!p.startsWith("+")) {
+    const d = p.replace(/\D/g, "");
+    if (/^[29]\d{8}$/.test(d)) p = "+351" + d;
+    else if (d.length >= 10) p = "+" + d;
+    else return "";
+  }
+  const digits = p.slice(1).replace(/\D/g, "");
+  return digits.length >= 8 && digits.length <= 15 ? "+" + digits : "";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -125,6 +139,7 @@ Deno.serve(async (req) => {
   const { data: template } = await adminClient.from("whatsapp_templates").select("id, name, language, twilio_content_sid, status").eq("id", campaign.template_id).eq("brand_id", campaign.brand_id).maybeSingle();
   if (!template) return json({ error: "Template da campanha não encontrado." }, 400);
   if (template.status !== "approved") return json({ error: "O template desta campanha ainda não foi aprovado." }, 400);
+  if (account.provider === "twilio" && !String(template.twilio_content_sid || "").trim()) return json({ error: "O template não tem o Content SID da Twilio. Volte a registá-lo em WhatsApp, Templates." }, 400);
 
   const { data: token } = await adminClient.rpc("vault_read_secret", { p_id: account.access_token_ref });
   if (!token) return json({ error: "Não foi possível obter o token de acesso." }, 500);
@@ -140,8 +155,10 @@ Deno.serve(async (req) => {
   if (batchIndex === 0) await adminClient.from("whatsapp_campaigns").update({ status: "sending" }).eq("id", campaignId);
 
   let sent = 0, skipped = 0, failed = 0;
+  const errors = new Set();
   for (const contact of contacts || []) {
-    if (!contact.phone || (!contact.opted_in_whatsapp && !ignoreConsent) || blocked.has(contact.id)) {
+    const toPhone = normalizePhone(contact.phone);
+    if (!toPhone || (!contact.opted_in_whatsapp && !ignoreConsent) || blocked.has(contact.id)) {
       skipped++;
       continue;
     }
@@ -155,20 +172,20 @@ Deno.serve(async (req) => {
     const contactValues = rendered.map((r) => (r.value.trim() ? r.value : " "));
 
     let conversation = (
-      await adminClient.from("whatsapp_conversations").select("id").eq("brand_id", campaign.brand_id).eq("wa_contact_phone", contact.phone).maybeSingle()
+      await adminClient.from("whatsapp_conversations").select("id").eq("brand_id", campaign.brand_id).in("wa_contact_phone", [...new Set([toPhone, contact.phone])]).limit(1).maybeSingle()
     ).data;
     if (!conversation) {
       const { data: created } = await adminClient
         .from("whatsapp_conversations")
-        .insert({ brand_id: campaign.brand_id, contact_id: contact.id, wa_contact_phone: contact.phone })
+        .insert({ brand_id: campaign.brand_id, contact_id: contact.id, wa_contact_phone: toPhone })
         .select("id")
         .single();
       conversation = created;
     }
 
     const result = account.provider === "twilio"
-      ? await sendTemplateViaTwilio(account.twilio_account_sid, token, account.phone_number_id, contact.phone, template, contactValues)
-      : await sendTemplateViaMeta(account.phone_number_id, token, contact.phone, template, contactValues);
+      ? await sendTemplateViaTwilio(account.twilio_account_sid, token, account.phone_number_id, toPhone, template, contactValues)
+      : await sendTemplateViaMeta(account.phone_number_id, token, toPhone.slice(1), template, contactValues);
 
     if (conversation) {
       await adminClient.from("whatsapp_messages").insert({
@@ -187,10 +204,14 @@ Deno.serve(async (req) => {
     });
 
     if (result.ok) sent++;
-    else failed++;
+    else { failed++; if (result.error) errors.add(result.error); }
   }
 
-  if (lastBatch) await adminClient.from("whatsapp_campaigns").update({ status: "sent" }).eq("id", campaignId);
+  // Se ninguém recebeu, volta a rascunho para se poder corrigir e tentar de novo.
+  if (lastBatch) {
+    const { count } = await adminClient.from("whatsapp_campaign_sends").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId).eq("status", "sent");
+    await adminClient.from("whatsapp_campaigns").update({ status: count ? "sent" : "draft" }).eq("id", campaignId);
+  }
 
-  return json({ sent, skipped, failed });
+  return json({ sent, skipped, failed, errors: [...errors].slice(0, 5) });
 });

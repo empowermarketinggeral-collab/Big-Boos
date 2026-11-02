@@ -140,6 +140,9 @@ Deno.serve(async (req) => {
   const ignoreConsent = body.includeWithoutConsent === true;
   if (campaign.status === "sent") return json({ error: "Esta campanha já foi enviada." }, 400);
   if (campaign.status === "sending" && batchIndex === 0) return json({ error: "Esta campanha já está a ser enviada." }, 400);
+  if (!String(campaign.subject || "").trim() || !String(campaign.body_html || "").trim()) {
+    return json({ error: "A campanha não tem assunto ou texto guardado. Escreva-os e carregue em Guardar." }, 400);
+  }
   if (/\[AJUSTAR/.test(`${campaign.subject} ${campaign.body_html || ""}`)) {
     return json({ error: "A campanha ainda tem texto por preencher ([AJUSTAR]). Edita-a antes de enviar." }, 400);
   }
@@ -160,8 +163,8 @@ Deno.serve(async (req) => {
   if (!Array.isArray(contactIds) || contactIds.length === 0) {
     return json({ error: "Sem destinatários." }, 400);
   }
-  if (contactIds.length > 500) {
-    return json({ error: "Máximo de 500 destinatários por envio, por agora." }, 400);
+  if (contactIds.length > 100) {
+    return json({ error: "Máximo de 100 destinatários por envio (a app envia em lotes)." }, 400);
   }
 
   const { data: contacts } = await adminClient
@@ -186,6 +189,8 @@ Deno.serve(async (req) => {
   if (batchIndex === 0) await adminClient.from("email_campaigns").update({ status: "sending" }).eq("id", campaignId);
 
   let sent = 0, skipped = 0, failed = 0;
+  const errors = new Set();
+  let lastSendAt = 0;
   for (const contact of contacts || []) {
     if (!contact.email || (!contact.opted_in_email && !ignoreConsent) || blocked.has(contact.id) || optedOut.has(contact.id)) {
       skipped++;
@@ -200,15 +205,24 @@ Deno.serve(async (req) => {
     }
     const unsubscribe = await emailLink(campaign.brand_id, contact.id, "u");
     const openPixel = `<img src="${await emailLink(campaign.brand_id, contact.id, "o")}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0">`;
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from, to: contact.email, subject: subject.value, html: html.value + openPixel,
-        ...(domain.reply_to ? { reply_to: domain.reply_to } : {}),
-        headers: { "List-Unsubscribe": `<${unsubscribe}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
-      }),
-    });
+    // O Resend aceita poucos pedidos por segundo: espaça os envios e repete se disser "demasiados".
+    let res;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const wait = 550 - (Date.now() - lastSendAt);
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      lastSendAt = Date.now();
+      res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from, to: contact.email, subject: subject.value, html: html.value + openPixel,
+          ...(domain.reply_to ? { reply_to: domain.reply_to } : {}),
+          headers: { "List-Unsubscribe": `<${unsubscribe}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+        }),
+      });
+      if (res.status !== 429) break;
+      await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
+    }
     const data = await res.json();
     if (!res.ok) {
       console.error("Resend send failed", { contact: contact.email, status: res.status, data });
@@ -225,10 +239,14 @@ Deno.serve(async (req) => {
     });
 
     if (res.ok) sent++;
-    else failed++;
+    else { failed++; errors.add(data?.message || data?.error || `Erro ${res.status}`); }
   }
 
-  if (lastBatch) await adminClient.from("email_campaigns").update({ status: "sent" }).eq("id", campaignId);
+  // Se ninguém recebeu, volta a rascunho para se poder corrigir e tentar de novo.
+  if (lastBatch) {
+    const { count } = await adminClient.from("email_sends").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId).eq("status", "sent");
+    await adminClient.from("email_campaigns").update({ status: count ? "sent" : "draft" }).eq("id", campaignId);
+  }
 
-  return json({ sent, skipped, failed });
+  return json({ sent, skipped, failed, errors: [...errors].slice(0, 5) });
 });
