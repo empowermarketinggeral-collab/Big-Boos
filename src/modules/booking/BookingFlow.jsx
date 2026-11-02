@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { invokeFunction } from "../../lib/supabaseClient.js";
 import { c } from "../../shared/theme.jsx";
-import { Check, Search, ChevronLeft } from "lucide-react";
+import { Check, Search, ChevronLeft, Plus, X } from "lucide-react";
 import { T, money, priceLabel, durationLabel, packFitsService, capitalize } from "./publicBooking.js";
 
 /* ---------------------------------------------------------
@@ -129,6 +129,8 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
   const { brand, services = [], staff = [], upsells: allUpsells = [], deposit } = page;
 
   const [serviceId, setServiceId] = useState("");
+  const [extraIds, setExtraIds] = useState([]); // outros serviços na mesma marcação
+  const [addingService, setAddingService] = useState(false);
   const [staffId, setStaffId] = useState("any");
   const [selectedUpsellIds, setSelectedUpsellIds] = useState([]);
   const [options, setOptions] = useState({}); // { idDoGrupo: idDaOpção }
@@ -144,21 +146,27 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
   const [error, setError] = useState("");
 
   const service = services.find((s) => s.id === serviceId);
-  // Só quem faz este serviço (sem ninguém atribuído = qualquer profissional).
-  const serviceStaff = service?.staff_ids?.length ? staff.filter((st) => service.staff_ids.includes(st.id)) : staff;
+  const extras = extraIds.map((id) => services.find((s) => s.id === id)).filter(Boolean);
+  const chosenServices = service ? [service, ...extras] : [];
+  // Só quem faz todos os serviços escolhidos (sem ninguém atribuído = qualquer profissional).
+  const serviceStaff = staff.filter((st) => chosenServices.every((sv) => !sv.staff_ids?.length || sv.staff_ids.includes(st.id)));
   const upsells = allUpsells.filter((u) => u.service_id === serviceId);
   const chosenUpsells = upsells.filter((u) => selectedUpsellIds.includes(u.id));
-  const groups = optionGroupsOf(service);
+  // Opções obrigatórias de todos os serviços (os ids dos grupos são únicos).
+  const groups = chosenServices.flatMap((sv) => optionGroupsOf(sv).map((g) => ({ ...g, _service: sv })));
   const chosenOptions = groups.map((g) => g.choices.find((ch) => ch.id === options[g.id])).filter(Boolean);
   const allOptionsChosen = chosenOptions.length === groups.length;
+  const baseMinutes = chosenServices.reduce((sum, sv) => sum + (sv.duration_minutes || 0), 0);
   const extraMinutes = chosenUpsells.reduce((sum, u) => sum + (u.extra_duration_minutes || 0), 0)
     + chosenOptions.reduce((sum, ch) => sum + (parseInt(ch.extra_minutes, 10) || 0), 0);
-  const totalPrice = Math.round(((Number(service?.price) || 0)
+  const totalPrice = Math.round((chosenServices.reduce((sum, sv) => sum + (Number(sv.price) || 0), 0)
     + chosenUpsells.reduce((sum, u) => sum + (Number(u.price) || 0), 0)
     + chosenOptions.reduce((sum, ch) => sum + (Number(ch.price) || 0), 0)) * 100) / 100;
-  const hasRange = service?.price_max && Number(service.price_max) > Number(service.price);
+  const hasRange = chosenServices.some((sv) => sv.price_max && Number(sv.price_max) > Number(sv.price));
+  const servicesLabel = chosenServices.map((sv) => sv.name).join(" + ");
 
-  const usablePacks = useMemo(() => (client?.packs || []).filter((p) => packFitsService(p, serviceId)), [client, serviceId]);
+  // O pack só serve marcações de um serviço.
+  const usablePacks = useMemo(() => (extraIds.length ? [] : (client?.packs || []).filter((p) => packFitsService(p, serviceId))), [client, serviceId, extraIds.length]);
 
   const days = useMemo(() => {
     const out = [];
@@ -168,23 +176,30 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
   }, []);
 
   useEffect(() => {
-    setSelectedUpsellIds([]); setOptions({}); setPackId(""); setDate(""); setChosenSlot(null);
+    setSelectedUpsellIds([]); setOptions({}); setPackId(""); setDate(""); setChosenSlot(null); setExtraIds([]); setAddingService(false);
     const s = services.find((x) => x.id === serviceId);
     const ids = s?.staff_ids?.length ? s.staff_ids : staff.map((st) => st.id);
     setStaffId(ids.length === 1 ? ids[0] : "any");
   }, [serviceId, services, staff]);
+
+  // Ao juntar ou tirar serviços: o horário muda e a profissional tem de fazer todos.
+  useEffect(() => {
+    setDate(""); setChosenSlot(null); setPackId("");
+    setStaffId((current) => (current === "any" || serviceStaff.some((st) => st.id === current) ? current : serviceStaff.length === 1 ? serviceStaff[0].id : "any"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extraIds.join(",")]);
 
   useEffect(() => {
     if (!serviceId || !staffId || !date || !allOptionsChosen) { setSlots([]); return; }
     let active = true;
     setLoadingSlots(true);
     setChosenSlot(null);
-    invokeFunction("booking-availability", { brandId: brand.id, serviceId, staffId, date, upsellIds: selectedUpsellIds, options })
+    invokeFunction("booking-availability", { brandId: brand.id, serviceId, extraServiceIds: extraIds, staffId, date, upsellIds: selectedUpsellIds, options })
       .then((data) => { if (active) setSlots(data.slots || []); })
       .catch(() => { if (active) setSlots([]); })
       .finally(() => { if (active) setLoadingSlots(false); });
     return () => { active = false; };
-  }, [serviceId, staffId, date, brand.id, selectedUpsellIds, options, allOptionsChosen]);
+  }, [serviceId, extraIds, staffId, date, brand.id, selectedUpsellIds, options, allOptionsChosen]);
 
   const toggleUpsell = (id) => setSelectedUpsellIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
 
@@ -202,7 +217,7 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
     setSubmitting(true);
     try {
       const result = await invokeFunction("booking-create", {
-        brandId: brand.id, serviceId, staffId, startsAt: chosenSlot, upsellIds: selectedUpsellIds, options,
+        brandId: brand.id, serviceId, extraServiceIds: extraIds, staffId, startsAt: chosenSlot, upsellIds: selectedUpsellIds, options,
         clientPackId: packId || undefined,
         name: name.trim(), phone: phone.trim(), email: email.trim(),
         successUrl: returnUrl ? `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}pago=1` : undefined,
@@ -212,7 +227,7 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
         window.location.href = result.paymentUrl;
         return;
       }
-      onBooked?.({ serviceName: service?.name, startsAt: chosenSlot, withPack: !!packId });
+      onBooked?.({ serviceName: servicesLabel, startsAt: chosenSlot, withPack: !!packId });
     } catch (err) {
       setError(err.message || "Não foi possível confirmar.");
     } finally {
@@ -242,11 +257,32 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
         <div style={{ ...T.title, fontSize: 22, color: T.ink }}>{service.name}</div>
         {groups.length !== 1 && <div style={{ fontSize: 14.5, color: T.muted, marginTop: 4 }}>{durationLabel(service.duration_minutes)}, {servicePriceLabel(service).replace(/^Desde/, "desde")}</div>}
         {service.description && <div style={{ fontSize: 14.5, color: T.ink, marginTop: 10, lineHeight: 1.55 }}>{service.description}</div>}
+
+        {extras.map((x) => (
+          <div key={x.id} style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12, padding: "10px 12px", border: `1px solid ${T.line}`, borderRadius: 12, background: T.surface }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 500, color: T.ink }}>+ {x.name}</div>
+              <div style={{ fontSize: 13.5, color: T.muted }}>{durationLabel(x.duration_minutes)}, {servicePriceLabel(x).replace(/^Desde/, "desde")}</div>
+            </div>
+            <button type="button" onClick={() => setExtraIds((ids) => ids.filter((id) => id !== x.id))} aria-label={`Tirar ${x.name}`} style={{ background: "none", border: "none", cursor: "pointer", color: T.muted, padding: 4 }}><X size={18} /></button>
+          </div>
+        ))}
+        {addingService ? (
+          <div style={{ marginTop: 14 }}>
+            <div style={label}>Juntar outro serviço</div>
+            <ServicePicker services={services.filter((sv) => !chosenServices.some((c2) => c2.id === sv.id) && serviceStaff.some((st) => !sv.staff_ids?.length || sv.staff_ids.includes(st.id)))} onPick={(id) => { setExtraIds((ids) => [...ids, id]); setAddingService(false); }} />
+            <button type="button" onClick={() => setAddingService(false)} style={{ ...T.body, background: "none", border: "none", padding: 0, marginTop: 10, cursor: "pointer", color: T.muted, fontSize: 14 }}>Cancelar</button>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setAddingService(true)} style={{ ...T.body, display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14, background: "none", border: `1px dashed ${T.line}`, borderRadius: 999, padding: "8px 14px", cursor: "pointer", color: T.ink, fontSize: 14.5 }}>
+            <Plus size={15} /> Juntar outro serviço
+          </button>
+        )}
       </div>
 
       {groups.map((g) => (
         <div key={g.id}>
-          <div style={label}>{g.name || "Opções"}</div>
+          <div style={label}>{g.name || "Opções"}{chosenServices.length > 1 ? ` (${g._service.name})` : ""}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {g.choices.map((ch) => {
               const on = options[g.id] === ch.id;
@@ -257,7 +293,7 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
                       {on && <Check size={13} />}
                     </span>
                     <span style={{ flex: 1 }}>{ch.name}</span>
-                    <span style={{ color: T.muted, whiteSpace: "nowrap" }}>{choiceLabel(service, groups, ch)}</span>
+                    <span style={{ color: T.muted, whiteSpace: "nowrap" }}>{choiceLabel(g._service, optionGroupsOf(g._service), ch)}</span>
                   </div>
                   {ch.description && <div style={{ fontSize: 14, color: T.muted, marginTop: 4, paddingLeft: 30, lineHeight: 1.45 }}>{ch.description}</div>}
                 </Choice>
@@ -338,7 +374,7 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
 
       {allOptionsChosen && date && (
         <div>
-          <div style={label}>Hora, duração {durationLabel(service.duration_minutes + extraMinutes)}</div>
+          <div style={label}>Hora, duração {durationLabel(baseMinutes + extraMinutes)}</div>
           {loadingSlots ? (
             <div style={{ fontSize: 15, color: T.muted }}>A procurar horários livres…</div>
           ) : slots.length === 0 ? (
@@ -385,7 +421,7 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
 
           <div style={{ fontSize: 15, color: T.ink, background: T.soft, borderRadius: 12, padding: "14px 16px", lineHeight: 1.6 }}>
             <div style={{ fontWeight: 500 }}>
-              {service.name}{chosenOptions.length ? ` (${chosenOptions.map((ch) => ch.name).join(", ")})` : ""}{chosenUpsells.length ? ` e ${chosenUpsells.map((u) => u.name).join(", ")}` : ""}
+              {servicesLabel}{chosenOptions.length ? ` (${chosenOptions.map((ch) => ch.name).join(", ")})` : ""}{chosenUpsells.length ? ` e ${chosenUpsells.map((u) => u.name).join(", ")}` : ""}
             </div>
             <div style={{ color: T.muted }}>
               {capitalize(new Date(chosenSlot).toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" }))}, às {timeLabel(chosenSlot)}

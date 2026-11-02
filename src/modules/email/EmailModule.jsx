@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction, fetchAll } from "../../lib/supabaseClient.js";
-import { VariableChips, RecipientSummary, useVariableInsert } from "../../shared/MessageVariables.jsx";
+import { VariableChips, RecipientSummary, useVariableInsert, IncludeWithoutConsent, blockedContactIds, sendInBatches } from "../../shared/MessageVariables.jsx";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, Plus, Trash2, Mail, Send } from "lucide-react";
 
@@ -130,9 +130,8 @@ function useDeleteCampaign(brandId) {
 function useSendCampaign(brandId, campaignId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (contactIds) => {
-      return invokeFunction("email-send", { campaignId, contactIds });
-    },
+    mutationFn: async ({ contactIds, includeWithoutConsent }) =>
+      sendInBatches(contactIds, (ids, batch) => invokeFunction("email-send", { campaignId, contactIds: ids, includeWithoutConsent, ...batch })),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["email_campaigns", brandId] });
       qc.invalidateQueries({ queryKey: ["email_sends", campaignId] });
@@ -253,7 +252,7 @@ function SendCampaignModal({ brand, campaign, recipientCount, onClose, onSent })
   const confirm = async () => {
     setError("");
     try {
-      const result = await sendCampaign.mutateAsync(campaign._contactIds);
+      const result = await sendCampaign.mutateAsync({ contactIds: campaign._contactIds, includeWithoutConsent: campaign._includeWithoutConsent });
       onSent(result);
     } catch (err) {
       setError(err.message || "Não foi possível enviar.");
@@ -263,7 +262,7 @@ function SendCampaignModal({ brand, campaign, recipientCount, onClose, onSent })
   return (
     <Modal title="Enviar campanha" onClose={onClose} width={380}>
       <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 16, lineHeight: 1.6 }}>
-        Vais enviar <strong>{campaign.name}</strong> a <strong>{recipientCount}</strong> contacto(s) com consentimento de email. Esta ação não pode ser desfeita.
+        Vais enviar <strong>{campaign.name}</strong> a <strong>{recipientCount}</strong> contacto(s). Esta ação não pode ser desfeita.
       </div>
       {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 12 }}>{error}</div>}
       <div style={{ display: "flex", gap: 8 }}>
@@ -281,6 +280,7 @@ function CampaignEditor({ brand, campaign, domain, onBack }) {
   const [subject, setSubject] = useState(campaign.subject || "");
   const [bodyHtml, setBodyHtml] = useState(campaign.body_html || "");
   const [tagIds, setTagIds] = useState([]);
+  const [includeWithoutConsent, setIncludeWithoutConsent] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showSend, setShowSend] = useState(false);
   const [sendResult, setSendResult] = useState(null);
@@ -300,7 +300,8 @@ function CampaignEditor({ brand, campaign, domain, onBack }) {
   // Só recebe quem tem consentimento e o dado de contacto na ficha.
   const withTag = tagIds.length ? new Set((tagMapQuery.data || []).filter((m) => tagIds.includes(m.tag_id)).map((m) => m.contact_id)) : null;
   const audience = (contactsQuery.data || []).filter((ct) => !withTag || withTag.has(ct.id));
-  const recipientIds = audience.filter((ct) => ct.opted_in_email && ct.email).map((ct) => ct.id);
+  const blocked = blockedContactIds(tagsQuery.data || [], tagMapQuery.data || []);
+  const recipientIds = audience.filter((ct) => (includeWithoutConsent || ct.opted_in_email) && ct.email && !blocked.has(ct.id)).map((ct) => ct.id);
   const loadingRecipients = contactsQuery.isLoading || tagMapQuery.isLoading;
 
   const save = async () => {
@@ -400,6 +401,7 @@ function CampaignEditor({ brand, campaign, domain, onBack }) {
                 ))}
               </div>
             {loadingRecipients ? <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginTop: 12 }}>A contar os contactos…</div> : <RecipientSummary tagged={tagIds.length ? audience.length : recipientIds.length} reachable={recipientIds.length} channelLabel="email" />}
+            <IncludeWithoutConsent checked={includeWithoutConsent} onChange={setIncludeWithoutConsent} channelLabel="email" />
             <button
               onClick={() => setShowSend(true)}
               disabled={!subject.trim() || recipientIds.length === 0}
@@ -414,7 +416,7 @@ function CampaignEditor({ brand, campaign, domain, onBack }) {
       {showSend && (
         <SendCampaignModal
           brand={brand}
-          campaign={{ ...campaign, name, _contactIds: recipientIds }}
+          campaign={{ ...campaign, name, _contactIds: recipientIds, _includeWithoutConsent: includeWithoutConsent }}
           recipientCount={recipientIds.length}
           onClose={() => setShowSend(false)}
           onSent={(result) => { setShowSend(false); setSendResult(result); }}

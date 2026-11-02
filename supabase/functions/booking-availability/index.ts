@@ -16,6 +16,10 @@
 // booking_service_upsell_links) e as opções obrigatórias do serviço
 // (booking_services.option_groups; options = { idDoGrupo: idDaOpção }).
 //
+// VÁRIOS SERVIÇOS: extraServiceIds = outros serviços na mesma marcação.
+// Soma as durações (e as opções de cada um) e só entram profissionais que
+// façam todos os serviços.
+//
 // "Verify JWT" DESLIGADO.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -126,6 +130,7 @@ Deno.serve(async (req) => {
     return json({ error: "Corpo do pedido inválido." }, 400);
   }
   const { brandId, serviceId, staffId, date, upsellIds, options } = body; // date: "YYYY-MM-DD", dia em Lisboa
+  const extraServiceIds = Array.isArray(body.extraServiceIds) ? [...new Set(body.extraServiceIds.filter((id) => typeof id === "string" && id !== serviceId))].slice(0, 10) : [];
   if (!brandId || !serviceId || !staffId || !date) {
     return json({ error: "Faltam campos obrigatórios." }, 400);
   }
@@ -148,16 +153,31 @@ Deno.serve(async (req) => {
       .filter((l) => l.booking_upsells?.status === "active")
       .reduce((sum, l) => sum + (l.booking_upsells.extra_duration_minutes || 0), 0);
   }
+  // Outros serviços da mesma marcação (ativos e desta marca).
+  let extraServices = [];
+  if (extraServiceIds.length) {
+    const { data } = await admin.from("booking_services").select("id, duration_minutes, status, option_groups").eq("brand_id", brandId).in("id", extraServiceIds);
+    extraServices = (data || []).filter((x) => x.status === "active");
+    if (extraServices.length !== extraServiceIds.length) return json({ error: "Um dos serviços já não está disponível." }, 404);
+  }
   // Opções obrigatórias: sem escolha num grupo, conta a primeira opção (a
   // página pública só pede horários depois de tudo escolhido).
-  for (const group of Array.isArray(service.option_groups) ? service.option_groups : []) {
-    const choices = Array.isArray(group?.choices) ? group.choices : [];
-    const picked = choices.find((ch) => ch.id === options?.[group.id]) || choices[0];
-    extraMinutes += Math.max(0, parseInt(picked?.extra_minutes, 10) || 0);
+  for (const sv of [service, ...extraServices]) {
+    for (const group of Array.isArray(sv.option_groups) ? sv.option_groups : []) {
+      const choices = Array.isArray(group?.choices) ? group.choices : [];
+      const picked = choices.find((ch) => ch.id === options?.[group.id]) || choices[0];
+      extraMinutes += Math.max(0, parseInt(picked?.extra_minutes, 10) || 0);
+    }
   }
-  const durationMs = (service.duration_minutes + extraMinutes) * 60000;
+  const baseMinutes = service.duration_minutes + extraServices.reduce((sum, x) => sum + (x.duration_minutes || 0), 0);
+  const durationMs = (baseMinutes + extraMinutes) * 60000;
 
-  const eligible = await eligibleStaff(admin, brandId, serviceId);
+  // Só quem faz todos os serviços escolhidos.
+  let eligible = await eligibleStaff(admin, brandId, serviceId);
+  for (const x of extraServices) {
+    const ok = new Set(await eligibleStaff(admin, brandId, x.id));
+    eligible = eligible.filter((id) => ok.has(id));
+  }
   const staffIds = staffId === "any" ? eligible : eligible.filter((id) => id === staffId);
   if (!staffIds.length) return json({ slots: [] });
 

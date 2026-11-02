@@ -106,3 +106,7 @@ export const T = {
 export function brandStyle(rawStyle) {
   return { ...DEFAULT_PAGE_STYLE, ...(rawStyle || {}) };
 }
+
+// Nome dos serviços de uma marcação: o principal e os que se juntaram (extra_services).
+export const apptServicesLabel = (appt) =>
+  [appt?.booking_services?.name, ...(Array.isArray(appt?.extra_services) ? appt.extra_services.map((x) => x?.name) : [])].filter(Boolean).join(" + ");

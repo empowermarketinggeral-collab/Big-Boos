@@ -137,7 +137,7 @@ async function notify(admin, appt, setting, defaultText, templateOverride) {
     nome: appt.customer_name,
     primeiro_nome: String(appt.customer_name || "").trim().split(/\s+/)[0] || "",
     avaliacao: setting.review_link || "",
-    servico: appt.booking_services?.name || "",
+    servico: [appt.booking_services?.name, ...(Array.isArray(appt.extra_services) ? appt.extra_services.map((x) => x?.name) : [])].filter(Boolean).join(" + "),
     // O servidor corre em UTC: sem o fuso, no verão a hora saía errada.
     data: new Date(appt.starts_at).toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" }),
     hora: new Date(appt.starts_at).toLocaleTimeString("pt-PT", { timeZone: "Europe/Lisbon", hour: "2-digit", minute: "2-digit" }),
