@@ -68,6 +68,17 @@ function renderForContact(text, contact) {
   return { ok, value };
 }
 
+// Quem nunca recebe campanhas: tags "Não contactar" e "rgpd:opt-out".
+async function blockedContacts(admin, brandId, contactIds) {
+  const out = new Set();
+  const { data: tags } = await admin.from("tags").select("id, name").eq("brand_id", brandId);
+  const ids = (tags || []).filter((t) => ["não contactar", "nao contactar", "rgpd:opt-out"].includes(String(t.name || "").trim().toLowerCase())).map((t) => t.id);
+  if (!ids.length) return out;
+  const { data: rows } = await admin.from("contact_tags").select("contact_id").in("tag_id", ids).in("contact_id", contactIds);
+  for (const r of rows || []) out.add(r.contact_id);
+  return out;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -95,7 +106,12 @@ Deno.serve(async (req) => {
     .eq("id", campaignId)
     .maybeSingle();
   if (campaignError || !campaign) return json({ error: "Sem acesso a esta campanha." }, 403);
-  if (campaign.status === "sent" || campaign.status === "sending") return json({ error: "Esta campanha já foi enviada." }, 400);
+  // Envio em lotes de 500: o 1.º lote marca "sending", os seguintes continuam, o último marca "sent".
+  const batchIndex = Number.isInteger(body.batchIndex) ? body.batchIndex : 0;
+  const lastBatch = body.lastBatch !== false;
+  const ignoreConsent = body.includeWithoutConsent === true;
+  if (campaign.status === "sent") return json({ error: "Esta campanha já foi enviada." }, 400);
+  if (campaign.status === "sending" && batchIndex === 0) return json({ error: "Esta campanha já está a ser enviada." }, 400);
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
@@ -119,11 +135,13 @@ Deno.serve(async (req) => {
     .in("id", contactIds)
     .eq("brand_id", campaign.brand_id);
 
-  await adminClient.from("whatsapp_campaigns").update({ status: "sending" }).eq("id", campaignId);
+  const blocked = await blockedContacts(adminClient, campaign.brand_id, contactIds);
+
+  if (batchIndex === 0) await adminClient.from("whatsapp_campaigns").update({ status: "sending" }).eq("id", campaignId);
 
   let sent = 0, skipped = 0, failed = 0;
   for (const contact of contacts || []) {
-    if (!contact.phone || !contact.opted_in_whatsapp) {
+    if (!contact.phone || (!contact.opted_in_whatsapp && !ignoreConsent) || blocked.has(contact.id)) {
       skipped++;
       continue;
     }
@@ -172,7 +190,7 @@ Deno.serve(async (req) => {
     else failed++;
   }
 
-  await adminClient.from("whatsapp_campaigns").update({ status: "sent" }).eq("id", campaignId);
+  if (lastBatch) await adminClient.from("whatsapp_campaigns").update({ status: "sent" }).eq("id", campaignId);
 
   return json({ sent, skipped, failed });
 });

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction, fetchAll } from "../../lib/supabaseClient.js";
-import { VariableChips, RecipientSummary, useVariableInsert } from "../../shared/MessageVariables.jsx";
+import { VariableChips, RecipientSummary, useVariableInsert, IncludeWithoutConsent, blockedContactIds, sendInBatches } from "../../shared/MessageVariables.jsx";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, Send, MessageCircle, CheckCircle2, AlertCircle, Plus, Trash2, FileText, RefreshCw, UserPlus, Calculator, Info } from "lucide-react";
 import { useUrlState } from "../../shared/urlState.js";
@@ -279,7 +279,8 @@ function useDeleteWaCampaign(brandId) {
 function useSendWaCampaign(brandId, campaignId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ contactIds, variableValues }) => invokeFunction("whatsapp-campaign-send", { campaignId, contactIds, variableValues }),
+    mutationFn: async ({ contactIds, variableValues, includeWithoutConsent }) =>
+      sendInBatches(contactIds, (ids, batch) => invokeFunction("whatsapp-campaign-send", { campaignId, contactIds: ids, variableValues, includeWithoutConsent, ...batch })),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["whatsapp_campaigns", brandId] });
       qc.invalidateQueries({ queryKey: ["whatsapp_campaign_sends", campaignId] });
@@ -647,7 +648,7 @@ function SendWaCampaignModal({ brandId, campaign, recipientCount, variableValues
   const confirm = async () => {
     setError("");
     try {
-      const result = await sendCampaign.mutateAsync({ contactIds: campaign._contactIds, variableValues });
+      const result = await sendCampaign.mutateAsync({ contactIds: campaign._contactIds, variableValues, includeWithoutConsent: campaign._includeWithoutConsent });
       onSent(result);
     } catch (err) {
       setError(err.message || "Não foi possível enviar.");
@@ -657,7 +658,7 @@ function SendWaCampaignModal({ brandId, campaign, recipientCount, variableValues
   return (
     <Modal title="Enviar campanha" onClose={onClose} width={380}>
       <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 16, lineHeight: 1.6 }}>
-        Vais enviar <strong>{campaign.name}</strong> a <strong>{recipientCount}</strong> contacto(s) com consentimento de WhatsApp. Esta ação não pode ser desfeita.
+        Vais enviar <strong>{campaign.name}</strong> a <strong>{recipientCount}</strong> contacto(s). Esta ação não pode ser desfeita.
       </div>
       {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 12 }}>{error}</div>}
       <div style={{ display: "flex", gap: 8 }}>
@@ -683,6 +684,7 @@ function TemplateVariableField({ label, value, onChange }) {
 
 function WaCampaignEditor({ brandId, campaign, onBack }) {
   const [tagIds, setTagIds] = useState([]);
+  const [includeWithoutConsent, setIncludeWithoutConsent] = useState(false);
   const [values, setValues] = useState([]);
   const [showSend, setShowSend] = useState(false);
   const [sendResult, setSendResult] = useState(null);
@@ -699,7 +701,8 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
   // Só recebe quem tem consentimento e o dado de contacto na ficha.
   const withTag = tagIds.length ? new Set((tagMapQuery.data || []).filter((m) => tagIds.includes(m.tag_id)).map((m) => m.contact_id)) : null;
   const audience = (contactsQuery.data || []).filter((ct) => !withTag || withTag.has(ct.id));
-  const recipientIds = audience.filter((ct) => ct.opted_in_whatsapp && ct.phone).map((ct) => ct.id);
+  const blocked = blockedContactIds(tagsQuery.data || [], tagMapQuery.data || []);
+  const recipientIds = audience.filter((ct) => (includeWithoutConsent || ct.opted_in_whatsapp) && ct.phone && !blocked.has(ct.id)).map((ct) => ct.id);
   const loadingRecipients = contactsQuery.isLoading || tagMapQuery.isLoading;
 
   const sends = sendsQuery.data || [];
@@ -748,6 +751,7 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
                 ))}
               </div>
             {loadingRecipients ? <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginTop: 12 }}>A contar os contactos…</div> : <RecipientSummary tagged={tagIds.length ? audience.length : recipientIds.length} reachable={recipientIds.length} channelLabel="WhatsApp" />}
+            <IncludeWithoutConsent checked={includeWithoutConsent} onChange={setIncludeWithoutConsent} channelLabel="WhatsApp" />
           </div>
 
           {(template?.variables || []).length > 0 && (
@@ -771,7 +775,7 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
       {showSend && (
         <SendWaCampaignModal
           brandId={brandId}
-          campaign={{ ...campaign, _contactIds: recipientIds }}
+          campaign={{ ...campaign, _contactIds: recipientIds, _includeWithoutConsent: includeWithoutConsent }}
           recipientCount={recipientIds.length}
           variableValues={values}
           onClose={() => setShowSend(false)}

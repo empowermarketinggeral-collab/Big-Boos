@@ -113,7 +113,7 @@ async function sendEmail(admin, brandId, toEmail, subject, html) {
 async function confirmDeposit(admin, brandId, appointmentId) {
   const { data: appt } = await admin
     .from("booking_appointments")
-    .select("id, brand_id, contact_id, customer_name, customer_phone, customer_email, starts_at, status, booking_services(name)")
+    .select("id, brand_id, contact_id, customer_name, customer_phone, customer_email, starts_at, status, extra_services, booking_services(name)")
     .eq("id", appointmentId).eq("brand_id", brandId)
     .maybeSingle();
   if (!appt || appt.status !== "pending_payment") return;
@@ -126,7 +126,7 @@ async function confirmDeposit(admin, brandId, appointmentId) {
     .eq("brand_id", brandId).eq("type", "confirmation").maybeSingle();
   if (!setting?.enabled) return;
   const start = new Date(appt.starts_at);
-  const serviceName = appt.booking_services?.name || "";
+  const serviceName = [appt.booking_services?.name, ...(Array.isArray(appt.extra_services) ? appt.extra_services.map((x) => x?.name) : [])].filter(Boolean).join(" + ");
   const vars = {
     nome: appt.customer_name, primeiro_nome: String(appt.customer_name || "").trim().split(/\s+/)[0] || "", servico: serviceName,
     data: start.toLocaleDateString("pt-PT", { timeZone: TZ }),

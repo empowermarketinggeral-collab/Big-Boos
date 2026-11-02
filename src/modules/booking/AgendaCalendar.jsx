@@ -2,10 +2,10 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Modal, inputStyle, btnPrimary, btnGhost } from "../../shared/theme.jsx";
-import { ChevronLeft, ChevronRight, Plus, Phone, History, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Phone, History, AlertTriangle, X } from "lucide-react";
 import { ContactPicker } from "./ClientAppAdmin.jsx";
 import { normalizePhone } from "../../shared/csv.js";
-import { money } from "./publicBooking.js";
+import { money, apptServicesLabel } from "./publicBooking.js";
 import { MoneyInput, parseMoney, moneyInputValue } from "./ServiceOptions.jsx";
 import { useUrlState } from "../../shared/urlState.js";
 
@@ -155,7 +155,7 @@ function EventBlock({ appt, color, top, height, left, width, onClick, compact })
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); onClick(appt); }}
-      title={`${hhmm(new Date(appt.starts_at))} ${appt.customer_name}, ${appt.booking_services?.name || ""}`}
+      title={`${hhmm(new Date(appt.starts_at))} ${appt.customer_name}, ${apptServicesLabel(appt)}`}
       style={{
         ...sans, position: "absolute", top, height: Math.max(height, 20), left: `calc(${left}% + 2px)`, width: `calc(${width}% - 4px)`,
         background: `color-mix(in srgb, ${color} ${muted ? 10 : 18}%, ${c.folha})`,
@@ -168,7 +168,7 @@ function EventBlock({ appt, color, top, height, left, width, onClick, compact })
         {hhmm(new Date(appt.starts_at))} {appt.customer_name}
       </div>
       {!compact && height > 34 && (
-        <div style={{ fontSize: 12.5, color: c.mist, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{appt.booking_services?.name}</div>
+        <div style={{ fontSize: 12.5, color: c.mist, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{apptServicesLabel(appt)}</div>
       )}
     </button>
   );
@@ -326,7 +326,7 @@ function AppointmentModal({ brandId, appt, staff, onClose, onOpenContact }) {
   return (
     <Modal title={appt.customer_name} onClose={onClose} width={460}>
       <div style={{ marginBottom: 14 }}>
-        <div style={row}><span style={lbl}>Serviço</span><span>{appt.booking_services?.name || "?"}{appt.selected_options?.length ? ` (${appt.selected_options.map((o) => o.name).join(", ")})` : ""}{appt.selected_upsells?.length ? ` e ${appt.selected_upsells.map((u) => u.name).join(", ")}` : ""}</span></div>
+        <div style={row}><span style={lbl}>Serviço</span><span>{apptServicesLabel(appt) || "?"}{appt.selected_options?.length ? ` (${appt.selected_options.map((o) => o.name).join(", ")})` : ""}{appt.selected_upsells?.length ? ` e ${appt.selected_upsells.map((u) => u.name).join(", ")}` : ""}</span></div>
         <div style={row}><span style={lbl}>Quando</span><span>{cap(start.toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" }))}, {hhmm(start)} às {hhmm(new Date(appt.ends_at))}</span></div>
         <div style={row}><span style={lbl}>Profissional</span><span>{appt.booking_staff?.name || "Sem profissional"}</span></div>
         <div style={row}><span style={lbl}>Estado</span><span>{STATUS_LABEL[appt.status] || appt.status}</span></div>
@@ -384,6 +384,7 @@ function NewAppointmentModal({ brandId, statics, initial, onClose }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [serviceId, setServiceId] = useState("");
+  const [extraIds, setExtraIds] = useState([]); // outros serviços na mesma marcação
   const [staffId, setStaffId] = useState(initial.staffId || staff[0]?.id || "");
   const [date, setDate] = useState(toDateInput(initial.date));
   const [time, setTime] = useState(`${String(Math.floor(initial.minutes / 60)).padStart(2, "0")}:${String(initial.minutes % 60).padStart(2, "0")}`);
@@ -394,17 +395,22 @@ function NewAppointmentModal({ brandId, statics, initial, onClose }) {
   const [error, setError] = useState("");
 
   const service = services.find((s) => s.id === serviceId);
+  const extras = extraIds.map((id) => services.find((s) => s.id === id)).filter(Boolean);
   const assigned = links.filter((l) => l.service_id === serviceId).map((l) => l.staff_id);
-  const serviceStaff = assigned.length ? staff.filter((s) => assigned.includes(s.id)) : staff;
+  // Só quem faz todos os serviços escolhidos.
+  const doesService = (svId, stId) => { const ids = links.filter((l) => l.service_id === svId).map((l) => l.staff_id); return !ids.length || ids.includes(stId); };
+  const serviceStaff = staff.filter((st) => [serviceId, ...extraIds].filter(Boolean).every((svId) => doesService(svId, st.id)));
   const categories = [...new Set(services.map((s) => s.category || "Sem categoria"))];
 
+  // Duração e preço: soma dos serviços escolhidos (a equipa pode ajustar à mão).
   useEffect(() => {
     if (!service) return;
-    setDuration(service.duration_minutes);
-    setPrice(moneyInputValue(service.price));
-    if (assigned.length && !assigned.includes(staffId)) setStaffId(assigned[0]);
+    const all = [service, ...extras];
+    setDuration(all.reduce((sum, sv) => sum + (sv.duration_minutes || 0), 0));
+    setPrice(moneyInputValue(all.reduce((sum, sv) => sum + (Number(sv.price) || 0), 0)));
+    if (serviceStaff.length && !serviceStaff.some((st) => st.id === staffId)) setStaffId(serviceStaff[0].id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceId]);
+  }, [serviceId, extraIds.join(",")]);
 
   const packsQuery = useQuery({
     queryKey: ["contact_packs", contact?.id],
@@ -417,7 +423,7 @@ function NewAppointmentModal({ brandId, statics, initial, onClose }) {
   });
   const usablePacks = (packsQuery.data || []).filter((p) => {
     const ids = p.service_ids || [];
-    return p.sessions_used < p.sessions_total && (!p.expires_at || new Date(p.expires_at) > new Date()) && (!ids.length || ids.includes(serviceId));
+    return !extraIds.length && p.sessions_used < p.sessions_total && (!p.expires_at || new Date(p.expires_at) > new Date()) && (!ids.length || ids.includes(serviceId));
   });
 
   const save = useMutation({
@@ -465,6 +471,7 @@ function NewAppointmentModal({ brandId, statics, initial, onClose }) {
         customer_name: c2.name, customer_phone: c2.phone || null, customer_email: c2.email || null,
         starts_at: start.toISOString(), ends_at: end.toISOString(), status: "confirmed",
         total_price: parseMoney(price), selected_upsells: [],
+        extra_services: extras.map((x) => ({ id: x.id, name: x.name, duration_minutes: x.duration_minutes, price: x.price })),
         deposit_required: false, deposit_status: "not_required", client_pack_id: packId || null, source: "manual",
       });
       if (err) throw err;
@@ -517,6 +524,27 @@ function NewAppointmentModal({ brandId, statics, initial, onClose }) {
             ))}
           </select>
         </label>
+
+        {service && (
+          <div>
+            {extras.map((x) => (
+              <div key={x.id} style={{ ...sans, fontSize: 14, color: c.ink, display: "flex", alignItems: "center", gap: 8, padding: "6px 0" }}>
+                <span style={{ flex: 1 }}>+ {x.name} <span style={{ color: c.mist }}>({x.duration_minutes} min)</span></span>
+                <button type="button" onClick={() => setExtraIds((ids) => ids.filter((id) => id !== x.id))} aria-label={`Tirar ${x.name}`} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 4 }}><X size={15} /></button>
+              </div>
+            ))}
+            <label style={small}>Juntar outro serviço
+              <select value="" onChange={(e) => { const id = e.target.value; if (id) setExtraIds((ids) => [...ids, id]); }} style={{ ...inputStyle, marginTop: 4 }}>
+                <option value="">Escolher…</option>
+                {categories.map((cat) => (
+                  <optgroup key={cat} label={cat}>
+                    {services.filter((sv) => (sv.category || "Sem categoria") === cat && sv.id !== serviceId && !extraIds.includes(sv.id)).map((sv) => <option key={sv.id} value={sv.id}>{sv.name}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 8 }}>
           <label style={small}>Profissional

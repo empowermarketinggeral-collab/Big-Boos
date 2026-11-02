@@ -109,7 +109,7 @@ function eventBody(appt) {
   lines.push("", "Marcação feita na Big Boss. Para alterar ou cancelar, usa a Big Boss: mudanças feitas aqui não alteram a marcação.");
   return {
     id: eventIdFor(appt.id),
-    summary: `${appt.booking_services?.name || "Marcação"}, ${appt.customer_name || "cliente"}`,
+    summary: `${[appt.booking_services?.name, ...(Array.isArray(appt.extra_services) ? appt.extra_services.map((x) => x?.name) : [])].filter(Boolean).join(" + ") || "Marcação"}, ${appt.customer_name || "cliente"}`,
     description: lines.join("\n"),
     start: { dateTime: new Date(appt.starts_at).toISOString(), timeZone: TZ },
     end: { dateTime: new Date(appt.ends_at).toISOString(), timeZone: TZ },
@@ -166,7 +166,7 @@ async function pushStaff(admin, accessToken, connection, errors) {
   const to = new Date(now + PUSH_FUTURE_DAYS * DAY_MS).toISOString();
   const { data: appts } = await admin
     .from("booking_appointments")
-    .select("id, starts_at, ends_at, customer_name, customer_phone, customer_email, status, booking_services(name)")
+    .select("id, starts_at, ends_at, customer_name, customer_phone, customer_email, status, extra_services, booking_services(name)")
     .eq("staff_id", staffId).eq("status", "confirmed")
     .gte("ends_at", from).lte("starts_at", to)
     .order("starts_at", { ascending: true }).limit(500);

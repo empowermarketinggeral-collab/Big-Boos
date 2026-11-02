@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, PAGE_FONT_OPTIONS, PAGE_COLOR_SWATCHES, DEFAULT_PAGE_STYLE, display } from "../../shared/theme.jsx";
 import BookingFlow, { BrandHeader } from "./BookingFlow.jsx";
-import { usePublicBookingPage, brandThemeVars, brandStyle, T, STANDALONE_SLUG, bookingPath } from "./publicBooking.js";
+import { usePublicBookingPage, brandThemeVars, brandStyle, T, STANDALONE_SLUG, bookingPath, apptServicesLabel } from "./publicBooking.js";
 import ImportAgendaModal from "./ImportAgendaModal.jsx";
 import GhlImportSection from "./GhlImportSection.jsx";
 import StripeImportModal from "./StripeImportModal.jsx";
@@ -912,7 +912,7 @@ function ContactHistoryModal({ brand, contactId, contactName, onClose }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {(historyQuery.data || []).map((a) => (
           <div key={a.id} style={{ background: c.paper, borderRadius: 6, padding: "10px 12px" }}>
-            <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: c.ink }}>{a.booking_services?.name}</div>
+            <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: c.ink }}>{apptServicesLabel(a)}</div>
             <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
               {new Date(a.starts_at).toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" })}, {a.booking_staff?.name || "sem profissional"}, {STATUS_LABEL[a.status] || a.status}
             </div>
@@ -984,7 +984,7 @@ function AppointmentsSection({ brand, staff }) {
             <CalendarIcon size={15} color={c.bossText} style={{ flexShrink: 0 }} />
             <div style={{ flex: "1 1 200px", minWidth: 0 }}>
               <button onClick={() => a.contact_id && setHistoryFor({ id: a.contact_id, name: a.customer_name })} style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink, background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 5, textAlign: "left" }}>
-                {a.booking_services?.name}, {a.customer_name} <History size={11} color={c.mist} />
+                {apptServicesLabel(a)}, {a.customer_name} <History size={11} color={c.mist} />
               </button>
               <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>
                 {new Date(a.starts_at).toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" })}, {a.booking_staff?.name || "sem profissional"}

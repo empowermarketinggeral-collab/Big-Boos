@@ -33,6 +33,9 @@
 // options = { idDoGrupo: idDaOpção } e cada grupo tem de ter uma opção
 // válida. Preço e minutos das opções somam-se ao serviço; a escolha fica
 // em booking_appointments.selected_options.
+// VÁRIOS SERVIÇOS: extraServiceIds = outros serviços na mesma marcação
+// (booking_appointments.extra_services). Duração e preço somam-se; só
+// profissionais que façam todos; packs só em marcações de um serviço.
 //
 // "Verify JWT" DESLIGADO: a página pública chama sem sessão.
 
@@ -289,6 +292,7 @@ Deno.serve(async (req) => {
     return json({ error: "Corpo do pedido inválido." }, 400);
   }
   const { brandId, serviceId, staffId, startsAt, upsellIds, options, clientPackId, successUrl, cancelUrl } = body;
+  const extraServiceIds = Array.isArray(body.extraServiceIds) ? [...new Set(body.extraServiceIds.filter((id) => typeof id === "string" && id !== serviceId))].slice(0, 10) : [];
   if (!brandId || !serviceId || !staffId || !startsAt) {
     return json({ error: "Faltam campos obrigatórios." }, 400);
   }
@@ -301,11 +305,21 @@ Deno.serve(async (req) => {
   if (!client && body.phone && !phone) return json({ error: "O telemóvel não parece válido." }, 400);
   if (!phone && !email) return json({ error: "Indique o telemóvel ou o email." }, 400);
   if (clientPackId && !client) return json({ error: "Entre na sua conta para usar um pack." }, 401);
+  if (clientPackId && extraServiceIds.length) return json({ error: "O pack só pode ser usado numa marcação de um serviço." }, 400);
 
   const { data: service } = await admin.from("booking_services").select("name, duration_minutes, price, status, option_groups").eq("id", serviceId).eq("brand_id", brandId).maybeSingle();
   if (!service || service.status !== "active") {
     return json({ error: "Serviço não encontrado." }, 404);
   }
+
+  // Outros serviços da mesma marcação (ativos e desta marca).
+  let extraServices = [];
+  if (extraServiceIds.length) {
+    const { data } = await admin.from("booking_services").select("id, name, duration_minutes, price, status, option_groups").eq("brand_id", brandId).in("id", extraServiceIds);
+    extraServices = (data || []).filter((x) => x.status === "active");
+    if (extraServices.length !== extraServiceIds.length) return json({ error: "Um dos serviços já não está disponível." }, 404);
+  }
+  const allServiceNames = [service.name, ...extraServices.map((x) => x.name)].join(" + ");
 
   let selectedUpsells = [];
   if (Array.isArray(upsellIds) && upsellIds.length > 0) {
@@ -321,26 +335,30 @@ Deno.serve(async (req) => {
 
   // Opções obrigatórias: uma escolha válida por grupo.
   const selectedOptions = [];
-  for (const group of Array.isArray(service.option_groups) ? service.option_groups : []) {
-    const choices = Array.isArray(group?.choices) ? group.choices : [];
-    if (!choices.length) continue;
-    const picked = choices.find((ch) => ch.id === options?.[group.id]);
-    if (!picked) return json({ error: `Escolha uma opção em "${group.name || "Opções"}".` }, 400);
-    selectedOptions.push({
-      group_id: group.id, group: group.name || "", id: picked.id, name: picked.name || "",
-      price: Number(picked.price) || 0, extra_minutes: Math.max(0, parseInt(picked.extra_minutes, 10) || 0),
-    });
+  for (const sv of [service, ...extraServices]) {
+    for (const group of Array.isArray(sv.option_groups) ? sv.option_groups : []) {
+      const choices = Array.isArray(group?.choices) ? group.choices : [];
+      if (!choices.length) continue;
+      const picked = choices.find((ch) => ch.id === options?.[group.id]);
+      if (!picked) return json({ error: `Escolha uma opção em "${group.name || "Opções"}" (${sv.name}).` }, 400);
+      selectedOptions.push({
+        group_id: group.id, group: group.name || "", id: picked.id, name: picked.name || "",
+        price: Number(picked.price) || 0, extra_minutes: Math.max(0, parseInt(picked.extra_minutes, 10) || 0),
+      });
+    }
   }
 
   const extraMinutes = selectedUpsells.reduce((sum, u) => sum + (u.extra_duration_minutes || 0), 0)
     + selectedOptions.reduce((sum, o) => sum + o.extra_minutes, 0);
   const totalPrice = Math.round(((Number(service.price) || 0)
+    + extraServices.reduce((sum, x) => sum + (Number(x.price) || 0), 0)
     + selectedUpsells.reduce((sum, u) => sum + (Number(u.price) || 0), 0)
     + selectedOptions.reduce((sum, o) => sum + o.price, 0)) * 100) / 100;
 
   const start = new Date(startsAt);
   if (Number.isNaN(start.getTime())) return json({ error: "Horário inválido." }, 400);
-  const end = new Date(start.getTime() + (service.duration_minutes + extraMinutes) * 60000);
+  const baseMinutes = service.duration_minutes + extraServices.reduce((sum, x) => sum + (x.duration_minutes || 0), 0);
+  const end = new Date(start.getTime() + (baseMinutes + extraMinutes) * 60000);
   if (start.getTime() <= Date.now()) {
     return json({ error: "Esse horário já passou." }, 400);
   }
@@ -350,9 +368,15 @@ Deno.serve(async (req) => {
   const { data: activeStaff } = await admin.from("booking_staff").select("id").eq("brand_id", brandId).eq("status", "active").order("created_at");
   const { data: assigned } = await admin.from("booking_service_staff").select("staff_id").eq("service_id", serviceId);
   const assignedIds = (assigned || []).map((a) => a.staff_id);
-  const eligible = (activeStaff || []).map((st) => st.id).filter((id) => !assignedIds.length || assignedIds.includes(id));
+  let eligible = (activeStaff || []).map((st) => st.id).filter((id) => !assignedIds.length || assignedIds.includes(id));
+  // Com vários serviços, só quem faz todos.
+  for (const x of extraServices) {
+    const { data: rows } = await admin.from("booking_service_staff").select("staff_id").eq("service_id", x.id);
+    const ids = (rows || []).map((r) => r.staff_id);
+    if (ids.length) eligible = eligible.filter((id) => ids.includes(id));
+  }
   const candidates = staffId === "any" ? eligible : eligible.filter((id) => id === staffId);
-  if (!candidates.length) return json({ error: "Esta profissional não faz este serviço." }, 409);
+  if (!candidates.length) return json({ error: extraServices.length ? "Não há nenhuma profissional que faça todos estes serviços." : "Esta profissional não faz este serviço." }, 409);
   let chosenStaffId = null;
   for (const id of candidates) {
     if (await staffFree(admin, brandId, id, start, end)) { chosenStaffId = id; break; }
@@ -415,6 +439,7 @@ Deno.serve(async (req) => {
     starts_at: start.toISOString(), ends_at: end.toISOString(),
     status: depositRequired ? "pending_payment" : "confirmed",
     selected_upsells: selectedUpsells, selected_options: selectedOptions, total_price: totalPrice,
+    extra_services: extraServices.map((x) => ({ id: x.id, name: x.name, duration_minutes: x.duration_minutes, price: x.price })),
     deposit_required: depositRequired, deposit_amount: depositRequired ? depositAmount : null,
     deposit_status: depositRequired ? "pending" : "not_required",
     client_pack_id: packId, source: client ? "app" : "online",
@@ -447,7 +472,7 @@ Deno.serve(async (req) => {
     const params = new URLSearchParams({
       mode: "payment",
       "line_items[0][price_data][currency]": "eur",
-      "line_items[0][price_data][product_data][name]": `Sinal: ${service.name}, ${fmtDate(start)} às ${fmtTime(start)}`,
+      "line_items[0][price_data][product_data][name]": `Sinal: ${allServiceNames}, ${fmtDate(start)} às ${fmtTime(start)}`.slice(0, 250),
       "line_items[0][price_data][unit_amount]": String(Math.round(depositAmount * 100)),
       "line_items[0][quantity]": "1",
       "metadata[appointment_id]": appt.id,
@@ -487,7 +512,7 @@ Deno.serve(async (req) => {
     return json({ ok: true, appointmentId: appt.id, paymentUrl: session.url, depositAmount });
   }
 
-  await sendConfirmation(admin, brandId, contactId, name, phone, email, service.name, start);
+  await sendConfirmation(admin, brandId, contactId, name, phone, email, allServiceNames, start);
 
   return json({ ok: true, appointmentId: appt.id });
 });

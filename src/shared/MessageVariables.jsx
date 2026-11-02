@@ -72,3 +72,35 @@ export function RecipientSummary({ tagged, reachable, channelLabel }) {
     </div>
   );
 }
+
+// Tags de quem nunca recebe campanhas, com ou sem consentimento marcado.
+export const BLOCKED_TAG_NAMES = ["não contactar", "nao contactar", "rgpd:opt-out"];
+export const blockedContactIds = (tags = [], tagMap = []) => {
+  const blocked = new Set(tags.filter((t) => BLOCKED_TAG_NAMES.includes(String(t.name || "").trim().toLowerCase())).map((t) => t.id));
+  return new Set(tagMap.filter((m) => blocked.has(m.tag_id)).map((m) => m.contact_id));
+};
+
+// Envia em lotes de 500 (o limite de cada envio) e soma os resultados.
+export async function sendInBatches(contactIds, sendBatch) {
+  const total = { sent: 0, skipped: 0, failed: 0 };
+  const batches = [];
+  for (let i = 0; i < contactIds.length; i += 500) batches.push(contactIds.slice(i, i + 500));
+  for (let i = 0; i < batches.length; i++) {
+    const r = await sendBatch(batches[i], { batchIndex: i, lastBatch: i === batches.length - 1 });
+    total.sent += r?.sent || 0; total.skipped += r?.skipped || 0; total.failed += r?.failed || 0;
+  }
+  return total;
+}
+
+// Caixa "incluir quem não tem consentimento marcado".
+export function IncludeWithoutConsent({ checked, onChange, channelLabel }) {
+  return (
+    <label style={{ ...sans, fontSize: 13.5, color: c.ink, display: "flex", alignItems: "flex-start", gap: 8, marginTop: 12, lineHeight: 1.5 }}>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} style={{ marginTop: 3 }} />
+      <span>
+        Enviar também a quem não tem o consentimento de {channelLabel} marcado
+        <span style={{ display: "block", fontSize: 12.5, color: c.mist }}>Só para clientes que já tinham dado autorização antes. Quem tem a tag "Não contactar" ou pediu para sair nunca recebe.</span>
+      </span>
+    </label>
+  );
+}
