@@ -1,6 +1,7 @@
-import { useRef } from "react";
-import { Plus } from "lucide-react";
-import { c, sans } from "./theme.jsx";
+import { useRef, useState } from "react";
+import { Plus, Clock } from "lucide-react";
+import { c, sans, Modal, inputStyle, btnPrimary, btnGhost } from "./theme.jsx";
+import { supabase } from "../lib/supabaseClient.js";
 
 /* ---------------------------------------------------------
    VARIÁVEIS NAS MENSAGENS (campanhas de email, SMS e WhatsApp)
@@ -80,16 +81,35 @@ export const blockedContactIds = (tags = [], tagMap = []) => {
   return new Set(tagMap.filter((m) => blocked.has(m.tag_id)).map((m) => m.contact_id));
 };
 
-// Envia em lotes de 500 (o limite de cada envio) e soma os resultados.
-export async function sendInBatches(contactIds, sendBatch) {
-  const total = { sent: 0, skipped: 0, failed: 0 };
+// Envia em lotes (500 por omissão; email 100) e soma os resultados e os motivos de falha.
+export async function sendInBatches(contactIds, sendBatch, size = 500) {
+  const total = { sent: 0, skipped: 0, failed: 0, errors: [] };
   const batches = [];
-  for (let i = 0; i < contactIds.length; i += 500) batches.push(contactIds.slice(i, i + 500));
+  for (let i = 0; i < contactIds.length; i += size) batches.push(contactIds.slice(i, i + size));
   for (let i = 0; i < batches.length; i++) {
     const r = await sendBatch(batches[i], { batchIndex: i, lastBatch: i === batches.length - 1 });
     total.sent += r?.sent || 0; total.skipped += r?.skipped || 0; total.failed += r?.failed || 0;
+    for (const e of r?.errors || []) if (!total.errors.includes(e)) total.errors.push(e);
   }
   return total;
+}
+
+// Resultado de um envio: quantos foram, quantos ficaram de fora e porquê falharam.
+export function SendResultSummary({ result, contactLabel = "contacto" }) {
+  return (
+    <div style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.8 }}>
+      <div>{result.sent} enviados</div>
+      <div>{result.skipped} ignorados (sem {contactLabel} válido, com a tag "Não contactar", sem consentimento ou sem dados para as variáveis)</div>
+      {result.failed > 0 && <div style={{ color: c.rose }}>{result.failed} falharam</div>}
+      {(result.errors || []).length > 0 && (
+        <div style={{ fontSize: 13.5, color: c.rose, marginTop: 6, lineHeight: 1.5 }}>
+          Motivo indicado pelo serviço de envio:
+          {result.errors.map((e) => <div key={e}>{e}</div>)}
+        </div>
+      )}
+      {result.sent === 0 && <div style={{ fontSize: 13.5, color: c.mist, marginTop: 6 }}>Como ninguém recebeu, a campanha voltou a rascunho para poder corrigir e enviar de novo.</div>}
+    </div>
+  );
 }
 
 // Caixa "incluir quem não tem consentimento marcado".
@@ -104,3 +124,105 @@ export function IncludeWithoutConsent({ checked, onChange, channelLabel }) {
     </label>
   );
 }
+
+/* ---------------------------------------------------------
+   AGENDAR CAMPANHAS
+   Guarda a hora e os destinatários escolhidos agora; à hora marcada a
+   função campaigns-scheduled-run envia (um lote por minuto).
+--------------------------------------------------------- */
+const pad2 = (n) => String(n).padStart(2, "0");
+const toLocalInput = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
+export const formatScheduled = (iso) =>
+  iso ? new Date(iso).toLocaleString("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+
+export async function scheduleCampaign(table, campaignId, { at, contactIds, includeWithoutConsent, variableValues }) {
+  const { error } = await supabase.from(table).update({
+    status: "scheduled",
+    scheduled_at: at,
+    scheduled_batch: 0,
+    scheduled_payload: { contactIds, includeWithoutConsent: !!includeWithoutConsent, ...(variableValues ? { variableValues } : {}) },
+    last_error: null,
+  }).eq("id", campaignId);
+  if (error) throw error;
+}
+
+export async function unscheduleCampaign(table, campaignId) {
+  const { error } = await supabase.from(table)
+    .update({ status: "draft", scheduled_at: null, scheduled_batch: 0, scheduled_payload: null })
+    .eq("id", campaignId).eq("status", "scheduled");
+  if (error) throw error;
+}
+
+// Janela para escolher dia e hora (hora de Portugal, a do telemóvel/computador).
+export function ScheduleCampaignModal({ campaignName, recipientCount, onClose, onConfirm }) {
+  const soon = new Date(Date.now() + 60 * 60000);
+  soon.setMinutes(0, 0, 0);
+  const [value, setValue] = useState(toLocalInput(soon));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const confirm = async () => {
+    setError("");
+    const at = new Date(value);
+    if (!value || Number.isNaN(at.getTime())) return setError("Escolha o dia e a hora.");
+    if (at.getTime() < Date.now() + 60000) return setError("Escolha uma hora no futuro.");
+    setBusy(true);
+    try {
+      await onConfirm(at.toISOString());
+    } catch (err) {
+      setError(err.message || "Não foi possível agendar.");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal title="Agendar campanha" onClose={onClose} width={380}>
+      <div style={{ ...sans, fontSize: 14.5, color: c.ink, marginBottom: 14, lineHeight: 1.6 }}>
+        <strong>{campaignName}</strong> vai para <strong>{recipientCount}</strong> contacto(s), os que estão escolhidos agora.
+      </div>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Dia e hora do envio</div>
+      <input type="datetime-local" value={value} min={toLocalInput(new Date())} onChange={(e) => setValue(e.target.value)} style={inputStyle} />
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 8, lineHeight: 1.5 }}>
+        O texto fica guardado como está agora. Para o mudar, cancele o agendamento e volte a agendar.
+      </div>
+      {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginTop: 10 }}>{error}</div>}
+      <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+        <button onClick={confirm} disabled={busy || recipientCount === 0} style={btnPrimary}>{busy ? "A agendar…" : "Agendar"}</button>
+        <button onClick={onClose} style={btnGhost}>Cancelar</button>
+      </div>
+    </Modal>
+  );
+}
+
+// Aviso no editor: agendada para X (com botão para cancelar) e último erro.
+export function ScheduledNotice({ campaign, onCancel }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const scheduled = campaign.status === "scheduled";
+  if (!scheduled && !campaign.last_error) return null;
+  const cancel = async () => {
+    setBusy(true); setError("");
+    try { await onCancel(); } catch (err) { setError(err.message || "Não foi possível cancelar."); setBusy(false); }
+  };
+  return (
+    <div style={{ background: c.folha, border: `1px solid ${scheduled ? c.lineStrong : c.rose}`, borderRadius: 3, padding: "14px 18px", marginBottom: 20, maxWidth: 640 }}>
+      {scheduled && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <Clock size={16} color={c.bossText} />
+          <span style={{ ...sans, fontSize: 14.5, color: c.ink, flex: 1, minWidth: 180 }}>
+            Agendada para <strong>{formatScheduled(campaign.scheduled_at)}</strong> ({(campaign.scheduled_payload?.contactIds || []).length} contacto(s))
+          </span>
+          <button onClick={cancel} disabled={busy} style={{ ...btnGhost, padding: "6px 12px", fontSize: 13.5 }}>{busy ? "A cancelar…" : "Cancelar agendamento"}</button>
+        </div>
+      )}
+      {campaign.last_error && (
+        <div style={{ ...sans, fontSize: 13.5, color: c.rose, marginTop: scheduled ? 8 : 0, lineHeight: 1.5 }}>Último envio agendado: {campaign.last_error}</div>
+      )}
+      {error && <div style={{ ...sans, fontSize: 13.5, color: c.rose, marginTop: 8 }}>{error}</div>}
+    </div>
+  );
+}
+
+export const campaignStatusLabel = (cp) =>
+  cp.status === "sent" ? "Enviada" : cp.status === "sending" ? "A enviar" : cp.status === "scheduled" ? `Agendada ${formatScheduled(cp.scheduled_at)}` : "Rascunho";

@@ -23,6 +23,11 @@ const FIXTURES = {
     { id: B2, agency_id: AGENCY_ID, name: "WingCare", logo_url: null, goal: "Captar alunas para as formações e vender dermocosmética.", category: "estetica", status: "yellow", contract_scope: "CRM e automações", brand_book: {}, enabled_modules: [], booking_slug: null },
     { id: B3, agency_id: AGENCY_ID, name: "Barbearia Nobre", logo_url: null, goal: "Mais marcações online e menos faltas.", category: "barbearia", status: "red", contract_scope: "Agendamento e SMS", brand_book: {}, enabled_modules: [], booking_slug: null },
   ],
+  sms_accounts: [{ id: "sa1", brand_id: B1, account_sid: "AC000", from_number: "+351900000000", status: "connected" }],
+  sms_campaigns: [
+    { id: "sc1", brand_id: B1, name: "Promoção de novembro", body: "Olá {{primeiro_nome|}}, temos novidades.", status: "draft", created_at: iso(-1) },
+    { id: "sc2", brand_id: B1, name: "Lembrete de Natal", body: "Feliz Natal!", status: "scheduled", scheduled_at: iso(3), scheduled_payload: { contactIds: ["x1", "x2"] }, created_at: iso(-2) },
+  ],
   tags: [
     { id: "t1", brand_id: B1, name: "Lead_LandingPage", color: "#7C52A8", created_at: iso(-30), contact_tags: [{ count: 12 }] },
     { id: "t2", brand_id: B1, name: "Cliente", color: "#1F7A4D", created_at: iso(-20), contact_tags: [{ count: 34 }] },

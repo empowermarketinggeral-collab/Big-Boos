@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction, fetchAll } from "../../lib/supabaseClient.js";
-import { VariableChips, RecipientSummary, useVariableInsert, IncludeWithoutConsent, blockedContactIds, sendInBatches } from "../../shared/MessageVariables.jsx";
+import { VariableChips, RecipientSummary, useVariableInsert, IncludeWithoutConsent, blockedContactIds, sendInBatches, SendResultSummary, ScheduleCampaignModal, ScheduledNotice, scheduleCampaign, unscheduleCampaign, campaignStatusLabel } from "../../shared/MessageVariables.jsx";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
-import { ArrowLeft, MessageSquare, AlertCircle, CheckCircle2, Plus, Trash2, Send } from "lucide-react";
+import { ArrowLeft, MessageSquare, AlertCircle, CheckCircle2, Plus, Trash2, Send, Clock } from "lucide-react";
 import { useUrlState } from "../../shared/urlState.js";
 
 /* ---------------------------------------------------------
@@ -286,13 +286,15 @@ function SendSmsModal({ brandId, onClose }) {
 /* ---------------------------------------------------------
    CAMPANHAS
 --------------------------------------------------------- */
-function SendSmsCampaignModal({ brandId, campaign, recipientCount, onClose, onSent }) {
+function SendSmsCampaignModal({ brandId, campaign, recipientCount, onClose, onSent, beforeSend }) {
   const sendCampaign = useSendSmsCampaign(brandId, campaign.id);
   const [error, setError] = useState("");
 
   const confirm = async () => {
     setError("");
     try {
+      // Guarda primeiro o que está no ecrã: o envio usa o texto guardado.
+      if (beforeSend) await beforeSend();
       const result = await sendCampaign.mutateAsync({ contactIds: campaign._contactIds, includeWithoutConsent: campaign._includeWithoutConsent });
       onSent(result);
     } catch (err) {
@@ -323,6 +325,8 @@ function SmsCampaignEditor({ brandId, campaign, onBack }) {
   const [includeWithoutConsent, setIncludeWithoutConsent] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showSend, setShowSend] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
+  const qc = useQueryClient();
   const [sendResult, setSendResult] = useState(null);
   const [error, setError] = useState("");
 
@@ -356,7 +360,20 @@ function SmsCampaignEditor({ brandId, campaign, onBack }) {
 
   const messages = messagesQuery.data || [];
   const statusCounts = messages.reduce((acc, s) => ({ ...acc, [s.status]: (acc[s.status] || 0) + 1 }), {});
-  const isSent = campaign.status === "sent" || campaign.status === "sending";
+  const isScheduled = campaign.status === "scheduled";
+  // Agendada também fica fechada à edição (cancela-se o agendamento para mudar).
+  const isSent = campaign.status === "sent" || campaign.status === "sending" || isScheduled;
+  const refreshCampaigns = () => qc.invalidateQueries({ queryKey: ["sms_campaigns", brandId] });
+  const schedule = async (at) => {
+    await updateCampaign.mutateAsync({ id: campaign.id, patch: { name, body } });
+    await scheduleCampaign("sms_campaigns", campaign.id, { at, contactIds: recipientIds, includeWithoutConsent, });
+    setShowSchedule(false);
+    refreshCampaigns();
+  };
+  const cancelSchedule = async () => {
+    await unscheduleCampaign("sms_campaigns", campaign.id);
+    refreshCampaigns();
+  };
 
   return (
     <div>
@@ -375,7 +392,7 @@ function SmsCampaignEditor({ brandId, campaign, onBack }) {
 
       {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 16 }}>{error}</div>}
 
-      {isSent && (
+      {isSent && !isScheduled && (
         <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
           {["sent", "delivered", "failed"].map((k) => (
             <span key={k} style={{ ...sans, fontSize: 12.5, fontWeight: 600, borderRadius: 999, padding: "5px 12px", background: c.paper, color: c.ink }}>
@@ -384,6 +401,8 @@ function SmsCampaignEditor({ brandId, campaign, onBack }) {
           ))}
         </div>
       )}
+
+      <ScheduledNotice campaign={campaign} onCancel={cancelSchedule} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 640 }}>
         <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
@@ -414,17 +433,27 @@ function SmsCampaignEditor({ brandId, campaign, onBack }) {
               </div>
             {loadingRecipients ? <div style={{ ...sans, fontSize: 13.5, color: c.mist, marginTop: 12 }}>A contar os contactos…</div> : <RecipientSummary tagged={tagIds.length ? audience.length : recipientIds.length} reachable={recipientIds.length} channelLabel="SMS" />}
             <IncludeWithoutConsent checked={includeWithoutConsent} onChange={setIncludeWithoutConsent} channelLabel="SMS" />
-            <button onClick={() => setShowSend(true)} disabled={!body.trim() || recipientIds.length === 0} style={{ ...btnPrimary, marginTop: 14, display: "flex", alignItems: "center", gap: 6 }}>
-              <Send size={13} /> Enviar campanha
-            </button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+              <button onClick={() => setShowSend(true)} disabled={!body.trim() || recipientIds.length === 0} style={{ ...btnPrimary, display: "flex", alignItems: "center", gap: 6 }}>
+                <Send size={13} /> Enviar campanha
+              </button>
+              <button onClick={() => setShowSchedule(true)} disabled={!body.trim() || recipientIds.length === 0} style={{ ...btnGhost, display: "flex", alignItems: "center", gap: 6 }}>
+                <Clock size={13} /> Agendar
+              </button>
+            </div>
           </div>
         )}
       </div>
+
+      {showSchedule && (
+        <ScheduleCampaignModal campaignName={campaign.name} recipientCount={recipientIds.length} onClose={() => setShowSchedule(false)} onConfirm={schedule} />
+      )}
 
       {showSend && (
         <SendSmsCampaignModal
           brandId={brandId}
           campaign={{ ...campaign, name, _contactIds: recipientIds, _includeWithoutConsent: includeWithoutConsent }}
+          beforeSend={() => updateCampaign.mutateAsync({ id: campaign.id, patch: { name, body } })}
           recipientCount={recipientIds.length}
           onClose={() => setShowSend(false)}
           onSent={(result) => { setShowSend(false); setSendResult(result); }}
@@ -433,11 +462,7 @@ function SmsCampaignEditor({ brandId, campaign, onBack }) {
 
       {sendResult && (
         <Modal title="Campanha enviada" onClose={() => setSendResult(null)} width={360}>
-          <div style={{ ...sans, fontSize: 14.5, color: c.ink, lineHeight: 1.8 }}>
-            <div>{sendResult.sent} enviados</div>
-            <div>{sendResult.skipped} ignorados (sem telefone ou sem consentimento)</div>
-            {sendResult.failed > 0 && <div style={{ color: c.rose }}>{sendResult.failed} falharam</div>}
-          </div>
+          <SendResultSummary result={sendResult} contactLabel="telefone" />
           <button onClick={() => setSendResult(null)} style={{ ...btnGhost, marginTop: 16 }}>Fechar</button>
         </Modal>
       )}
@@ -475,7 +500,7 @@ function CampaignsPanel({ brandId }) {
               <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 2 }}>{cp.body || "Sem texto ainda"}</div>
             </div>
             <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, borderRadius: 999, padding: "4px 10px", color: cp.status === "sent" ? c.sage : c.mist, background: cp.status === "sent" ? c.sageSoft : c.paper }}>
-              {cp.status === "sent" ? "Enviada" : cp.status === "sending" ? "A enviar" : "Rascunho"}
+              {campaignStatusLabel(cp)}
             </span>
             {cp.status === "draft" && (
               <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(cp); }} style={{ background: "none", border: "none", cursor: "pointer", color: c.mist, padding: 6, flexShrink: 0 }}>
