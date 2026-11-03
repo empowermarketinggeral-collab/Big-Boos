@@ -405,6 +405,28 @@ Deno.serve(async (req) => {
     contactId = created.id;
   }
 
+  // Indicação de uma amiga (link ?amiga=<código>, programa da marca ligado):
+  // só para quem nunca veio (sem marcações anteriores) e ainda não tem quem a indicou.
+  const referralCode = String(body.referralCode || "").trim().toLowerCase();
+  if (referralCode && /^[a-z0-9]{4,32}$/.test(referralCode)) {
+    try {
+      const { data: program } = await admin.from("referral_programs").select("enabled").eq("brand_id", brandId).maybeSingle();
+      const { data: ref } = program?.enabled
+        ? await admin.from("referral_codes").select("contact_id").eq("brand_id", brandId).eq("code", referralCode).maybeSingle()
+        : { data: null };
+      if (ref?.contact_id && ref.contact_id !== contactId) {
+        const { data: me } = await admin.from("contacts").select("referred_by").eq("id", contactId).maybeSingle();
+        const { count: previous } = await admin.from("booking_appointments").select("id", { count: "exact", head: true })
+          .eq("brand_id", brandId).eq("contact_id", contactId).neq("status", "cancelled");
+        if (me && !me.referred_by && !previous) {
+          await admin.from("contacts").update({ referred_by: ref.contact_id }).eq("id", contactId).eq("brand_id", brandId);
+        }
+      }
+    } catch (e) {
+      console.error("booking-create: indicação não registada", e?.message || e);
+    }
+  }
+
   // Pack: confirma que é desta cliente antes de gastar a sessão.
   let packId = null;
   if (clientPackId) {

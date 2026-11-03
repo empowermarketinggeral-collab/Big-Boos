@@ -5,7 +5,7 @@ import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
 import { c } from "../../shared/theme.jsx";
 import {
   Home, Package, CalendarDays, History, UserRound, CheckCircle2, LogOut, Trash2, Plus, ChevronRight, ChevronLeft,
-  MessageCircle, AlertTriangle, Shield, ShieldAlert, Pencil, Clock, Sparkles, Bell, Smartphone,
+  MessageCircle, AlertTriangle, Shield, ShieldAlert, Pencil, Clock, Sparkles, Bell, Smartphone, Heart, Copy, Check,
 } from "lucide-react";
 import BookingFlow from "../booking/BookingFlow.jsx";
 import { usePublicBookingPage, money, capitalize, brandThemeVars, brandStyle, T, STANDALONE_SLUG, appPath, bookingPath } from "../booking/publicBooking.js";
@@ -369,7 +369,7 @@ function PackMini({ pack, onClick }) {
   );
 }
 
-function HomeTab({ page, style, data, go }) {
+function HomeTab({ page, style, data, go, referral }) {
   const upcoming = data.appointments.filter(isUpcoming).reverse();
   const next = upcoming[0];
   const activePacks = data.packs.filter((p) => packState(p).active);
@@ -403,6 +403,8 @@ function HomeTab({ page, style, data, go }) {
         </div>
       )}
 
+      {referral?.enabled && <ReferralHomeCard info={referral} onOpen={() => go("home", "friends")} />}
+
       {phoneDigits && (
         <div style={{ marginTop: 8 }}>
           <RowButton icon={MessageCircle} label={`Falar com o ${page.brand.name}`} href={`https://wa.me/${phoneDigits}`} />
@@ -413,6 +415,244 @@ function HomeTab({ page, style, data, go }) {
         <div style={{ ...T.title, fontSize: 20, color: T.faint }}>{page.brand.name}</div>
         {style.tagline && <div style={{ ...eyebrow, color: T.faint, fontSize: 11.5, letterSpacing: "0.2em", marginTop: 6 }}>{style.tagline}</div>}
       </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
+   AMIGAS (programa de indicações da marca, ex: "Amigas Dreams")
+   Texto em referral_programs.content; contagem e código da cliente por
+   client_referral_data. Uma amiga conta quando faz o primeiro serviço da
+   categoria do programa (ex: Cabelo). O texto do programa trata por "tu".
+--------------------------------------------------------- */
+function useReferralData(brandId, enabled) {
+  return useQuery({
+    queryKey: ["client_referral", brandId],
+    enabled: !!brandId && enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("client_referral_data", { p_brand: brandId });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+const fillText = (text, vars) => String(text || "").replace(/\{\{(\w+)\}\}/g, (_m, k) => (vars[k] ?? ""));
+const dayMonth = (d) => d.toLocaleDateString("pt-PT", { day: "numeric", month: "short" }).replace(".", "");
+
+function referralState(info) {
+  const content = info.content || {};
+  const goal = Math.max(1, parseInt(content.goal, 10) || 3);
+  const count = (info.qualified || []).length;
+  const messages = content.progressMessages || [];
+  const message = messages.length ? messages[Math.min(count, messages.length - 1)] : "";
+  return { content, goal, count, message };
+}
+
+function ReferralTitle({ content, size = 34 }) {
+  const title = content.title || "Amigas";
+  const hl = content.titleHighlight && title.includes(content.titleHighlight) ? content.titleHighlight : "";
+  const [before, after] = hl ? [title.slice(0, title.indexOf(hl)), title.slice(title.indexOf(hl) + hl.length)] : [title, ""];
+  return (
+    <h1 style={{ ...T.title, fontSize: size, color: T.ink, margin: 0, lineHeight: 1.1 }}>
+      {before}{hl && <span style={{ color: T.accent, fontStyle: "italic" }}>{hl}</span>}{after}
+    </h1>
+  );
+}
+
+function ReferralBar({ count, goal }) {
+  return (
+    <div style={{ display: "flex", gap: 6 }} aria-label={`${Math.min(count, goal)} de ${goal}`}>
+      {Array.from({ length: goal }, (_, i) => (
+        <div key={i} style={{ flex: 1, height: 8, borderRadius: 999, background: i < count ? T.accent : T.soft }} />
+      ))}
+    </div>
+  );
+}
+
+function ReferralHomeCard({ info, onOpen }) {
+  const { content, goal, count, message } = referralState(info);
+  return (
+    <button type="button" onClick={onOpen} style={{ ...T.body, ...card, width: "100%", boxSizing: "border-box", textAlign: "left", cursor: "pointer", marginTop: 8, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <IconBox icon={Heart} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 16.5, fontWeight: 500, color: T.ink }}>{content.title || "Amigas"}</div>
+          <div style={{ fontSize: 14, color: T.muted, marginTop: 2, lineHeight: 1.45 }}>{count ? message : content.homeCardText || message}</div>
+        </div>
+        <ChevronRight size={18} style={{ color: T.faint, flexShrink: 0 }} />
+      </div>
+      <ReferralBar count={count} goal={goal} />
+    </button>
+  );
+}
+
+function SectionLabel({ children }) {
+  return <div style={{ ...eyebrow, marginBottom: 10 }}>{children}</div>;
+}
+
+function StepNumber({ n }) {
+  return (
+    <div style={{ width: 30, height: 30, borderRadius: "50%", background: T.accentSoft, color: T.ink, display: "flex", alignItems: "center", justifyContent: "center", ...T.title, fontSize: 15, flexShrink: 0 }}>{n}</div>
+  );
+}
+
+function ReferralView({ page, info, onBack }) {
+  const { content, goal, count, message } = referralState(info);
+  const [copied, setCopied] = useState(false);
+  const firstName = String(info.name || "").trim().split(/\s+/)[0] || "";
+  const link = `${window.location.origin}${bookingPath(page.brand.slug)}?amiga=${info.code}`;
+  const text = fillText(content.message, { nome: firstName, link });
+  const ladder = content.ladder || [];
+  const validity = parseInt(content.rewardValidityDays, 10) || 0;
+  const used = new Set(info.used || []);
+
+  const rewardBadge = (level, step) => {
+    if (count < level) return null;
+    if (step.permanent) return <Badge strong>Ativo</Badge>;
+    if (used.has(level)) return <Badge>Usado</Badge>;
+    const at = info.qualified?.[level - 1] ? new Date(info.qualified[level - 1]) : null;
+    if (at && validity) {
+      const until = new Date(at.getTime() + validity * 86400000);
+      if (until.getTime() < Date.now()) return <Badge>Expirou</Badge>;
+      return <Badge strong>Guardado até {dayMonth(until)}</Badge>;
+    }
+    return <Badge strong>Guardado</Badge>;
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); } finally { ta.remove(); }
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  const footerLine = (line, i) => {
+    const m = content.instagramUrl && line.match(/@[\w.]+/);
+    if (!m) return <div key={i}>{line}</div>;
+    return (
+      <div key={i}>
+        {line.slice(0, m.index)}
+        <a href={content.instagramUrl} target="_blank" rel="noreferrer" style={{ color: T.ink }}>{m[0]}</a>
+        {line.slice(m.index + m[0].length)}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 26 }}>
+      <div>
+        <BackLink onClick={onBack}>Início</BackLink>
+        {content.kicker && <div style={{ ...eyebrow, letterSpacing: "0.2em", marginBottom: 10 }}>{content.kicker}</div>}
+        <ReferralTitle content={content} />
+        {content.lead && <div style={{ ...T.title, fontWeight: 400, fontStyle: "italic", fontSize: 19, color: T.ink, marginTop: 12, lineHeight: 1.35 }}>{content.lead}</div>}
+        {content.intro && <div style={{ fontSize: 15.5, color: T.muted, marginTop: 10, lineHeight: 1.55 }}>{content.intro}</div>}
+      </div>
+
+      <div style={card}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 12 }}>
+          <span style={eyebrow}>{content.progressLabel || "As tuas amigas"}</span>
+          <span style={{ fontSize: 14.5, color: T.ink, fontWeight: 500 }}>{Math.min(count, goal)} de {goal}</span>
+        </div>
+        <ReferralBar count={count} goal={goal} />
+        {message && <div style={{ fontSize: 15.5, color: T.ink, marginTop: 14, lineHeight: 1.5 }}>{message}</div>}
+        {info.pending > 0 && content.pendingMessage && (
+          <div style={{ fontSize: 14, color: T.muted, marginTop: 8, lineHeight: 1.5 }}>{fillText(content.pendingMessage, { n: info.pending })}</div>
+        )}
+      </div>
+
+      {ladder.length > 0 && (
+        <div>
+          <SectionLabel>{content.ladderTitle || "A escada"}</SectionLabel>
+          {content.ladderLead && <div style={{ fontSize: 15, color: T.muted, marginTop: -4, marginBottom: 12 }}>{content.ladderLead}</div>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {ladder.map((step, i) => {
+              const level = i + 1;
+              const reached = count >= level;
+              return (
+                <div key={level} style={{ ...card, borderColor: reached ? T.accent : T.line }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", ...T.title, fontSize: 16, flexShrink: 0, background: reached ? T.accent : T.soft, color: reached ? T.onAccent : T.muted }}>
+                      {reached ? <Check size={17} strokeWidth={2.2} /> : level}
+                    </div>
+                    <span style={{ ...eyebrow, flex: 1 }}>{step.label}</span>
+                    {rewardBadge(level, step)}
+                  </div>
+                  <div style={{ fontSize: 16.5, fontWeight: 500, color: T.ink, lineHeight: 1.35 }}>{step.title}</div>
+                  {step.text && <div style={{ fontSize: 14.5, color: T.muted, marginTop: 6, lineHeight: 1.5 }}>{step.text}</div>}
+                  {Array.isArray(step.bullets) && step.bullets.length > 0 && (
+                    <ul style={{ margin: "10px 0 0", paddingLeft: 18, display: "flex", flexDirection: "column", gap: 6, fontSize: 14.5, color: T.ink, lineHeight: 1.45 }}>
+                      {step.bullets.map((b) => <li key={b}>{b}</li>)}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {content.friendReward && (
+        <div style={{ ...card, background: T.accentSoft, borderColor: "transparent" }}>
+          <SectionLabel>{content.friendRewardTitle || "A tua amiga recebe"}</SectionLabel>
+          <div style={{ fontSize: 16.5, fontWeight: 500, color: T.ink, lineHeight: 1.35 }}>{content.friendReward.title}</div>
+          {content.friendReward.text && <div style={{ fontSize: 14.5, color: T.ink, marginTop: 6, lineHeight: 1.5 }}>{content.friendReward.text}</div>}
+        </div>
+      )}
+
+      {(content.steps || []).length > 0 && (
+        <div>
+          <SectionLabel>{content.stepsTitle || "Como funciona"}</SectionLabel>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {content.steps.map((st, i) => (
+              <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <StepNumber n={i + 1} />
+                <div style={{ fontSize: 15, color: T.ink, lineHeight: 1.5, paddingTop: 4 }}>{st}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {content.message && (
+        <div>
+          <SectionLabel>{content.messageTitle || "Mensagem pronta"}</SectionLabel>
+          <div style={{ ...card, fontSize: 15, color: T.ink, lineHeight: 1.55, whiteSpace: "pre-line", wordBreak: "break-word" }}>{text}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(text)}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ ...T.body, boxSizing: "border-box", width: "100%", minHeight: 50, borderRadius: 12, background: T.accent, color: T.onAccent, textDecoration: "none", fontSize: 14.5, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+            >
+              <MessageCircle size={18} /> Enviar por WhatsApp
+            </a>
+            <button type="button" onClick={copy} style={{ ...T.body, width: "100%", minHeight: 50, borderRadius: 12, border: `1px solid ${T.ink}`, background: T.surface, color: T.ink, fontSize: 14.5, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              {copied ? <><Check size={17} /> Mensagem copiada</> : <><Copy size={17} /> Copiar mensagem</>}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {(content.rules || []).length > 0 && (
+        <div>
+          <SectionLabel>{content.rulesTitle || "As regras"}</SectionLabel>
+          <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 8, fontSize: 14.5, color: T.muted, lineHeight: 1.5 }}>
+            {content.rules.map((r) => <li key={r}>{r}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {(content.footer || []).length > 0 && (
+        <div style={{ textAlign: "center", fontSize: 14, color: T.faint, lineHeight: 1.7, marginTop: 6 }}>
+          {content.footer.map(footerLine)}
+        </div>
+      )}
     </div>
   );
 }
@@ -937,10 +1177,11 @@ function Portal({ page, style, session }) {
   const qc = useQueryClient();
   const params = new URLSearchParams(window.location.search);
   const [tab, setTabState] = useState(TABS.some((t) => t.key === params.get("tab")) ? params.get("tab") : "home");
-  const [sub, setSub] = useState(null);
+  const [sub, setSub] = useState(params.has("amigas") ? "friends" : null);
   const [paidNotice, setPaidNotice] = useState(params.has("pago"));
   const [skipPhone, setSkipPhone] = useState(false);
   const portalQuery = usePortal(page.brand.id, session, skipPhone);
+  const referralQuery = useReferralData(page.brand.id, !!portalQuery.data && !portalQuery.data.needsPhoneVerification);
   const refresh = () => qc.invalidateQueries({ queryKey: ["client_portal"] });
   const go = (key, subView = null) => { setTabState(key); setSub(subView); };
 
@@ -979,7 +1220,8 @@ function Portal({ page, style, session }) {
           <button type="button" onClick={() => setPaidNotice(false)} style={{ ...linkBtn, color: T.muted, fontSize: 13.5 }}>Fechar</button>
         </div>
       )}
-      {tab === "home" && <HomeTab page={page} style={style} data={data} go={go} />}
+      {tab === "home" && sub === "friends" && referralQuery.data?.enabled && <ReferralView page={page} info={referralQuery.data} onBack={() => setSub(null)} />}
+      {tab === "home" && !(sub === "friends" && referralQuery.data?.enabled) && <HomeTab page={page} style={style} data={data} go={go} referral={referralQuery.data} />}
       {tab === "packs" && <PacksTab page={page} data={data} />}
       {tab === "appointments" && <AppointmentsTab page={page} data={data} mode={sub} setMode={setSub} onBooked={refresh} />}
       {tab === "history" && <HistoryTab data={data} />}

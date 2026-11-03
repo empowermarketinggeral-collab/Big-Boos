@@ -12,6 +12,7 @@ import { MoneyInput, parseMoney, moneyInputValue, ServiceUpsellPicker, useUpsell
 import GoogleCalendarPanel from "./GoogleCalendarPanel.jsx";
 import AgendaCalendar from "./AgendaCalendar.jsx";
 import { ClientAppSection, StripeAccountSection, PacksSection } from "./ClientAppAdmin.jsx";
+import { ReferralSection } from "./ReferralAdmin.jsx";
 import { ArrowLeft, Plus, Trash2, Pencil, Link2, CheckCircle2, Calendar as CalendarIcon, User, History, Upload, CreditCard } from "lucide-react";
 import { useUrlState } from "../../shared/urlState.js";
 
@@ -1401,6 +1402,7 @@ export default function BookingModule({ brand, onBack, session }) {
         {tab === "app" && (
           <>
             <ClientAppSection brand={brand} slug={slug} />
+            <ReferralSection brand={brand} />
             <PacksSection brand={brand} services={servicesQuery.data || []} />
             <PaymentSettingsSection brand={brand} />
             <StripeAccountSection brand={brand} />
