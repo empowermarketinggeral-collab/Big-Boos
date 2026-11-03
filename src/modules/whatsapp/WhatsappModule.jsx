@@ -167,6 +167,14 @@ function useRegisterTwilioTemplate(brandId) {
   });
 }
 
+function useCreateTwilioTemplate(brandId) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload) => invokeFunction("whatsapp-templates", { brandId, action: "create_twilio", ...payload }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["whatsapp_templates", brandId] }),
+  });
+}
+
 function useSubmitTwilioDraft(brandId) {
   const qc = useQueryClient();
   return useMutation({
@@ -425,6 +433,8 @@ function NewTemplateModal({ brandId, provider, onClose }) {
   const [error, setError] = useState("");
   const submitTemplate = useSubmitTemplate(brandId);
   const registerTwilio = useRegisterTwilioTemplate(brandId);
+  const createTwilio = useCreateTwilioTemplate(brandId);
+  const [samples, setSamples] = useState([]);
 
   // {{1}}, {{2}}, ... no texto viram os campos de variável, por ordem.
   const variableCount = (body.match(/\{\{\d+\}\}/g) || []).length;
@@ -435,8 +445,15 @@ function NewTemplateModal({ brandId, provider, onClose }) {
     if (!name.trim()) { setError("Dá um nome ao template."); return; }
     try {
       if (provider === "twilio") {
-        if (!twilioContentSid.trim()) { setError("Cola o Content SID gerado pela Twilio."); return; }
-        await registerTwilio.mutateAsync({ name: name.trim(), language, twilioContentSid: twilioContentSid.trim(), body: body.trim(), variables });
+        if (twilioContentSid.trim()) {
+          // Já criado e aprovado na Twilio: só regista o Content SID.
+          await registerTwilio.mutateAsync({ name: name.trim(), language, twilioContentSid: twilioContentSid.trim(), body: body.trim(), variables });
+        } else {
+          // Escrito aqui: a app cria-o na Twilio e pede a aprovação ao WhatsApp.
+          if (!body.trim()) { setError("Escreve o texto do template."); return; }
+          if (samples.slice(0, variableCount).filter((v) => String(v || "").trim()).length < variableCount) { setError("Escreve um exemplo para cada variável (o WhatsApp pede-os para aprovar)."); return; }
+          await createTwilio.mutateAsync({ name: name.trim(), language, category, body: body.trim(), variables, samples: samples.slice(0, variableCount).map((v) => String(v).trim()) });
+        }
       } else {
         if (!body.trim()) { setError("Escreve o texto do template."); return; }
         await submitTemplate.mutateAsync({ name: name.trim(), language, category, body: body.trim(), variables });
@@ -447,14 +464,14 @@ function NewTemplateModal({ brandId, provider, onClose }) {
     }
   };
 
-  const isPending = submitTemplate.isPending || registerTwilio.isPending;
+  const isPending = submitTemplate.isPending || registerTwilio.isPending || createTwilio.isPending;
 
   return (
     <Modal title="Novo template" onClose={onClose} width={460}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {provider === "twilio" ? (
           <div style={{ ...sans, fontSize: 13.5, color: c.mist, lineHeight: 1.6, background: c.paper, borderRadius: 6, padding: 12 }}>
-            Esta marca está ligada via Twilio — cria e aprova o template no <strong>Content Template Builder</strong> da Twilio primeiro, depois cola aqui o <strong>Content SID</strong> (começa por "HX…") que ele gera.
+            Escreva o texto e carregue em "Submeter para aprovação": a app cria o template na Twilio e pede a aprovação ao WhatsApp (demora de minutos a 1 dia; use o botão de atualizar para ver o estado). Use <code>{"{{1}}"}</code>, <code>{"{{2}}"}</code>… onde quiser variáveis. Se já criou o template na Twilio, basta colar o Content SID (começa por "HX").
           </div>
         ) : (
           <div style={{ ...sans, fontSize: 13.5, color: c.mist, lineHeight: 1.6, background: c.paper, borderRadius: 6, padding: 12 }}>
@@ -469,7 +486,7 @@ function NewTemplateModal({ brandId, provider, onClose }) {
           <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Idioma</div>
           <input style={inputStyle} value={language} onChange={(e) => setLanguage(e.target.value)} placeholder="pt_PT" />
         </div>
-        {provider !== "twilio" && (
+        {(provider !== "twilio" || !twilioContentSid.trim()) && (
           <div>
             <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Categoria</div>
             <select style={inputStyle} value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -481,17 +498,27 @@ function NewTemplateModal({ brandId, provider, onClose }) {
         )}
         {provider === "twilio" && (
           <div>
-            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Content SID (Twilio)</div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Content SID (opcional, só se já o criou na Twilio)</div>
             <input style={inputStyle} value={twilioContentSid} onChange={(e) => setTwilioContentSid(e.target.value)} placeholder="HX…" />
           </div>
         )}
         <div>
-          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Texto {provider === "twilio" ? "(opcional, só para referência)" : ""}</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Texto {provider === "twilio" && twilioContentSid.trim() ? "(opcional, só para referência)" : ""}</div>
           <textarea rows={4} style={{ ...inputStyle, resize: "vertical" }} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Olá {{1}}, a tua marcação é já amanhã às {{2}}." />
         </div>
+        {provider === "twilio" && !twilioContentSid.trim() && variableCount > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {Array.from({ length: variableCount }, (_, i) => (
+              <div key={i}>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Exemplo para {`{{${i + 1}}}`} (ex: Ana)</div>
+                <input style={inputStyle} value={samples[i] || ""} onChange={(e) => setSamples((prev) => { const next = [...prev]; next[i] = e.target.value; return next; })} />
+              </div>
+            ))}
+          </div>
+        )}
         {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
         <button onClick={submit} disabled={isPending} style={{ ...btnPrimary, width: "fit-content" }}>
-          {isPending ? "A criar…" : provider === "twilio" ? "Registar template" : "Submeter à Meta"}
+          {isPending ? "A enviar…" : provider === "twilio" ? (twilioContentSid.trim() ? "Registar template" : "Submeter para aprovação") : "Submeter à Meta"}
         </button>
       </div>
     </Modal>

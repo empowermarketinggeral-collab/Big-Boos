@@ -39,7 +39,8 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: "Corpo do pedido inválido." }, 400);
   }
-  const { brandId, action } = payload;
+  const { brandId } = payload;
+  let action = payload.action;
   if (!brandId || !action) return json({ error: "Faltam campos obrigatórios." }, 400);
 
   const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
@@ -83,6 +84,27 @@ Deno.serve(async (req) => {
   if (account.provider === "twilio") {
     const twilioAuth = `Basic ${btoa(`${account.twilio_account_sid}:${token}`)}`;
 
+    // Template novo escrito na app: guarda como rascunho e segue logo para a
+    // submissão abaixo (cria o conteúdo na Twilio e pede aprovação ao WhatsApp).
+    // Se a aprovação falhar, fica em rascunho com o botão "Submeter".
+    if (action === "create_twilio") {
+      const { name, language, category, body: text, variables } = payload;
+      if (!name || !String(text || "").trim()) return json({ error: "Falta o nome ou o texto do template." }, 400);
+      if (!/^[a-z0-9_]{1,512}$/.test(name)) return json({ error: "O nome só pode ter letras minúsculas, números e _ (sem espaços nem acentos)." }, 400);
+      const { data: created, error: createError } = await adminClient.from("whatsapp_templates").insert({
+        brand_id: brandId,
+        name,
+        language: language || "pt_PT",
+        category: category || "MARKETING",
+        body: String(text).trim(),
+        variables: Array.isArray(variables) ? variables : [],
+        status: "draft",
+      }).select("id").single();
+      if (createError) return json({ error: createError.message }, 500);
+      payload.templateId = created.id;
+      action = "submit_twilio";
+    }
+
     // Submete um template guardado em rascunho (ex.: criado por migração).
     if (action === "submit_twilio") {
       const { templateId } = payload;
@@ -98,7 +120,7 @@ Deno.serve(async (req) => {
       if (!tpl.body) return json({ error: "O template não tem texto." }, 400);
 
       // Valores de exemplo exigidos pelo WhatsApp para cada {{n}}.
-      const samples = Array.isArray(tpl.variables) ? tpl.variables : [];
+      const samples = Array.isArray(payload.samples) && payload.samples.length ? payload.samples : Array.isArray(tpl.variables) ? tpl.variables : [];
       const variables = {};
       for (const m of tpl.body.matchAll(/\{\{(\d+)\}\}/g)) {
         const n = m[1];
