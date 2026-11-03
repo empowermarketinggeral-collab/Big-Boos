@@ -15,6 +15,12 @@ const now = new Date();
 const iso = (days = 0) => new Date(now.getTime() + days * 86400000).toISOString();
 const day = (days = 0) => iso(days).slice(0, 10);
 
+const REFERRAL_CONTENT = {"kicker": "Dreams Studio", "title": "Amigas Dreams", "titleHighlight": "Dreams", "lead": "A beleza começa por ouvir. E passa de amiga para amiga.", "intro": "Cada amiga que vier pela primeira vez por indicação tua dá-te um mimo. E ela também recebe o dela.", "goal": 3, "progressLabel": "As tuas amigas", "progressMessages": ["Falta 1 amiga para o teu spa de mãos com parafina.", "Já tens o teu spa de mãos guardado. Mais 1 amiga e ganhas a consulta de visagismo + hidratação.", "Mais 1 amiga e passas a Cliente VIP Dreams.", "És Cliente VIP Dreams. Obrigada por partilhares o Studio."], "pendingMessage": "{{n}} amiga(s) já marcou. Conta quando fizer o primeiro serviço de cabelo.", "ladderTitle": "A escada", "ladderLead": "Quanto mais partilhas, mais te mimamos.", "ladder": [{"label": "1.ª amiga", "title": "Spa de mãos com hidratação de parafina", "text": "Mãos macias, unhas cuidadas e um momento só teu."}, {"label": "2.ª amiga", "title": "Consulta de visagismo + hidratação ao cabelo", "text": "Olhamos para o teu rosto e os teus traços para perceber o que te valoriza."}, {"label": "3.ª amiga e seguintes", "title": "Passas a Cliente VIP Dreams", "permanent": true, "bullets": ["Tratamento de reconstrução oferecido em cada cor, madeixas ou balayage", "Finalização premium oferecida quando subires de serviço", "Consulta de visagismo sempre que quiseres mudar", "Vagas reservadas às sextas, sábados e em dezembro", "Mimo de aniversário: hidratação + spa de mãos"]}], "friendRewardTitle": "A tua amiga recebe", "friendReward": {"title": "Mini consulta de visagismo + hidratação", "text": "Na primeira visita de cabelo, por nossa conta. Só tem de dizer o teu nome ao marcar."}, "stepsTitle": "Como funciona", "steps": ["Envia à tua amiga a mensagem pronta, aqui em baixo.", "Ela marca a primeira visita de cabelo e diz que vem da tua parte.", "Quando ela fizer o primeiro serviço, o teu mimo fica guardado aqui na app."], "messageTitle": "Mensagem pronta", "message": "Olá! A {{nome}} recomendou-te o Dreams Studio (Rua de Cervantes 587, Porto). Na tua primeira visita de cabelo, a mini consulta de visagismo e a hidratação são por nossa conta. Marca aqui e diz que vens da parte da {{nome}}: {{link}}", "rulesTitle": "As regras, em poucas palavras", "rules": ["A amiga conta quando faz o primeiro serviço de cabelo — marcar ainda não chega.", "Válido só para amigas que nunca vieram ao Dreams Studio.", "Cada mimo é usado numa visita com serviço de cabelo, até 90 dias depois.", "Os mimos são serviços oferecidos: não se trocam por dinheiro nem descontos."], "footer": ["Patrícia Melo · cabeleireira — @dreams.studio", "Rua de Cervantes 587, 4050-188 Porto"], "instagramUrl": "https://www.instagram.com/dreams.studio/", "bookingBanner": "Vens da parte da {{nome}}. Na tua primeira visita de cabelo, a mini consulta de visagismo e a hidratação são por nossa conta.", "homeCardText": "Partilha o Studio com as tuas amigas e ganha mimos.", "qualifyingCategory": "Cabelo", "rewardValidityDays": 90};
+const REFERRAL = {
+  enabled: true, content: REFERRAL_CONTENT, code: "ab12cd34", name: "Ana Silva",
+  qualified: [new Date(now.getTime() - 20 * 86400000).toISOString()], pending: 1, used: [],
+};
+
 const FIXTURES = {
   profiles: [{ id: USER_ID, name: "Ana Silva", email: "ana@empower.pt", role: "admin_geral", agency_id: AGENCY_ID, brand_ids: [], avatar_url: null }],
   agencies: [{ id: AGENCY_ID, name: "Empower Marketing", is_root: true }],
@@ -23,6 +29,7 @@ const FIXTURES = {
     { id: B2, agency_id: AGENCY_ID, name: "WingCare", logo_url: null, goal: "Captar alunas para as formações e vender dermocosmética.", category: "estetica", status: "yellow", contract_scope: "CRM e automações", brand_book: {}, enabled_modules: [], booking_slug: null },
     { id: B3, agency_id: AGENCY_ID, name: "Barbearia Nobre", logo_url: null, goal: "Mais marcações online e menos faltas.", category: "barbearia", status: "red", contract_scope: "Agendamento e SMS", brand_book: {}, enabled_modules: [], booking_slug: null },
   ],
+  referral_programs: [{ brand_id: B1, enabled: true, content: REFERRAL_CONTENT }],
   sms_accounts: [{ id: "sa1", brand_id: B1, account_sid: "AC000", from_number: "+351900000000", status: "connected" }],
   sms_campaigns: [
     { id: "sc1", brand_id: B1, name: "Promoção de novembro", body: "Olá {{primeiro_nome|}}, temos novidades.", status: "draft", created_at: iso(-1) },
@@ -203,6 +210,9 @@ export const supabase = {
     }
     if (name === "booking_public_page") return Promise.resolve({ data: args.p_slug === "aurora" ? PUBLIC_PAGE : null, error: null });
     if (name === "client_portal_data") return Promise.resolve({ data: PORTAL, error: null });
+    if (name === "client_referral_data") return Promise.resolve({ data: REFERRAL, error: null });
+    if (name === "referral_public_info") return Promise.resolve({ data: args.p_code === "ab12cd34" ? { referrerFirstName: "Ana", bookingBanner: REFERRAL_CONTENT.bookingBanner } : null, error: null });
+    if (name === "referral_team_overview") return Promise.resolve({ data: [{ id: "c1", name: "Marta Ferreira", phone: null, qualified: 2, pending: 1, friends: [{ name: "Rita Almeida", qualified_at: iso(-20) }, { name: "Joana", qualified_at: iso(-3) }, { name: "Sofia", qualified_at: null }], used: [{ level: 1, used_at: iso(-5) }] }], error: null });
     return Promise.resolve({ data: /^(can_|is_)/.test(name) ? true : null, error: null });
   },
   channel: () => channelStub,

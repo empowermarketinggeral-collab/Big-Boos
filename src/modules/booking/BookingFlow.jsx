@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import { invokeFunction } from "../../lib/supabaseClient.js";
+import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
 import { c } from "../../shared/theme.jsx";
-import { Check, Search, ChevronLeft, Plus, X } from "lucide-react";
+import { Check, Search, ChevronLeft, Plus, X, Heart } from "lucide-react";
 import { T, money, priceLabel, durationLabel, packFitsService, capitalize } from "./publicBooking.js";
 
 /* ---------------------------------------------------------
@@ -125,6 +125,35 @@ function ServicePicker({ services, onPick }) {
   );
 }
 
+// Link de uma amiga (?amiga=<código>): mostra de quem vem e envia o código
+// ao marcar (booking-create liga a ficha à amiga se for a primeira visita).
+// Dentro da app (cliente com sessão) não se aplica.
+function useReferral(page, client) {
+  const [referral, setReferral] = useState(null);
+  useEffect(() => {
+    if (client || typeof window === "undefined") return;
+    const code = (new URLSearchParams(window.location.search).get("amiga") || "").trim().toLowerCase();
+    if (!/^[a-z0-9]{4,32}$/.test(code) || !page?.brand?.slug) return;
+    let active = true;
+    supabase.rpc("referral_public_info", { p_slug: page.brand.slug, p_code: code }).then(({ data }) => {
+      if (active && data?.referrerFirstName) setReferral({ code, ...data });
+    });
+    return () => { active = false; };
+  }, [client, page?.brand?.slug]);
+  return referral;
+}
+
+function ReferralBanner({ referral }) {
+  if (!referral) return null;
+  const text = String(referral.bookingBanner || "Vens da parte da {{nome}}.").split("{{nome}}").join(referral.referrerFirstName);
+  return (
+    <div style={{ ...T.body, display: "flex", gap: 12, alignItems: "flex-start", background: T.accentSoft, borderRadius: 14, padding: "14px 16px", marginBottom: 18, fontSize: 15, color: T.ink, lineHeight: 1.5 }}>
+      <Heart size={18} style={{ color: T.accent, flexShrink: 0, marginTop: 2 }} />
+      <span>{text}</span>
+    </div>
+  );
+}
+
 export default function BookingFlow({ page, client, returnUrl, onBooked }) {
   const { brand, services = [], staff = [], upsells: allUpsells = [], deposit } = page;
 
@@ -144,6 +173,7 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const referral = useReferral(page, client);
 
   const service = services.find((s) => s.id === serviceId);
   const extras = extraIds.map((id) => services.find((s) => s.id === id)).filter(Boolean);
@@ -219,6 +249,7 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
       const result = await invokeFunction("booking-create", {
         brandId: brand.id, serviceId, extraServiceIds: extraIds, staffId, startsAt: chosenSlot, upsellIds: selectedUpsellIds, options,
         clientPackId: packId || undefined,
+        referralCode: referral?.code || undefined,
         name: name.trim(), phone: phone.trim(), email: email.trim(),
         successUrl: returnUrl ? `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}pago=1` : undefined,
         cancelUrl: returnUrl,
@@ -242,6 +273,7 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
   if (!service) {
     return (
       <div>
+        <ReferralBanner referral={referral} />
         <div style={label}>Escolha o serviço</div>
         <ServicePicker services={services} onPick={setServiceId} />
       </div>
@@ -250,6 +282,7 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 26, ...T.body }}>
+      <ReferralBanner referral={referral} />
       <div>
         <button type="button" onClick={() => setServiceId("")} style={{ ...T.body, display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", padding: 0, cursor: "pointer", color: T.muted, fontSize: 14, marginBottom: 12 }}>
           <ChevronLeft size={16} /> Outro serviço
