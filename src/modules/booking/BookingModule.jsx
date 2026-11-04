@@ -280,11 +280,16 @@ function useSaveReminderSetting(brandId) {
   });
 }
 
+// Endereço da página (/agendar/<slug>, /app/<slug>): minúsculas, sem acentos nem espaços.
+const toSlug = (v) => String(v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+
 function useUpdateBookingSlug(brandId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (slug) => {
-      const { error } = await supabase.from("brands").update({ booking_slug: slug }).eq("id", brandId);
+      const clean = toSlug(slug);
+      if (!clean) throw new Error("Escreva um nome para o endereço (letras e números).");
+      const { error } = await supabase.from("brands").update({ booking_slug: clean }).eq("id", brandId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["brand_booking_slug", brandId] }),
@@ -1365,7 +1370,7 @@ export default function BookingModule({ brand, onBack, session }) {
           </button>
         ) : (
           <>
-            <input style={{ ...inputStyle, maxWidth: 220 }} value={slugInput} onChange={(e) => setSlugInput(e.target.value)} placeholder="nome-da-marca" />
+            <input style={{ ...inputStyle, maxWidth: 220 }} value={slugInput} onChange={(e) => setSlugInput(e.target.value.toLowerCase().replace(/\s+/g, "-"))} placeholder="nome-da-marca" />
             <button onClick={() => effectiveSlug && updateSlug.mutate(effectiveSlug)} disabled={!effectiveSlug || updateSlug.isPending} style={btnPrimary}>
               {updateSlug.isPending ? "A guardar…" : "Ativar link"}
             </button>
