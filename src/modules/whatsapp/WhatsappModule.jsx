@@ -443,6 +443,9 @@ function NewTemplateModal({ brandId, provider, onClose }) {
   const registerTwilio = useRegisterTwilioTemplate(brandId);
   const createTwilio = useCreateTwilioTemplate(brandId);
   const [samples, setSamples] = useState([]);
+  const [footer, setFooter] = useState("");
+  const [buttonText, setButtonText] = useState("");
+  const [buttonUrl, setButtonUrl] = useState("");
 
   // {{1}}, {{2}}, ... no texto viram os campos de variável, por ordem.
   const variableCount = (body.match(/\{\{\d+\}\}/g) || []).length;
@@ -459,8 +462,9 @@ function NewTemplateModal({ brandId, provider, onClose }) {
         } else {
           // Escrito aqui: a app cria-o na Twilio e pede a aprovação ao WhatsApp.
           if (!body.trim()) { setError("Escreve o texto do template."); return; }
+          if (buttonText.trim() && !/^https:\/\/\S+$/i.test(buttonUrl.trim())) { setError("O link do botão tem de começar por https://"); return; }
           if (samples.slice(0, variableCount).filter((v) => String(v || "").trim()).length < variableCount) { setError("Escreve um exemplo para cada variável (o WhatsApp pede-os para aprovar)."); return; }
-          await createTwilio.mutateAsync({ name: name.trim(), language, category, body: body.trim(), variables, samples: samples.slice(0, variableCount).map((v) => String(v).trim()) });
+          await createTwilio.mutateAsync({ name: name.trim(), language, category, body: body.trim(), variables, samples: samples.slice(0, variableCount).map((v) => String(v).trim()), footer: footer.trim(), buttonText: buttonText.trim(), buttonUrl: buttonUrl.trim() });
         }
       } else {
         if (!body.trim()) { setError("Escreve o texto do template."); return; }
@@ -522,6 +526,24 @@ function NewTemplateModal({ brandId, provider, onClose }) {
                 <input style={inputStyle} value={samples[i] || ""} onChange={(e) => setSamples((prev) => { const next = [...prev]; next[i] = e.target.value; return next; })} />
               </div>
             ))}
+          </div>
+        )}
+        {provider === "twilio" && !twilioContentSid.trim() && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div>
+              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Rodapé (opcional, texto pequeno no fim)</div>
+              <input style={inputStyle} value={footer} maxLength={60} onChange={(e) => setFooter(e.target.value)} placeholder="Obrigada por estares connosco." />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "var(--bb-split, minmax(0, 1fr) minmax(0, 2fr))", gap: 8 }}>
+              <div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Botão (opcional)</div>
+                <input style={inputStyle} value={buttonText} maxLength={25} onChange={(e) => setButtonText(e.target.value)} placeholder="Marcar agora" />
+              </div>
+              <div>
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Link do botão</div>
+                <input style={inputStyle} value={buttonUrl} onChange={(e) => setButtonUrl(e.target.value.trim())} placeholder="https://…" />
+              </div>
+            </div>
           </div>
         )}
         {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
