@@ -39,7 +39,8 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: "Corpo do pedido inválido." }, 400);
   }
-  const { brandId, action } = payload;
+  const { brandId } = payload;
+  let action = payload.action;
   if (!brandId || !action) return json({ error: "Faltam campos obrigatórios." }, 400);
 
   const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
@@ -83,6 +84,77 @@ Deno.serve(async (req) => {
   if (account.provider === "twilio") {
     const twilioAuth = `Basic ${btoa(`${account.twilio_account_sid}:${token}`)}`;
 
+    // Importa da Twilio todos os templates (Content API) com o estado de
+    // aprovação do WhatsApp. Os que já cá estão (mesmo Content SID) são
+    // atualizados; os novos são criados. Nada é apagado.
+    if (action === "import_twilio") {
+      const STATUS = { approved: "approved", rejected: "rejected", paused: "rejected", disabled: "rejected", pending: "pending", received: "pending", unsubmitted: "draft" };
+      const CATEGORIES = ["MARKETING", "UTILITY", "AUTHENTICATION"];
+      const { data: existingRows } = await adminClient.from("whatsapp_templates").select("id, twilio_content_sid").eq("brand_id", brandId).not("twilio_content_sid", "is", null);
+      const existing = new Map((existingRows || []).map((r) => [r.twilio_content_sid, r.id]));
+
+      let url = "https://content.twilio.com/v1/ContentAndApprovals?PageSize=100";
+      let imported = 0, updated = 0, pages = 0;
+      while (url && pages < 20) {
+        pages++;
+        const res = await fetch(url, { headers: { Authorization: twilioAuth } });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return json({ error: data?.message || "A Twilio não devolveu os templates." }, 502);
+
+        for (const ct of data.contents || []) {
+          if (!ct?.sid) continue;
+          const types = ct.types || {};
+          // O texto está no tipo principal (texto, botões, cartão, multimédia…).
+          const main = types["twilio/text"] || types["twilio/quick-reply"] || types["twilio/call-to-action"] || types["twilio/media"] || types["twilio/list-picker"] || types["twilio/card"] || types["whatsapp/card"] || Object.values(types)[0] || {};
+          const body = String(main.body || main.title || "").trim();
+          const varKeys = Object.keys(ct.variables || {}).filter((k) => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b));
+          const variables = varKeys.map((k) => `variável ${k}`);
+          const approval = ct.approval_requests || {};
+          const status = STATUS[String(approval.status || "unsubmitted").toLowerCase()] || "pending";
+          const category = CATEGORIES.includes(String(approval.category || "").toUpperCase()) ? String(approval.category).toUpperCase() : "MARKETING";
+          const row = {
+            name: String(approval.name || ct.friendly_name || ct.sid).toLowerCase().slice(0, 512),
+            language: ct.language || "pt_PT",
+            category,
+            body,
+            variables,
+            status,
+          };
+          const id = existing.get(ct.sid);
+          if (id) {
+            const { error } = await adminClient.from("whatsapp_templates").update(row).eq("id", id).eq("brand_id", brandId);
+            if (!error) updated++;
+          } else {
+            const { error } = await adminClient.from("whatsapp_templates").insert({ ...row, brand_id: brandId, twilio_content_sid: ct.sid });
+            if (!error) { imported++; existing.set(ct.sid, true); }
+          }
+        }
+        url = data?.meta?.next_page_url || null;
+      }
+      return json({ ok: true, imported, updated });
+    }
+
+    // Template novo escrito na app: guarda como rascunho e segue logo para a
+    // submissão abaixo (cria o conteúdo na Twilio e pede aprovação ao WhatsApp).
+    // Se a aprovação falhar, fica em rascunho com o botão "Submeter".
+    if (action === "create_twilio") {
+      const { name, language, category, body: text, variables } = payload;
+      if (!name || !String(text || "").trim()) return json({ error: "Falta o nome ou o texto do template." }, 400);
+      if (!/^[a-z0-9_]{1,512}$/.test(name)) return json({ error: "O nome só pode ter letras minúsculas, números e _ (sem espaços nem acentos)." }, 400);
+      const { data: created, error: createError } = await adminClient.from("whatsapp_templates").insert({
+        brand_id: brandId,
+        name,
+        language: language || "pt_PT",
+        category: category || "MARKETING",
+        body: String(text).trim(),
+        variables: Array.isArray(variables) ? variables : [],
+        status: "draft",
+      }).select("id").single();
+      if (createError) return json({ error: createError.message }, 500);
+      payload.templateId = created.id;
+      action = "submit_twilio";
+    }
+
     // Submete um template guardado em rascunho (ex.: criado por migração).
     if (action === "submit_twilio") {
       const { templateId } = payload;
@@ -98,7 +170,7 @@ Deno.serve(async (req) => {
       if (!tpl.body) return json({ error: "O template não tem texto." }, 400);
 
       // Valores de exemplo exigidos pelo WhatsApp para cada {{n}}.
-      const samples = Array.isArray(tpl.variables) ? tpl.variables : [];
+      const samples = Array.isArray(payload.samples) && payload.samples.length ? payload.samples : Array.isArray(tpl.variables) ? tpl.variables : [];
       const variables = {};
       for (const m of tpl.body.matchAll(/\{\{(\d+)\}\}/g)) {
         const n = m[1];
