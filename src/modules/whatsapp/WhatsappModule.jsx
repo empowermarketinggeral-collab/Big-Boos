@@ -175,6 +175,14 @@ function useCreateTwilioTemplate(brandId) {
   });
 }
 
+function useImportTwilioTemplates(brandId) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => invokeFunction("whatsapp-templates", { brandId, action: "import_twilio" }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["whatsapp_templates", brandId] }),
+  });
+}
+
 function useSubmitTwilioDraft(brandId) {
   const qc = useQueryClient();
   return useMutation({
@@ -530,8 +538,20 @@ function TemplatesPanel({ brandId, provider }) {
   const checkStatus = useCheckTemplateStatus(brandId);
   const submitDraft = useSubmitTwilioDraft(brandId);
   const deleteTemplate = useDeleteTemplate(brandId);
+  const importTwilio = useImportTwilioTemplates(brandId);
   const [showNew, setShowNew] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [importNote, setImportNote] = useState("");
+
+  const runImport = async () => {
+    setActionError(""); setImportNote("");
+    try {
+      const res = await importTwilio.mutateAsync();
+      setImportNote(res.imported || res.updated ? `${res.imported} novo(s) e ${res.updated} atualizado(s) da Twilio.` : "Não há templates na Twilio para importar.");
+    } catch (err) {
+      setActionError(err.message || "Não foi possível importar da Twilio.");
+    }
+  };
 
   const runAction = async (mutation, id) => {
     setActionError("");
@@ -546,13 +566,21 @@ function TemplatesPanel({ brandId, provider }) {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
         <div style={{ ...serif, fontSize: 17, color: c.ink }}>Templates</div>
-        <button onClick={() => setShowNew(true)} style={btnPrimary}>
-          <Plus size={14} /> Novo template
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {provider === "twilio" && (
+            <button onClick={runImport} disabled={importTwilio.isPending} style={{ ...btnGhost, display: "flex", alignItems: "center", gap: 6 }}>
+              <RefreshCw size={14} /> {importTwilio.isPending ? "A importar…" : "Importar da Twilio"}
+            </button>
+          )}
+          <button onClick={() => setShowNew(true)} style={btnPrimary}>
+            <Plus size={14} /> Novo template
+          </button>
+        </div>
       </div>
       {actionError && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 10 }}>{actionError}</div>}
+      {importNote && <div style={{ ...sans, fontSize: 14, color: c.sage, marginBottom: 10 }}>{importNote}</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {templates.map((tpl) => (
           <div key={tpl.id} style={{ display: "flex", alignItems: "center", gap: 14, background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "14px 18px" }}>
