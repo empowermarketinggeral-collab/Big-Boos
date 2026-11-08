@@ -28,6 +28,7 @@ import AgencyBillingModule from "./modules/billing/AgencyBillingModule.jsx";
 import ContractsModule from "./modules/contracts/ContractsModule.jsx";
 import BrandContractsModule from "./modules/contracts/BrandContractsModule.jsx";
 import CreativesModule from "./modules/creatives/CreativesModule.jsx";
+import GrowthMapModule from "./modules/growthmap/GrowthMapModule.jsx";
 import BirthdaysModule from "./modules/birthdays/BirthdaysModule.jsx";
 import PaymentReminderBanner from "./modules/billing/PaymentReminderBanner.jsx";
 import ThemeToggle from "./design/ThemeToggle.jsx";
@@ -193,7 +194,7 @@ const STRINGS = {
   "module.roteiros.sub": { pt: "Roteiros de vídeo", en: "Video scripts" },
   "module.stories": { pt: "Cronograma de Stories", en: "Stories Schedule" },
   "module.stories.sub": { pt: "Planeamento semanal", en: "Weekly planning" },
-  "module.plano": { pt: "Plano Estratégico", en: "Strategic Plan" },
+  "module.plano": { pt: "Mapa de Crescimento", en: "Growth Map" },
   "module.plano.sub": { pt: "Fases e tarefas", en: "Phases and tasks" },
   "module.dashboards": { pt: "Dashboards", en: "Dashboards" },
   "module.dashboards.sub": { pt: "Performance da marca", en: "Brand performance" },
@@ -2292,11 +2293,9 @@ const MODULE_GROUPS = [
     key: "conteudo",
     label: "Conteúdo",
     modules: [
-      { key: "conteudos", label: "Conteúdos", sub: "Posts e reels — aprovação", icon: FileText },
-      { key: "cronograma-conteudos", label: "Cronograma de Conteúdos", sub: "Planeamento do que vai sair", icon: Calendar },
+      { key: "conteudos", label: "Conteúdos", sub: "Aprovação, calendário e planeamento", icon: FileText },
       { key: "stories", label: "Cronograma de Stories", sub: "Planeamento semanal", icon: Video },
       { key: "roteiros", label: "Roteiros", sub: "Roteiros de vídeo", icon: ClipboardList },
-      { key: "social", label: "Social Media", sub: "Planeador e publicação", icon: Instagram },
       { key: "aniversarios", label: "Aniversários", sub: "Lembretes e lista anual", icon: Cake },
     ],
   },
@@ -2326,7 +2325,7 @@ const MODULE_GROUPS = [
     modules: [
       { key: "brand-book", label: "Brand Book", sub: "Identidade visual e diretrizes", icon: BookOpen },
       { key: "criativos", label: "Criativos", sub: "Opções de design e aprovações", icon: Palette },
-      { key: "plano", label: "Plano Estratégico", sub: "Fases e tarefas", icon: Layers },
+      { key: "plano", label: "Mapa de Crescimento", sub: "Diagnóstico, prioridades e tarefas", icon: Layers },
       { key: "dashboards", label: "Dashboards", sub: "Performance da marca", icon: BarChart3 },
       { key: "billing", label: "Faturação", sub: "Subscrição e faturas de serviços", icon: CreditCard },
       { key: "contratos", label: "Contratos", sub: "PDFs e contratos assinados", icon: FileSignature },
@@ -2929,7 +2928,7 @@ function MarcaDetail({ brand, onBack, sub, onOpenSub, session }) {
     return <RoteirosView brand={brand} onBack={() => onOpenSub(null)} session={session} />;
   }
   if (sub === "plano") {
-    return <PlanoEstrategicoView brand={brand} onBack={() => onOpenSub(null)} session={session} />;
+    return <GrowthMapModule brand={brand} onBack={() => onOpenSub(null)} canManage={CAN_MANAGE_ROLES.includes(session.role)} />;
   }
   if (sub === "dashboards") {
     return <DashboardsView brand={brand} onBack={() => onOpenSub(null)} session={session} />;
@@ -3716,7 +3715,7 @@ function ConteudosView({ brand, onBack, session }) {
       </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-        {[{ key: "lista", label: t("content.viewList") }, { key: "calendario", label: t("content.viewCalendar") }].map((vt) => (
+        {[{ key: "lista", label: t("content.viewList") }, { key: "calendario", label: t("content.viewCalendar") }, { key: "planeamento", label: "Planeamento" }].map((vt) => (
           <button
             key={vt.key}
             onClick={() => setView(vt.key)}
@@ -3739,6 +3738,8 @@ function ConteudosView({ brand, onBack, session }) {
       {!contentsQuery.isLoading && content.length === 0 && view === "lista" && (
         <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>{t("content.empty")}</div>
       )}
+
+      {view === "planeamento" && <CronogramaConteudosView brand={brand} session={session} embedded />}
 
       {view === "calendario" && !contentsQuery.isLoading && (
         <ContentCalendar
@@ -9322,7 +9323,7 @@ function ScheduleDetail({ schedule: initial, onBack, brandId, canManage }) {
   );
 }
 
-function CronogramaConteudosView({ brand, onBack, session }) {
+function CronogramaConteudosView({ brand, onBack, session, embedded }) {
   const [openId, setOpenId] = useState(null);
   const canManage = CAN_MANAGE_ROLES.includes(session.role);
   const schedulesQuery = useContentSchedules(brand.id, true);
@@ -9343,13 +9344,14 @@ function CronogramaConteudosView({ brand, onBack, session }) {
   }
 
   return (
-    <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
-        <ArrowLeft size={14} /> {brand.name}
-      </button>
-      <Eyebrow>Cronograma de Conteúdos</Eyebrow>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <h1 style={{ ...display, fontSize: 27,  color: c.ink, margin: 0 }}>Planeamento do que vai sair</h1>
+    <div className={embedded ? undefined : "bb-page"} style={embedded ? undefined : { padding: "8px 40px 60px", maxWidth: 1040 }}>
+      {!embedded && (
+        <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 20 }}>
+          <ArrowLeft size={14} /> {brand.name}
+        </button>
+      )}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+        {embedded ? <div style={{ ...serif, fontSize: 17, color: c.ink }}>Planeamento do que vai sair</div> : <h1 style={{ ...display, fontSize: 27,  color: c.ink, margin: 0 }}>Planeamento do que vai sair</h1>}
         {canManage && (
           <button
             onClick={createSchedule}
@@ -9361,7 +9363,7 @@ function CronogramaConteudosView({ brand, onBack, session }) {
         )}
       </div>
       <div style={{ ...sans, fontSize: 14, color: c.mist, marginBottom: 24, maxWidth: 600, lineHeight: 1.6 }}>
-        Distinto de "Conteúdos" (que é aprovação) — aqui planeias o que ainda vai ser criado: o foco do período, ações específicas, e as ideias de conteúdo semana a semana.
+        Aqui planeia-se o que ainda vai ser criado: o foco do período, ações específicas e as ideias de conteúdo semana a semana. A aprovação das peças é na Lista e no Calendário.
       </div>
 
       {schedulesQuery.isLoading && <div style={{ ...sans, fontSize: 14.5, color: c.mist }}>A carregar…</div>}
