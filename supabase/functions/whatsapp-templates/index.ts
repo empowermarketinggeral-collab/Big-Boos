@@ -24,6 +24,15 @@ function json(body, status = 200) {
 
 const META_STATUS_MAP = { APPROVED: "approved", PENDING: "pending", REJECTED: "rejected" };
 
+// Tipo de conteúdo da Twilio: só texto, texto com botão (call-to-action) ou
+// cartão (texto + rodapé, com ou sem botão).
+function contentTypes(body, layout) {
+  const actions = layout.buttonText && layout.buttonUrl ? [{ type: "URL", title: layout.buttonText, url: layout.buttonUrl }] : [];
+  if (layout.footer) return { "twilio/card": { title: body, subtitle: layout.footer, ...(actions.length ? { actions } : {}) } };
+  if (actions.length) return { "twilio/call-to-action": { body, actions } };
+  return { "twilio/text": { body } };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -140,6 +149,14 @@ Deno.serve(async (req) => {
     if (action === "create_twilio") {
       const { name, language, category, body: text, variables } = payload;
       if (!name || !String(text || "").trim()) return json({ error: "Falta o nome ou o texto do template." }, 400);
+      // Rodapé e botão com link (opcionais).
+      const layout = {
+        footer: String(payload.footer || "").trim().slice(0, 60),
+        buttonText: String(payload.buttonText || "").trim().slice(0, 25),
+        buttonUrl: String(payload.buttonUrl || "").trim(),
+      };
+      if (layout.buttonText && !/^https:\/\/\S+$/i.test(layout.buttonUrl)) return json({ error: "O link do botão tem de começar por https://" }, 400);
+      if (!layout.buttonText) layout.buttonUrl = "";
       if (!/^[a-z0-9_]{1,512}$/.test(name)) return json({ error: "O nome só pode ter letras minúsculas, números e _ (sem espaços nem acentos)." }, 400);
       const { data: created, error: createError } = await adminClient.from("whatsapp_templates").insert({
         brand_id: brandId,
@@ -148,6 +165,7 @@ Deno.serve(async (req) => {
         category: category || "MARKETING",
         body: String(text).trim(),
         variables: Array.isArray(variables) ? variables : [],
+        layout,
         status: "draft",
       }).select("id").single();
       if (createError) return json({ error: createError.message }, 500);
@@ -161,7 +179,7 @@ Deno.serve(async (req) => {
       if (!templateId) return json({ error: "Falta o templateId." }, 400);
       const { data: tpl } = await adminClient
         .from("whatsapp_templates")
-        .select("id, name, language, category, body, variables, status, twilio_content_sid")
+        .select("id, name, language, category, body, variables, status, twilio_content_sid, layout")
         .eq("id", templateId)
         .eq("brand_id", brandId)
         .maybeSingle();
@@ -186,7 +204,7 @@ Deno.serve(async (req) => {
             friendly_name: tpl.name,
             language: tpl.language || "pt_PT",
             variables,
-            types: { "twilio/text": { body: tpl.body } },
+            types: contentTypes(tpl.body, tpl.layout || {}),
           }),
         });
         const created = await createRes.json();
