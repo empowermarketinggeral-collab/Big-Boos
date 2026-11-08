@@ -8,7 +8,7 @@ Papéis em `profiles.role`: `admin_geral` (vê tudo), `membro` (equipa da agênc
 
 ## Como o utilizador faz deploy (importante)
 - **Frontend**: commit + push para `main` → Vercel. Só faz commit/push depois de o utilizador dizer que sim.
-- **SQL**: migrações numeradas em `supabase/NN_nome.sql` (a próxima é a 100 — há uma sessão em paralelo a mexer no mesmo repositório; confirma sempre o `ls supabase/*.sql` antes de escrever, porque este número pode já estar desatualizado). O utilizador cola-as à mão no SQL Editor do Supabase, por ordem. Escreve sempre migrações que se possam correr uma vez e diz-lhe o que correr.
+- **SQL**: migrações numeradas em `supabase/NN_nome.sql` (a próxima é a 101 — há uma sessão em paralelo a mexer no mesmo repositório; confirma sempre o `ls supabase/*.sql` antes de escrever, porque este número pode já estar desatualizado). O utilizador cola-as à mão no SQL Editor do Supabase, por ordem. Escreve sempre migrações que se possam correr uma vez e diz-lhe o que correr.
 - **Edge Functions**: o utilizador cola o código no Dashboard do Supabase, função a função. Por isso **cada `supabase/functions/<nome>/index.ts` tem de ser autossuficiente** — sem imports de pastas partilhadas (`_shared` não funciona). A duplicação de código entre funções é aceite de propósito.
 - Ao entregar funções alteradas, dá o código completo (ou envia os ficheiros) e diz se "Verify JWT" fica ligado. Desligado só em: webhooks (`stripe-webhook`, `twilio-whatsapp-webhook`, `whatsapp-webhook`, `lead-intake` — este autentica com token por marca), `agency-signup`, funções chamadas por cron e páginas públicas de marcação.
 - Segredos globais (ex: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) vivem em Edge Function Secrets (`Deno.env.get`). Segredos por marca (tokens Twilio/Meta/Resend/redes sociais) vão para o Vault via `vault_upsert_secret` e guarda-se só a referência na tabela.
@@ -83,6 +83,11 @@ WhatsApp via Meta direta ou Twilio (`whatsapp_accounts.provider`); o utilizador 
 - Redes sociais/Outro: conteúdo `{pieces:[{id, type:"single"|"carousel", paths}]}` (versões antigas `{images}` leem-se como peças simples, `galleryPieces`). Carrossel = várias imagens numa peça, vista a deslizar. Comentários numa imagem: `creative_comments.target` = caminho do ficheiro (migração 92; `creative-share` confirma que existe na versão).
 - Ficheiros no bucket privado `creatives` (primeiro segmento = id da marca; sempre por URL assinada, nunca públicos). Equipa escreve (`can_manage_brand`); o cliente com login só lê opções que não sejam rascunho.
 - Cliente sem login: link `/criativos/:token` (token em `creative_share_links`, só a equipa o lê; função `creative-share`, JWT desligado) vê só opções enviadas, comenta, aprova ou pede alterações; a equipa recebe notificação (área `criativos`). Os ficheiros finais só saem com a opção aprovada.
+
+## Mapa de Crescimento (substitui o Plano Estratégico)
+- Módulo "Mapa de Crescimento" de cada marca (`src/modules/growthmap/GrowthMapModule.jsx`, chave `plano` no menu, migração 100). Importa o `mapa.json` gerado pela skill "mapa-de-crescimento" (formato `big-boss-mapa` v1, em `docs/FORMATO_MAPA_DE_CRESCIMENTO.md`) para `brand_growth_maps.data`; separadores Prioridades e tarefas, Pesquisa, Posição, O que trava.
+- Cada prioridade vira uma fase em `action_plans` (`details` com período, indicador, meta e causa; tarefas em `goals` [{description, completed}]). Reimportar atualiza a fase com o mesmo nome e mantém as tarefas feitas. Equipa escreve, aprovadores só leem.
+- Conteúdos da marca: "Cronograma de Conteúdos" passou a separador "Planeamento" dentro de Conteúdos; "Social Media" saiu do menu (vai ser substituído pelo Metricool). As rotas antigas continuam a abrir.
 
 ## Aniversários (lembrete para publicar)
 - Módulo "Aniversários" de cada marca (`src/modules/birthdays/`, migração 90): lista anual `brand_birthdays` (nome, dia/mês, ano opcional, n.º de sócio, perfil, observações), importada de CSV exportado do Drive ou colada do Sheets (colunas detetadas e corrigíveis; a lógica pura está em `birthdaysLogic.js`).
