@@ -138,7 +138,27 @@ Deno.serve(async (req) => {
 
   const { data: template } = await adminClient.from("whatsapp_templates").select("id, name, language, twilio_content_sid, status").eq("id", campaign.template_id).eq("brand_id", campaign.brand_id).maybeSingle();
   if (!template) return json({ error: "Template da campanha não encontrado." }, 400);
-  if (template.status !== "approved") return json({ error: "O template desta campanha ainda não foi aprovado." }, 400);
+  // Template ainda não aprovado aqui: pergunta à Twilio se já foi (o estado pode estar atrasado).
+  if (template.status !== "approved" && account.provider === "twilio" && template.twilio_content_sid) {
+    const { data: twToken } = await adminClient.rpc("vault_read_secret", { p_id: account.access_token_ref });
+    if (twToken) {
+      try {
+        const res = await fetch(`https://content.twilio.com/v1/Content/${template.twilio_content_sid}/ApprovalRequests`, {
+          headers: { Authorization: `Basic ${btoa(`${account.twilio_account_sid}:${twToken}`)}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        const st = String(data?.whatsapp?.status || "").toLowerCase();
+        const next = st === "approved" ? "approved" : st === "rejected" ? "rejected" : null;
+        if (next) {
+          await adminClient.from("whatsapp_templates").update({ status: next }).eq("id", template.id);
+          template.status = next;
+        }
+      } catch { /* mantém o estado guardado */ }
+    }
+  }
+  if (template.status === "rejected") return json({ error: "O template desta campanha foi rejeitado pelo WhatsApp. Escolha outro." }, 400);
+  // Ainda à espera: as campanhas agendadas voltam a tentar mais tarde (retryLater).
+  if (template.status !== "approved") return json({ error: "O template desta campanha ainda não foi aprovado.", retryLater: true }, 409);
   if (account.provider === "twilio" && !String(template.twilio_content_sid || "").trim()) return json({ error: "O template não tem o Content SID da Twilio. Volte a registá-lo em WhatsApp, Templates." }, 400);
 
   const { data: token } = await adminClient.rpc("vault_read_secret", { p_id: account.access_token_ref });
