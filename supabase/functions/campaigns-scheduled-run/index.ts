@@ -131,6 +131,15 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // Template de WhatsApp ainda à espera de aprovação: devolve o lote e tenta de novo daqui a 15 minutos.
+      if (res.status === 409 && data?.retryLater && n === 0) {
+        const retryAt = new Date(Date.now() + 15 * 60000);
+        const hhmm = retryAt.toLocaleTimeString("pt-PT", { timeZone: "Europe/Lisbon", hour: "2-digit", minute: "2-digit" });
+        await admin.from(ch.table).update({ scheduled_batch: 0, scheduled_at: retryAt.toISOString(), last_error: `À espera da aprovação do template. Nova tentativa às ${hhmm}.` }).eq("id", cp.id);
+        report.push({ id: cp.id, batch: n, waiting: true });
+        continue;
+      }
+
       if (!res.ok) {
         const reason = data?.error || data?.message || `Erro ${res.status}`;
         if (n === 0) {

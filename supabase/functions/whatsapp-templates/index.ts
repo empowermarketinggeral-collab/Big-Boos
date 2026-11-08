@@ -131,7 +131,8 @@ Deno.serve(async (req) => {
           };
           const id = existing.get(ct.sid);
           if (id) {
-            const { error } = await adminClient.from("whatsapp_templates").update(row).eq("id", id).eq("brand_id", brandId);
+            // Já existe: só o estado de aprovação (texto, nome e variáveis ficam como estão).
+            const { error } = await adminClient.from("whatsapp_templates").update({ status: row.status }).eq("id", id).eq("brand_id", brandId);
             if (!error) updated++;
           } else {
             const { error } = await adminClient.from("whatsapp_templates").insert({ ...row, brand_id: brandId, twilio_content_sid: ct.sid });

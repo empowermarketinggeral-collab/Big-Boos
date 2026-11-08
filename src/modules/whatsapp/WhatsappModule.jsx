@@ -262,7 +262,7 @@ function useWaCampaigns(brandId) {
     queryKey: ["whatsapp_campaigns", brandId],
     enabled: !!brandId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("whatsapp_campaigns").select("*, whatsapp_templates(name)").eq("brand_id", brandId).order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("whatsapp_campaigns").select("*, whatsapp_templates(name, status, variables, body)").eq("brand_id", brandId).order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -565,6 +565,16 @@ function TemplatesPanel({ brandId, provider }) {
   const [actionError, setActionError] = useState("");
   const [importNote, setImportNote] = useState("");
 
+  // Ao abrir os templates de uma conta Twilio, atualiza sozinho os estados
+  // (ex.: aprovado na Twilio mas ainda "a aguardar" aqui).
+  const autoSynced = useRef(false);
+  useEffect(() => {
+    if (provider !== "twilio" || autoSynced.current) return;
+    autoSynced.current = true;
+    importTwilio.mutate(undefined, { onError: () => {} });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider]);
+
   const runImport = async () => {
     setActionError(""); setImportNote("");
     try {
@@ -808,6 +818,8 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
       <div style={{ ...display, fontSize: 24, color: c.ink, marginBottom: 6 }}>{campaign.name}</div>
       <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 20 }}>
         Template: <strong>{template?.name || "—"}</strong>
+        {template?.status === "pending" && " (a aguardar aprovação: pode agendar, só sai depois de aprovado)"}
+        {template?.status === "rejected" && " (rejeitado: escolha outro template)"}
       </div>
 
       {isSent && !isScheduled && (
@@ -860,10 +872,10 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
           )}
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-            <button onClick={() => setShowSend(true)} disabled={recipientIds.length === 0} style={{ ...btnPrimary, display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={() => setShowSend(true)} disabled={recipientIds.length === 0 || (template?.status && template.status !== "approved")} title={template?.status === "pending" ? "O template ainda não foi aprovado. Use Agendar." : undefined} style={{ ...btnPrimary, display: "flex", alignItems: "center", gap: 6 }}>
               <Send size={13} /> Enviar campanha
             </button>
-            <button onClick={() => setShowSchedule(true)} disabled={recipientIds.length === 0} style={{ ...btnGhost, display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={() => setShowSchedule(true)} disabled={recipientIds.length === 0 || template?.status === "rejected"} style={{ ...btnGhost, display: "flex", alignItems: "center", gap: 6 }}>
               <Clock size={13} /> Agendar
             </button>
           </div>
@@ -900,12 +912,14 @@ function NewWaCampaignModal({ brandId, templates, onClose, onCreated }) {
   const [templateId, setTemplateId] = useState("");
   const [error, setError] = useState("");
   const createCampaign = useCreateWaCampaign(brandId);
-  const approvedTemplates = templates.filter((t) => t.status === "approved");
+  // Aprovados e a aguardar aprovação: uma campanha pode ficar agendada com um
+  // template pendente; só sai quando o WhatsApp o aprovar.
+  const approvedTemplates = templates.filter((t) => t.status === "approved" || t.status === "pending");
 
   const submit = async () => {
     setError("");
     if (!name.trim()) { setError("Dá um nome à campanha."); return; }
-    if (!templateId) { setError("Escolhe um template aprovado."); return; }
+    if (!templateId) { setError("Escolhe um template."); return; }
     try {
       const created = await createCampaign.mutateAsync({ name: name.trim(), templateId });
       onCreated(created);
@@ -918,13 +932,16 @@ function NewWaCampaignModal({ brandId, templates, onClose, onCreated }) {
     <Modal title="Nova campanha" onClose={onClose} width={380}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {approvedTemplates.length === 0 && (
-          <div style={{ ...sans, fontSize: 13.5, color: c.rose, lineHeight: 1.6 }}>Ainda não tens nenhum template aprovado.</div>
+          <div style={{ ...sans, fontSize: 13.5, color: c.rose, lineHeight: 1.6 }}>Ainda não tens templates aprovados nem a aguardar aprovação.</div>
         )}
         <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome interno da campanha" autoFocus />
         <select style={inputStyle} value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
-          <option value="">Escolhe um template aprovado</option>
-          {approvedTemplates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          <option value="">Escolhe um template</option>
+          {approvedTemplates.map((t) => <option key={t.id} value={t.id}>{t.name}{t.status === "pending" ? " (a aguardar aprovação)" : ""}</option>)}
         </select>
+        {approvedTemplates.find((t) => t.id === templateId)?.status === "pending" && (
+          <div style={{ ...sans, fontSize: 13, color: c.mist, lineHeight: 1.5 }}>Este template ainda está a aguardar aprovação. Pode agendar a campanha: só sai quando o WhatsApp o aprovar.</div>
+        )}
         {error && <div style={{ ...sans, fontSize: 14, color: c.rose }}>{error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={submit} disabled={createCampaign.isPending} style={btnPrimary}>
