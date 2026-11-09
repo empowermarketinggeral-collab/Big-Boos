@@ -407,10 +407,12 @@ function ConnectWhatsappForm({ brandId }) {
             </div>
           </>
         )}
-        <div>
-          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Número (opcional, só para identificar)</div>
-          <input style={inputStyle} value={displayPhone} onChange={(e) => setDisplayPhone(e.target.value)} placeholder="+351 9XX XXX XXX" />
-        </div>
+        {provider === "meta" && (
+          <div>
+            <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Número (opcional, só para identificar)</div>
+            <input style={inputStyle} value={displayPhone} onChange={(e) => setDisplayPhone(e.target.value)} placeholder="+351 9XX XXX XXX" />
+          </div>
+        )}
         <div>
           <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>{provider === "meta" ? "Token de acesso" : "Auth Token"}</div>
           <input style={inputStyle} type="password" value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder={provider === "meta" ? "Token permanente da Meta" : "Auth Token da Twilio"} />
@@ -1414,7 +1416,21 @@ export default function WhatsappModule({ brand, onBack }) {
               ))}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>{accountQuery.data.display_phone || accountQuery.data.phone_number_id}</div>
+              {accountQuery.data.provider === "twilio" ? (() => {
+                const sending = accountQuery.data.phone_number_id || "";
+                const shown = accountQuery.data.display_phone || "";
+                const differs = shown && shown.replace(/\D/g, "") !== sending.replace(/\D/g, "");
+                return (
+                  <div
+                    title={differs ? `O número guardado para identificar (${shown}) não é o que envia. As mensagens saem do ${sending}. Para trocar, volte a ligar o WhatsApp com o número certo.` : "Número de onde saem as mensagens"}
+                    style={{ ...sans, fontSize: 12.5, color: differs ? c.rose : c.mist, fontWeight: differs ? 600 : 400 }}
+                  >
+                    {differs ? `Envia de ${sending} (não ${shown})` : `Envia de ${sending}`}
+                  </div>
+                );
+              })() : (
+                <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>{accountQuery.data.display_phone || accountQuery.data.phone_number_id}</div>
+              )}
               {accountQuery.data.provider === "twilio" && usageQuery.data && usageQuery.data.numMessages > 0 && (
                 <div style={{ ...sans, fontSize: 12.5, color: c.mist, background: c.paper, borderRadius: 999, padding: "4px 10px" }}>
                   {usageQuery.data.numMessages} msgs, {usageQuery.data.cost.toFixed(2)} {usageQuery.data.currency} (30 dias)

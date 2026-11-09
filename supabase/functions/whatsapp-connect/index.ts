@@ -42,6 +42,15 @@ Deno.serve(async (req) => {
     return json({ error: "Account SID, número de WhatsApp e Auth Token são obrigatórios." }, 400);
   }
 
+  // Twilio: o número de envio fica sempre como +351912345678 (sem "whatsapp:",
+  // espaços ou traços) e é também o número mostrado, para nunca divergirem.
+  let fromNumber = String(phoneNumberId).trim();
+  if (provider === "twilio") {
+    const digits = fromNumber.replace(/^whatsapp:/i, "").replace(/^00/, "").replace(/\D/g, "");
+    if (digits.length < 8) return json({ error: "Número de WhatsApp inválido. Use o formato +351912345678." }, 400);
+    fromNumber = `+${digits}`;
+  }
+
   const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
   const { data: brand, error: brandError } = await userClient.from("brands").select("id").eq("id", brandId).maybeSingle();
   if (brandError || !brand) {
@@ -64,9 +73,9 @@ Deno.serve(async (req) => {
       brand_id: brandId,
       provider,
       waba_id: provider === "meta" ? wabaId : null,
-      phone_number_id: phoneNumberId,
+      phone_number_id: fromNumber,
       twilio_account_sid: provider === "twilio" ? twilioAccountSid : null,
-      display_phone: displayPhone || null,
+      display_phone: provider === "twilio" ? fromNumber : displayPhone || null,
       access_token_ref: secretId,
       status: "connected",
     },
