@@ -136,40 +136,56 @@ const toLocalInput = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2
 export const formatScheduled = (iso) =>
   iso ? new Date(iso).toLocaleString("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
 
-export async function scheduleCampaign(table, campaignId, { at, contactIds, includeWithoutConsent, variableValues }) {
+// pace = { dailyLimit, windowStart, windowEnd } (opcional): máximo por dia e horário, hora de Lisboa.
+export async function scheduleCampaign(table, campaignId, { at, contactIds, includeWithoutConsent, variableValues, pace }) {
   const { error } = await supabase.from(table).update({
     status: "scheduled",
     scheduled_at: at,
     scheduled_batch: 0,
-    scheduled_payload: { contactIds, includeWithoutConsent: !!includeWithoutConsent, ...(variableValues ? { variableValues } : {}) },
+    scheduled_offset: 0,
+    sent_today: 0,
+    sent_day: null,
+    scheduled_payload: { contactIds, includeWithoutConsent: !!includeWithoutConsent, ...(variableValues ? { variableValues } : {}), ...(pace || {}) },
     last_error: null,
   }).eq("id", campaignId);
   if (error) throw error;
 }
 
+// Agendada e ainda não começou: volta a rascunho. Já a enviar aos poucos: para
+// os envios que faltam (quem já recebeu fica registado) e fica como enviada.
 export async function unscheduleCampaign(table, campaignId) {
   const { error } = await supabase.from(table)
-    .update({ status: "draft", scheduled_at: null, scheduled_batch: 0, scheduled_payload: null })
+    .update({ status: "draft", scheduled_at: null, scheduled_batch: 0, scheduled_offset: 0, scheduled_payload: null })
     .eq("id", campaignId).eq("status", "scheduled");
   if (error) throw error;
+  const { error: stopError } = await supabase.from(table)
+    .update({ status: "sent", scheduled_at: null })
+    .eq("id", campaignId).eq("status", "sending").not("scheduled_at", "is", null);
+  if (stopError) throw stopError;
 }
 
 // Janela para escolher dia e hora (hora de Portugal, a do telemóvel/computador).
-export function ScheduleCampaignModal({ campaignName, recipientCount, onClose, onConfirm }) {
+export function ScheduleCampaignModal({ campaignName, recipientCount, onClose, onConfirm, defaultDailyLimit = "" }) {
   const soon = new Date(Date.now() + 60 * 60000);
   soon.setMinutes(0, 0, 0);
   const [value, setValue] = useState(toLocalInput(soon));
+  const [dailyLimit, setDailyLimit] = useState(String(defaultDailyLimit || ""));
+  const [windowStart, setWindowStart] = useState(defaultDailyLimit ? "10:00" : "");
+  const [windowEnd, setWindowEnd] = useState(defaultDailyLimit ? "19:00" : "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const limit = Math.max(0, parseInt(dailyLimit, 10) || 0);
+  const days = limit && recipientCount > limit ? Math.ceil(recipientCount / limit) : 0;
 
   const confirm = async () => {
     setError("");
     const at = new Date(value);
     if (!value || Number.isNaN(at.getTime())) return setError("Escolha o dia e a hora.");
     if (at.getTime() < Date.now() + 60000) return setError("Escolha uma hora no futuro.");
+    if ((windowStart || windowEnd) && !(windowStart && windowEnd && windowEnd > windowStart)) return setError("O horário tem de ter início e fim (ex: 10:00 a 19:00).");
     setBusy(true);
     try {
-      await onConfirm(at.toISOString());
+      await onConfirm(at.toISOString(), { ...(limit ? { dailyLimit: limit } : {}), ...(windowStart && windowEnd ? { windowStart, windowEnd } : {}) });
     } catch (err) {
       setError(err.message || "Não foi possível agendar.");
       setBusy(false);
@@ -183,6 +199,22 @@ export function ScheduleCampaignModal({ campaignName, recipientCount, onClose, o
       </div>
       <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 5 }}>Dia e hora do envio</div>
       <input type="datetime-local" value={value} min={toLocalInput(new Date())} onChange={(e) => setValue(e.target.value)} style={inputStyle} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(7rem, 1fr))", gap: 8, marginTop: 12 }}>
+        <label style={{ ...sans, fontSize: 12.5, color: c.mist }}>Máximo por dia
+          <input type="number" min="1" value={dailyLimit} onChange={(e) => setDailyLimit(e.target.value)} placeholder="Sem limite" style={{ ...inputStyle, marginTop: 5 }} />
+        </label>
+        <label style={{ ...sans, fontSize: 12.5, color: c.mist }}>Das
+          <input type="time" value={windowStart} onChange={(e) => setWindowStart(e.target.value)} style={{ ...inputStyle, marginTop: 5 }} />
+        </label>
+        <label style={{ ...sans, fontSize: 12.5, color: c.mist }}>Até às
+          <input type="time" value={windowEnd} onChange={(e) => setWindowEnd(e.target.value)} style={{ ...inputStyle, marginTop: 5 }} />
+        </label>
+      </div>
+      {days > 0 && (
+        <div style={{ ...sans, fontSize: 13.5, color: c.ink, marginTop: 8, lineHeight: 1.5 }}>
+          Com {limit} por dia, os {recipientCount} contactos recebem ao longo de <strong>{days} dias</strong>.
+        </div>
+      )}
       <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 8, lineHeight: 1.5 }}>
         O texto fica guardado como está agora. Para o mudar, cancele o agendamento e volte a agendar.
       </div>
@@ -199,7 +231,9 @@ export function ScheduleCampaignModal({ campaignName, recipientCount, onClose, o
 export function ScheduledNotice({ campaign, onCancel }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const scheduled = campaign.status === "scheduled";
+  const total = (campaign.scheduled_payload?.contactIds || []).length;
+  const pacing = campaign.status === "sending" && campaign.scheduled_at && total > 0;
+  const scheduled = campaign.status === "scheduled" || pacing;
   if (!scheduled && !campaign.last_error) return null;
   const cancel = async () => {
     setBusy(true); setError("");
@@ -211,9 +245,14 @@ export function ScheduledNotice({ campaign, onCancel }) {
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <Clock size={16} color={c.bossText} />
           <span style={{ ...sans, fontSize: 14.5, color: c.ink, flex: 1, minWidth: 180 }}>
-            Agendada para <strong>{formatScheduled(campaign.scheduled_at)}</strong> ({(campaign.scheduled_payload?.contactIds || []).length} contacto(s))
+            {pacing ? (
+              <>A enviar aos poucos: <strong>{Math.min(total, campaign.scheduled_offset || 0)} de {total}</strong> já saíram. Próximos envios a partir de <strong>{formatScheduled(campaign.scheduled_at)}</strong>.</>
+            ) : (
+              <>Agendada para <strong>{formatScheduled(campaign.scheduled_at)}</strong> ({total} contacto(s))</>
+            )}
+            {campaign.scheduled_payload?.dailyLimit ? <span style={{ display: "block", fontSize: 13, color: c.mist }}>Máximo {campaign.scheduled_payload.dailyLimit} por dia{campaign.scheduled_payload.windowStart ? `, das ${campaign.scheduled_payload.windowStart} às ${campaign.scheduled_payload.windowEnd}` : ""}.</span> : null}
           </span>
-          <button onClick={cancel} disabled={busy} style={{ ...btnGhost, padding: "6px 12px", fontSize: 13.5 }}>{busy ? "A cancelar…" : "Cancelar agendamento"}</button>
+          <button onClick={cancel} disabled={busy} style={{ ...btnGhost, padding: "6px 12px", fontSize: 13.5 }}>{busy ? "A parar…" : pacing ? "Parar os envios que faltam" : "Cancelar agendamento"}</button>
         </div>
       )}
       {campaign.last_error && (
@@ -225,4 +264,4 @@ export function ScheduledNotice({ campaign, onCancel }) {
 }
 
 export const campaignStatusLabel = (cp) =>
-  cp.status === "sent" ? "Enviada" : cp.status === "sending" ? "A enviar" : cp.status === "scheduled" ? `Agendada ${formatScheduled(cp.scheduled_at)}` : "Rascunho";
+  cp.status === "sent" ? "Enviada" : cp.status === "sending" ? (cp.scheduled_at && cp.scheduled_payload?.contactIds ? `A enviar (${Math.min(cp.scheduled_payload.contactIds.length, cp.scheduled_offset || 0)} de ${cp.scheduled_payload.contactIds.length})` : "A enviar") : cp.status === "scheduled" ? `Agendada ${formatScheduled(cp.scheduled_at)}` : "Rascunho";

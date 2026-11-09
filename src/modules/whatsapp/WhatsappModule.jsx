@@ -800,8 +800,8 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
   // Agendada também fica fechada à edição (cancela-se o agendamento para mudar).
   const isSent = campaign.status === "sent" || campaign.status === "sending" || isScheduled;
   const refreshCampaigns = () => qc.invalidateQueries({ queryKey: ["whatsapp_campaigns", brandId] });
-  const schedule = async (at) => {
-    await scheduleCampaign("whatsapp_campaigns", campaign.id, { at, contactIds: recipientIds, includeWithoutConsent, variableValues: values, });
+  const schedule = async (at, pace) => {
+    await scheduleCampaign("whatsapp_campaigns", campaign.id, { at, contactIds: recipientIds, includeWithoutConsent, variableValues: values, pace });
     setShowSchedule(false);
     refreshCampaigns();
   };
@@ -883,7 +883,7 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
       )}
 
       {showSchedule && (
-        <ScheduleCampaignModal campaignName={campaign.name} recipientCount={recipientIds.length} onClose={() => setShowSchedule(false)} onConfirm={schedule} />
+        <ScheduleCampaignModal campaignName={campaign.name} recipientCount={recipientIds.length} onClose={() => setShowSchedule(false)} onConfirm={schedule} defaultDailyLimit={200} />
       )}
 
       {showSend && (
