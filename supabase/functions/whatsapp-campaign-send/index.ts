@@ -138,8 +138,11 @@ Deno.serve(async (req) => {
 
   const { data: template } = await adminClient.from("whatsapp_templates").select("id, name, language, twilio_content_sid, status").eq("id", campaign.template_id).eq("brand_id", campaign.brand_id).maybeSingle();
   if (!template) return json({ error: "Template da campanha não encontrado." }, 400);
-  // Template ainda não aprovado aqui: pergunta à Twilio se já foi (o estado pode estar atrasado).
+  // O estado guardado no Big Boss não trava o envio: com Twilio, confirma lá.
+  // Aprovado (ou sem resposta clara) → envia e a Twilio decide; só espera se a
+  // Twilio disser claramente que ainda está pendente, e só para se estiver rejeitado.
   if (template.status !== "approved" && account.provider === "twilio" && template.twilio_content_sid) {
+    let twilioSays = "";
     const { data: twToken } = await adminClient.rpc("vault_read_secret", { p_id: account.access_token_ref });
     if (twToken) {
       try {
@@ -147,18 +150,24 @@ Deno.serve(async (req) => {
           headers: { Authorization: `Basic ${btoa(`${account.twilio_account_sid}:${twToken}`)}` },
         });
         const data = await res.json().catch(() => ({}));
-        const st = String(data?.whatsapp?.status || "").toLowerCase();
-        const next = st === "approved" ? "approved" : st === "rejected" ? "rejected" : null;
-        if (next) {
-          await adminClient.from("whatsapp_templates").update({ status: next }).eq("id", template.id);
-          template.status = next;
-        }
-      } catch { /* mantém o estado guardado */ }
+        if (res.ok) twilioSays = String(data?.whatsapp?.status || "").toLowerCase();
+      } catch { /* sem resposta: segue para o envio */ }
     }
+    if (twilioSays === "approved") {
+      await adminClient.from("whatsapp_templates").update({ status: "approved" }).eq("id", template.id);
+      template.status = "approved";
+    } else if (["rejected", "paused", "disabled"].includes(twilioSays)) {
+      await adminClient.from("whatsapp_templates").update({ status: "rejected" }).eq("id", template.id);
+      return json({ error: "O template desta campanha foi rejeitado ou pausado pelo WhatsApp. Escolha outro." }, 400);
+    } else if (["pending", "received", "unsubmitted"].includes(twilioSays)) {
+      return json({ error: "O template desta campanha ainda não foi aprovado.", retryLater: true }, 409);
+    }
+    // Qualquer outra resposta: envia (se não estiver aprovado, a Twilio recusa e o motivo fica registado).
+  } else if (template.status === "rejected") {
+    return json({ error: "O template desta campanha foi rejeitado pelo WhatsApp. Escolha outro." }, 400);
+  } else if (template.status !== "approved" && account.provider !== "twilio") {
+    return json({ error: "O template desta campanha ainda não foi aprovado.", retryLater: true }, 409);
   }
-  if (template.status === "rejected") return json({ error: "O template desta campanha foi rejeitado pelo WhatsApp. Escolha outro." }, 400);
-  // Ainda à espera: as campanhas agendadas voltam a tentar mais tarde (retryLater).
-  if (template.status !== "approved") return json({ error: "O template desta campanha ainda não foi aprovado.", retryLater: true }, 409);
   if (account.provider === "twilio" && !String(template.twilio_content_sid || "").trim()) return json({ error: "O template não tem o Content SID da Twilio. Volte a registá-lo em WhatsApp, Templates." }, 400);
 
   const { data: token } = await adminClient.rpc("vault_read_secret", { p_id: account.access_token_ref });
