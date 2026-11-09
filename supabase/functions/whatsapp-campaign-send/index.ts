@@ -213,8 +213,12 @@ Deno.serve(async (req) => {
     } else if (["rejected", "paused", "disabled"].includes(twilioSays)) {
       await adminClient.from("whatsapp_templates").update({ status: "rejected" }).eq("id", template.id);
       return json({ error: "O template desta campanha foi rejeitado ou pausado pelo WhatsApp. Escolha outro." }, 400);
-    } else if (["pending", "received", "unsubmitted"].includes(twilioSays)) {
-      return json({ error: "O template desta campanha ainda não foi aprovado.", retryLater: true }, 409);
+    } else if (twilioSays === "unsubmitted") {
+      await adminClient.from("whatsapp_templates").update({ status: "draft" }).eq("id", template.id);
+      return json({ error: `O template "${template.name}" só serve para conversas abertas: nunca foi submetido para aprovação do WhatsApp. Na Twilio (Content Template Builder) use "Submit for WhatsApp approval" e envie quando estiver aprovado.` }, 400);
+    } else if (twilioSays) {
+      if (template.status !== "pending") await adminClient.from("whatsapp_templates").update({ status: "pending" }).eq("id", template.id);
+      return json({ error: "O template desta campanha ainda está em aprovação no WhatsApp.", retryLater: true }, 409);
     }
     // Qualquer outra resposta: envia (se não estiver aprovado, a Twilio recusa e o motivo fica registado).
   } else if (template.status === "rejected") {
