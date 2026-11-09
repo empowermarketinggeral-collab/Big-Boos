@@ -51,6 +51,30 @@ const TWILIO_ERRORS = {
 };
 const twilioError = (data) => (data?.code && TWILIO_ERRORS[String(data.code)]) || data?.message || null;
 
+// Procura na Twilio um conteúdo aprovado para WhatsApp com o mesmo nome.
+async function findApprovedContent(twAuth, name, currentSid) {
+  const wanted = String(name || "").trim().toLowerCase();
+  if (!wanted) return null;
+  let url = "https://content.twilio.com/v1/ContentAndApprovals?PageSize=100";
+  for (let page = 0; url && page < 10; page++) {
+    let data;
+    try {
+      const res = await fetch(url, { headers: { Authorization: twAuth } });
+      if (!res.ok) return null;
+      data = await res.json();
+    } catch { return null; }
+    for (const ct of data.contents || []) {
+      if (!ct?.sid || ct.sid === currentSid) continue;
+      const ar = ct.approval_requests;
+      const approval = (ar && ar.whatsapp) || (Array.isArray(ar) ? ar.find((x) => x?.status) || ar[0] : ar) || {};
+      const names = [approval.name, ct.friendly_name].map((n) => String(n || "").trim().toLowerCase());
+      if (String(approval.status || "").toLowerCase() === "approved" && names.includes(wanted)) return ct.sid;
+    }
+    url = data?.meta?.next_page_url || null;
+  }
+  return null;
+}
+
 async function sendTemplateViaTwilio(accountSid, authToken, fromNumber, toPhone, template, variableValues) {
   const contentVariables = {};
   (variableValues || []).forEach((v, i) => { contentVariables[String(i + 1)] = String(v); });
@@ -160,20 +184,31 @@ Deno.serve(async (req) => {
   // O estado guardado no Big Boss não trava o envio: com Twilio, confirma lá.
   // Aprovado (ou sem resposta clara) → envia e a Twilio decide; só espera se a
   // Twilio disser claramente que ainda está pendente, e só para se estiver rejeitado.
-  if (template.status !== "approved" && account.provider === "twilio" && template.twilio_content_sid) {
+  // Com Twilio confirma-se sempre o Content SID: se o guardado não for o
+  // aprovado (ex.: há uma cópia com o mesmo nome criada noutra altura), usa
+  // o conteúdo aprovado com esse nome. Sem isto a Twilio envia como mensagem
+  // normal e o WhatsApp recusa ("fora da janela de 24 horas").
+  if (account.provider === "twilio" && template.twilio_content_sid) {
     let twilioSays = "";
     const { data: twToken } = await adminClient.rpc("vault_read_secret", { p_id: account.access_token_ref });
+    const twAuth = `Basic ${btoa(`${account.twilio_account_sid}:${twToken}`)}`;
     if (twToken) {
       try {
-        const res = await fetch(`https://content.twilio.com/v1/Content/${template.twilio_content_sid}/ApprovalRequests`, {
-          headers: { Authorization: `Basic ${btoa(`${account.twilio_account_sid}:${twToken}`)}` },
-        });
+        const res = await fetch(`https://content.twilio.com/v1/Content/${template.twilio_content_sid}/ApprovalRequests`, { headers: { Authorization: twAuth } });
         const data = await res.json().catch(() => ({}));
         if (res.ok) twilioSays = String(data?.whatsapp?.status || "").toLowerCase();
       } catch { /* sem resposta: segue para o envio */ }
+      if (twilioSays !== "approved") {
+        const twin = await findApprovedContent(twAuth, template.name, template.twilio_content_sid);
+        if (twin) {
+          await adminClient.from("whatsapp_templates").update({ twilio_content_sid: twin, status: "approved" }).eq("id", template.id);
+          template.twilio_content_sid = twin;
+          twilioSays = "approved";
+        }
+      }
     }
     if (twilioSays === "approved") {
-      await adminClient.from("whatsapp_templates").update({ status: "approved" }).eq("id", template.id);
+      if (template.status !== "approved") await adminClient.from("whatsapp_templates").update({ status: "approved" }).eq("id", template.id);
       template.status = "approved";
     } else if (["rejected", "paused", "disabled"].includes(twilioSays)) {
       await adminClient.from("whatsapp_templates").update({ status: "rejected" }).eq("id", template.id);
@@ -199,6 +234,10 @@ Deno.serve(async (req) => {
     .eq("brand_id", campaign.brand_id);
 
   const blocked = await blockedContacts(adminClient, campaign.brand_id, contactIds);
+  // Quem já recebeu esta campanha não volta a receber (reenviar só chega às falhas).
+  const { data: alreadyRows } = await adminClient.from("whatsapp_campaign_sends").select("contact_id")
+    .eq("campaign_id", campaignId).in("contact_id", contactIds).in("status", ["sent", "delivered", "read"]);
+  const already = new Set((alreadyRows || []).map((r) => r.contact_id));
 
   if (batchIndex === 0) await adminClient.from("whatsapp_campaigns").update({ status: "sending" }).eq("id", campaignId);
 
@@ -206,7 +245,7 @@ Deno.serve(async (req) => {
   const errors = new Set();
   for (const contact of contacts || []) {
     const toPhone = normalizePhone(contact.phone);
-    if (!toPhone || (!contact.opted_in_whatsapp && !ignoreConsent) || blocked.has(contact.id)) {
+    if (!toPhone || (!contact.opted_in_whatsapp && !ignoreConsent) || blocked.has(contact.id) || already.has(contact.id)) {
       skipped++;
       continue;
     }
