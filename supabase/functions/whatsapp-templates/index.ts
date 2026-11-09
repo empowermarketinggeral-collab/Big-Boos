@@ -121,7 +121,9 @@ Deno.serve(async (req) => {
           const body = String(main.body || main.title || "").trim();
           const varKeys = Object.keys(ct.variables || {}).filter((k) => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b));
           const variables = varKeys.map((k) => `variável ${k}`);
-          const approval = ct.approval_requests || {};
+          // O pedido de aprovação pode vir como objeto, lista ou { whatsapp: {...} }.
+          const ar = ct.approval_requests;
+          const approval = (ar && ar.whatsapp) || (Array.isArray(ar) ? ar.find((x) => x?.status) || ar[0] : ar) || {};
           const status = STATUS[String(approval.status || "unsubmitted").toLowerCase()] || "pending";
           const category = CATEGORIES.includes(String(approval.category || "").toUpperCase()) ? String(approval.category).toUpperCase() : "MARKETING";
           const row = {
@@ -144,7 +146,24 @@ Deno.serve(async (req) => {
         }
         url = data?.meta?.next_page_url || null;
       }
-      return json({ ok: true, imported, updated });
+      // Segunda verificação, template a template: os que cá estão por aprovar
+      // perguntam diretamente à Twilio (o mesmo pedido do botão "Verificar estado").
+      const { data: waiting } = await adminClient.from("whatsapp_templates").select("id, name, twilio_content_sid")
+        .eq("brand_id", brandId).in("status", ["pending", "draft"]).not("twilio_content_sid", "is", null);
+      let checked = 0;
+      const notFound = [];
+      for (const tpl of waiting || []) {
+        const res = await fetch(`https://content.twilio.com/v1/Content/${tpl.twilio_content_sid}/ApprovalRequests`, { headers: { Authorization: twilioAuth } });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { notFound.push(tpl.name); continue; }
+        const st = String(data?.whatsapp?.status || "").toLowerCase();
+        const next = st === "approved" ? "approved" : st === "rejected" || st === "paused" || st === "disabled" ? "rejected" : null;
+        if (next) {
+          await adminClient.from("whatsapp_templates").update({ status: next }).eq("id", tpl.id);
+          checked++;
+        }
+      }
+      return json({ ok: true, imported, updated, checked, notFound });
     }
 
     // Template novo escrito na app: guarda como rascunho e segue logo para a
