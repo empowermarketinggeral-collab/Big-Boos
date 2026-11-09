@@ -571,7 +571,10 @@ function TemplatesPanel({ brandId, provider }) {
   useEffect(() => {
     if (provider !== "twilio" || autoSynced.current) return;
     autoSynced.current = true;
-    importTwilio.mutate(undefined, { onError: () => {} });
+    importTwilio.mutate(undefined, {
+      onSuccess: (res) => { if (res?.notFound?.length) setActionError(`Não encontrei na Twilio: ${res.notFound.join(", ")}. Confirme que a conta Twilio ligada é a mesma onde os templates foram criados.`); },
+      onError: (err) => setActionError(`Não foi possível atualizar os estados com a Twilio: ${err.message || "erro desconhecido"}`),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider]);
 
@@ -579,7 +582,12 @@ function TemplatesPanel({ brandId, provider }) {
     setActionError(""); setImportNote("");
     try {
       const res = await importTwilio.mutateAsync();
-      setImportNote(res.imported || res.updated ? `${res.imported} novo(s) e ${res.updated} atualizado(s) da Twilio.` : "Não há templates na Twilio para importar.");
+      const parts = [];
+      if (res.imported) parts.push(`${res.imported} novo(s)`);
+      if (res.updated) parts.push(`${res.updated} com o estado atualizado`);
+      if (res.checked) parts.push(`${res.checked} confirmado(s) um a um`);
+      setImportNote(parts.length ? `Twilio: ${parts.join(", ")}.` : "Os estados já estavam iguais aos da Twilio.");
+      if (res.notFound?.length) setActionError(`Não encontrei na Twilio: ${res.notFound.join(", ")}. Confirme que a conta Twilio ligada é a mesma onde os templates foram criados.`);
     } catch (err) {
       setActionError(err.message || "Não foi possível importar da Twilio.");
     }
@@ -818,7 +826,7 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
       <div style={{ ...display, fontSize: 24, color: c.ink, marginBottom: 6 }}>{campaign.name}</div>
       <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 20 }}>
         Template: <strong>{template?.name || "—"}</strong>
-        {template?.status === "pending" && " (a aguardar aprovação: pode agendar, só sai depois de aprovado)"}
+        {template?.status === "pending" && " (aqui ainda aparece a aguardar: ao enviar ou no dia agendado, o Big Boss confirma na Twilio)"}
         {template?.status === "rejected" && " (rejeitado: escolha outro template)"}
       </div>
 
@@ -872,7 +880,7 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
           )}
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-            <button onClick={() => setShowSend(true)} disabled={recipientIds.length === 0 || (template?.status && template.status !== "approved")} title={template?.status === "pending" ? "O template ainda não foi aprovado. Use Agendar." : undefined} style={{ ...btnPrimary, display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={() => setShowSend(true)} disabled={recipientIds.length === 0 || template?.status === "rejected"} title={template?.status === "pending" ? "Ao enviar, o Big Boss confirma na Twilio se o template já foi aprovado." : undefined} style={{ ...btnPrimary, display: "flex", alignItems: "center", gap: 6 }}>
               <Send size={13} /> Enviar campanha
             </button>
             <button onClick={() => setShowSchedule(true)} disabled={recipientIds.length === 0 || template?.status === "rejected"} style={{ ...btnGhost, display: "flex", alignItems: "center", gap: 6 }}>
