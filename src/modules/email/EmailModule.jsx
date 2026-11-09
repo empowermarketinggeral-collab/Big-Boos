@@ -325,9 +325,9 @@ function CampaignEditor({ brand, campaign, domain, onBack }) {
   // Agendada também fica fechada à edição (cancela-se o agendamento para mudar).
   const isSent = campaign.status === "sent" || campaign.status === "sending" || isScheduled;
   const refreshCampaigns = () => qc.invalidateQueries({ queryKey: ["email_campaigns", brand.id] });
-  const schedule = async (at) => {
+  const schedule = async (at, pace) => {
     await updateCampaign.mutateAsync({ id: campaign.id, patch: { name, subject, body_html: bodyHtml } });
-    await scheduleCampaign("email_campaigns", campaign.id, { at, contactIds: recipientIds, includeWithoutConsent, });
+    await scheduleCampaign("email_campaigns", campaign.id, { at, contactIds: recipientIds, includeWithoutConsent, pace });
     setShowSchedule(false);
     refreshCampaigns();
   };
