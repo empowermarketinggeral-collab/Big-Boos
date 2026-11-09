@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction, fetchAll } from "../../lib/supabaseClient.js";
-import { VariableChips, RecipientSummary, useVariableInsert, IncludeWithoutConsent, blockedContactIds, sendInBatches, SendResultSummary, ScheduleCampaignModal, ScheduledNotice, scheduleCampaign, unscheduleCampaign, campaignStatusLabel } from "../../shared/MessageVariables.jsx";
+import { VariableChips, RecipientSummary, useVariableInsert, IncludeWithoutConsent, blockedContactIds, sendInBatches, SendResultSummary, ScheduleCampaignModal, ScheduledNotice, scheduleCampaign, unscheduleCampaign, campaignStatusLabel, CampaignResults } from "../../shared/MessageVariables.jsx";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, Send, MessageCircle, CheckCircle2, AlertCircle, Plus, Trash2, FileText, RefreshCw, UserPlus, Calculator, Info, Clock } from "lucide-react";
 import { useUrlState } from "../../shared/urlState.js";
@@ -309,10 +309,10 @@ function useWaCampaignSends(campaignId) {
     queryKey: ["whatsapp_campaign_sends", campaignId],
     enabled: !!campaignId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("whatsapp_campaign_sends").select("status, error, contacts(name, phone)").eq("campaign_id", campaignId);
-      if (error) throw error;
-      return data;
+      return fetchAll(() => supabase.from("whatsapp_campaign_sends").select("id, status, error, contacts(name, phone)").eq("campaign_id", campaignId).order("id"));
     },
+    // As confirmações de entrega chegam depois: atualiza de 30 em 30 segundos.
+    refetchInterval: 30000,
   });
 }
 
@@ -830,15 +830,7 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
         {template?.status === "rejected" && " (rejeitado: escolha outro template)"}
       </div>
 
-      {isSent && !isScheduled && (
-        <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-          {["sent", "delivered", "read", "failed"].map((k) => (
-            <span key={k} style={{ ...sans, fontSize: 12.5, fontWeight: 600, borderRadius: 999, padding: "5px 12px", background: c.paper, color: c.ink }}>
-              {statusCounts[k] || 0} {k}
-            </span>
-          ))}
-        </div>
-      )}
+      {isSent && !isScheduled && <CampaignResults rows={sends} channel="whatsapp" loading={sendsQuery.isLoading} campaignId={campaign.id} onRefreshed={() => sendsQuery.refetch()} />}
 
       <ScheduledNotice campaign={campaign} onCancel={cancelSchedule} />
 

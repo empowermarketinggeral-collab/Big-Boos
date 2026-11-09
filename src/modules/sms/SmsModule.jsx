@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, invokeFunction, fetchAll } from "../../lib/supabaseClient.js";
-import { VariableChips, RecipientSummary, useVariableInsert, IncludeWithoutConsent, blockedContactIds, sendInBatches, SendResultSummary, ScheduleCampaignModal, ScheduledNotice, scheduleCampaign, unscheduleCampaign, campaignStatusLabel } from "../../shared/MessageVariables.jsx";
+import { VariableChips, RecipientSummary, useVariableInsert, IncludeWithoutConsent, blockedContactIds, sendInBatches, SendResultSummary, ScheduleCampaignModal, ScheduledNotice, scheduleCampaign, unscheduleCampaign, campaignStatusLabel, CampaignResults } from "../../shared/MessageVariables.jsx";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, MessageSquare, AlertCircle, CheckCircle2, Plus, Trash2, Send, Clock } from "lucide-react";
 import { useUrlState } from "../../shared/urlState.js";
@@ -168,10 +168,9 @@ function useSmsCampaignMessages(campaignId) {
     queryKey: ["sms_campaign_messages", campaignId],
     enabled: !!campaignId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("sms_messages").select("status, error, contacts(name, phone)").eq("campaign_id", campaignId);
-      if (error) throw error;
-      return data;
+      return fetchAll(() => supabase.from("sms_messages").select("id, status, error, contacts(name, phone)").eq("campaign_id", campaignId).order("id"));
     },
+    refetchInterval: 30000,
   });
 }
 
@@ -392,15 +391,7 @@ function SmsCampaignEditor({ brandId, campaign, onBack }) {
 
       {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 16 }}>{error}</div>}
 
-      {isSent && !isScheduled && (
-        <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-          {["sent", "delivered", "failed"].map((k) => (
-            <span key={k} style={{ ...sans, fontSize: 12.5, fontWeight: 600, borderRadius: 999, padding: "5px 12px", background: c.paper, color: c.ink }}>
-              {statusCounts[k] || 0} {k}
-            </span>
-          ))}
-        </div>
-      )}
+      {isSent && !isScheduled && <CampaignResults rows={messages} channel="sms" loading={messagesQuery.isLoading} campaignId={campaign.id} onRefreshed={() => messagesQuery.refetch()} />}
 
       <ScheduledNotice campaign={campaign} onCancel={cancelSchedule} />
 

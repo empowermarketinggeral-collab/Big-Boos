@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Plus, Clock } from "lucide-react";
 import { c, sans, Modal, inputStyle, btnPrimary, btnGhost } from "./theme.jsx";
-import { supabase } from "../lib/supabaseClient.js";
+import { supabase, invokeFunction } from "../lib/supabaseClient.js";
 
 /* ---------------------------------------------------------
    VARIÁVEIS NAS MENSAGENS (campanhas de email, SMS e WhatsApp)
@@ -265,3 +265,92 @@ export function ScheduledNotice({ campaign, onCancel }) {
 
 export const campaignStatusLabel = (cp) =>
   cp.status === "sent" ? "Enviada" : cp.status === "sending" ? (cp.scheduled_at && cp.scheduled_payload?.contactIds ? `A enviar (${Math.min(cp.scheduled_payload.contactIds.length, cp.scheduled_offset || 0)} de ${cp.scheduled_payload.contactIds.length})` : "A enviar") : cp.status === "scheduled" ? `Agendada ${formatScheduled(cp.scheduled_at)}` : "Rascunho";
+
+/* ---------------------------------------------------------
+   RESULTADOS DE UMA CAMPANHA (WhatsApp e SMS)
+   Estado de cada envio: "sent" = aceite pela Twilio; "delivered"/"read"
+   chegam depois pela Twilio (callback na twilio-whatsapp-webhook);
+   "failed" traz o motivo. Agrupa as falhas por motivo.
+--------------------------------------------------------- */
+export function CampaignResults({ rows = [], channel = "whatsapp", loading, campaignId, onRefreshed }) {
+  const [openReason, setOpenReason] = useState(null);
+  const [refresh, setRefresh] = useState({ busy: false, note: "" });
+  // Pergunta à Twilio o estado das mensagens ainda sem confirmação (campaign-status-refresh).
+  const runRefresh = async () => {
+    setRefresh({ busy: true, note: "" });
+    let afterId = null, updated = 0;
+    try {
+      for (let i = 0; i < 40; i++) {
+        const r = await invokeFunction("campaign-status-refresh", { channel, campaignId, afterId });
+        updated += r.updated || 0;
+        if (!r.remaining || !r.lastId) break;
+        afterId = r.lastId;
+      }
+      setRefresh({ busy: false, note: updated ? `${updated} mensagem(ns) atualizada(s).` : "Sem novidades da Twilio por agora." });
+      onRefreshed?.();
+    } catch (err) {
+      setRefresh({ busy: false, note: err.message || "Não foi possível atualizar." });
+    }
+  };
+  const count = (s) => rows.filter((r) => r.status === s).length;
+  const delivered = count("delivered") + count("read");
+  const failed = rows.filter((r) => r.status === "failed");
+  const waiting = count("sent") + count("queued");
+  const byReason = new Map();
+  for (const r of failed) {
+    const reason = r.error || "Motivo não indicado";
+    if (!byReason.has(reason)) byReason.set(reason, []);
+    byReason.get(reason).push(r);
+  }
+  const tile = (label, value, tone) => (
+    <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "12px 14px" }}>
+      <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>{label}</div>
+      <div style={{ ...sans, fontSize: 22, fontWeight: 700, color: tone || c.ink, marginTop: 2 }}>{value}</div>
+    </div>
+  );
+  if (loading) return <div style={{ ...sans, fontSize: 14, color: c.mist, marginBottom: 20 }}>A carregar os resultados…</div>;
+  return (
+    <div style={{ marginBottom: 20, maxWidth: 720 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(8rem, 1fr))", gap: 8 }}>
+        {tile("Enviadas", rows.length)}
+        {tile("Entregues", delivered, c.sage)}
+        {channel === "whatsapp" && tile("Lidas", count("read"), c.sage)}
+        {tile("Sem confirmação", waiting)}
+        {tile("Falharam", failed.length, failed.length ? c.rose : undefined)}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 8 }}>
+        <div style={{ ...sans, fontSize: 12.5, color: c.mist, lineHeight: 1.5, flex: 1, minWidth: 220 }}>
+          "Sem confirmação" = a Twilio aceitou e ainda não disse se chegou (atualiza sozinho nos minutos seguintes).
+        </div>
+        {campaignId && waiting > 0 && (
+          <button type="button" onClick={runRefresh} disabled={refresh.busy} style={{ ...btnGhost, padding: "6px 12px", fontSize: 13.5 }}>
+            {refresh.busy ? "A perguntar à Twilio…" : "Atualizar estados"}
+          </button>
+        )}
+      </div>
+      {refresh.note && <div style={{ ...sans, fontSize: 13, color: c.mist, marginTop: 4 }}>{refresh.note}</div>}
+      {byReason.size > 0 && (
+        <div style={{ background: c.folha, border: `1px solid ${c.rose}`, borderRadius: 3, padding: "12px 16px", marginTop: 12 }}>
+          <div style={{ ...sans, fontSize: 14, fontWeight: 700, color: c.rose, marginBottom: 6 }}>Porque falharam</div>
+          {[...byReason.entries()].sort((a, b) => b[1].length - a[1].length).map(([reason, list]) => (
+            <div key={reason} style={{ borderTop: `1px solid ${c.line}`, padding: "8px 0" }}>
+              <button type="button" onClick={() => setOpenReason(openReason === reason ? null : reason)} style={{ ...sans, background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", width: "100%", display: "flex", gap: 10, alignItems: "baseline" }}>
+                <strong style={{ fontSize: 14, color: c.ink, minWidth: 28 }}>{list.length}</strong>
+                <span style={{ fontSize: 14, color: c.ink, flex: 1, lineHeight: 1.45 }}>{reason}</span>
+                <span style={{ fontSize: 12.5, color: c.mist, whiteSpace: "nowrap" }}>{openReason === reason ? "Esconder" : "Ver quem"}</span>
+              </button>
+              {openReason === reason && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 6, paddingLeft: 38 }}>
+                  {list.slice(0, 300).map((r, i) => (
+                    <div key={i} style={{ ...sans, fontSize: 13.5, color: c.mist }}>{r.contacts?.name || "Contacto"}{r.contacts?.phone ? `, ${r.contacts.phone}` : ""}</div>
+                  ))}
+                  {list.length > 300 && <div style={{ ...sans, fontSize: 13, color: c.mist }}>e mais {list.length - 300}.</div>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
