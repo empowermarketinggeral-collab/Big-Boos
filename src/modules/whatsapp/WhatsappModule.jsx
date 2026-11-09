@@ -830,6 +830,7 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
         Template: <strong>{template?.name || "—"}</strong>
         {template?.status === "pending" && " (aqui ainda aparece a aguardar: ao enviar ou no dia agendado, o Big Boss confirma na Twilio)"}
         {template?.status === "rejected" && " (rejeitado: escolha outro template)"}
+        {template?.status === "draft" && " (não submetido para aprovação: só serve para conversas abertas. Submeta-o em Templates ou na Twilio, \"Submit for WhatsApp approval\")"}
       </div>
 
       {isSent && !isScheduled && <CampaignResults rows={sends} channel="whatsapp" loading={sendsQuery.isLoading} campaignId={campaign.id} onRefreshed={() => sendsQuery.refetch()} />}
@@ -874,10 +875,10 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
           )}
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-            <button onClick={() => setShowSend(true)} disabled={recipientIds.length === 0 || template?.status === "rejected"} title={template?.status === "pending" ? "Ao enviar, o Big Boss confirma na Twilio se o template já foi aprovado." : undefined} style={{ ...btnPrimary, display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={() => setShowSend(true)} disabled={recipientIds.length === 0 || template?.status === "rejected" || template?.status === "draft"} title={template?.status === "pending" ? "Ao enviar, o Big Boss confirma na Twilio se o template já foi aprovado." : undefined} style={{ ...btnPrimary, display: "flex", alignItems: "center", gap: 6 }}>
               <Send size={13} /> Enviar campanha
             </button>
-            <button onClick={() => setShowSchedule(true)} disabled={recipientIds.length === 0 || template?.status === "rejected"} style={{ ...btnGhost, display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={() => setShowSchedule(true)} disabled={recipientIds.length === 0 || template?.status === "rejected" || template?.status === "draft"} style={{ ...btnGhost, display: "flex", alignItems: "center", gap: 6 }}>
               <Clock size={13} /> Agendar
             </button>
           </div>
