@@ -102,8 +102,8 @@ Deno.serve(async (req) => {
     if (action === "import_twilio") {
       const STATUS = { approved: "approved", rejected: "rejected", paused: "rejected", disabled: "rejected", pending: "pending", received: "pending", unsubmitted: "draft" };
       const CATEGORIES = ["MARKETING", "UTILITY", "AUTHENTICATION"];
-      const { data: existingRows } = await adminClient.from("whatsapp_templates").select("id, twilio_content_sid").eq("brand_id", brandId).not("twilio_content_sid", "is", null);
-      const existing = new Map((existingRows || []).map((r) => [r.twilio_content_sid, r.id]));
+      const { data: existingRows } = await adminClient.from("whatsapp_templates").select("id, twilio_content_sid, status").eq("brand_id", brandId).not("twilio_content_sid", "is", null);
+      const existing = new Map((existingRows || []).map((r) => [r.twilio_content_sid, r]));
 
       let url = "https://content.twilio.com/v1/ContentAndApprovals?PageSize=100";
       let imported = 0, updated = 0, pages = 0;
@@ -134,11 +134,16 @@ Deno.serve(async (req) => {
             variables,
             status,
           };
-          const id = existing.get(ct.sid);
-          if (id) {
-            // Já existe: só o estado de aprovação (texto, nome e variáveis ficam como estão).
-            const { error } = await adminClient.from("whatsapp_templates").update({ status: row.status }).eq("id", id).eq("brand_id", brandId);
-            if (!error) updated++;
+          const known = existing.get(ct.sid);
+          if (known) {
+            // Já existe: só o estado (texto, nome e variáveis ficam como estão). A lista geral
+            // só pode subir para aprovado ou marcar rejeitado; nunca tira um aprovado nem
+            // passa a "pendente" (os pendentes confirmam-se um a um, abaixo).
+            const next = row.status === "approved" || row.status === "rejected" ? row.status : null;
+            if (next && next !== known.status && !(known.status === "approved" && next !== "rejected")) {
+              const { error } = await adminClient.from("whatsapp_templates").update({ status: next }).eq("id", known.id).eq("brand_id", brandId);
+              if (!error) updated++;
+            }
           } else {
             const { error } = await adminClient.from("whatsapp_templates").insert({ ...row, brand_id: brandId, twilio_content_sid: ct.sid });
             if (!error) { imported++; existing.set(ct.sid, true); }
@@ -251,7 +256,7 @@ Deno.serve(async (req) => {
     if (action === "check") {
       const { templateId } = payload;
       if (!templateId) return json({ error: "Falta o templateId." }, 400);
-      const { data: tpl } = await adminClient.from("whatsapp_templates").select("id, twilio_content_sid").eq("id", templateId).eq("brand_id", brandId).maybeSingle();
+      const { data: tpl } = await adminClient.from("whatsapp_templates").select("id, twilio_content_sid, status").eq("id", templateId).eq("brand_id", brandId).maybeSingle();
       if (!tpl?.twilio_content_sid) return json({ error: "Template sem submissão à Twilio." }, 400);
 
       const res = await fetch(`https://content.twilio.com/v1/Content/${tpl.twilio_content_sid}/ApprovalRequests`, {
@@ -261,9 +266,13 @@ Deno.serve(async (req) => {
       if (!res.ok) return json({ error: data?.message || "Não foi possível verificar o estado." }, 502);
 
       const wa = data?.whatsapp || {};
-      const status = wa.status === "approved" ? "approved" : wa.status === "rejected" ? "rejected" : "pending";
-      await adminClient.from("whatsapp_templates").update({ status }).eq("id", tpl.id);
-      return json({ ok: true, status, rejectionReason: wa.rejection_reason || null });
+      const st = String(wa.status || "").toLowerCase();
+      const status = st === "approved" ? "approved" : ["rejected", "paused", "disabled"].includes(st) ? "rejected" : st ? "pending" : null;
+      // Sem resposta clara da Twilio: fica como estava (nunca desce um aprovado por engano).
+      if (status && !(tpl.status === "approved" && status === "pending")) {
+        await adminClient.from("whatsapp_templates").update({ status }).eq("id", tpl.id);
+      }
+      return json({ ok: true, status: status && !(tpl.status === "approved" && status === "pending") ? status : tpl.status, rejectionReason: wa.rejection_reason || null });
     }
 
     return json({ error: "Esta ação não está disponível para contas ligadas via Twilio." }, 400);
