@@ -64,6 +64,24 @@ function normalizePhone(raw) {
   return digits.length >= 8 && digits.length <= 15 ? "+" + digits : "";
 }
 
+// Motivos mais comuns da Twilio, em português (o resto fica com a mensagem original).
+const TWILIO_ERRORS = {
+  "21211": "Número de telefone inválido.",
+  "21408": "Envios para este país não estão ativos na conta Twilio.",
+  "21610": "A pessoa pediu para não receber mensagens (STOP).",
+  "21614": "Este número não recebe SMS.",
+  "63003": "Este número não tem WhatsApp.",
+  "63016": "Fora da janela de 24 horas: só se pode enviar um template aprovado.",
+  "63018": "Limite de envios do número atingido. Tente mais tarde.",
+  "63024": "Número de destino inválido.",
+  "63027": "Template com variáveis em falta ou a mais.",
+  "63030": "Template não aprovado ou com parâmetros errados.",
+  "63032": "A pessoa não aceita mensagens desta empresa (bloqueou ou saiu).",
+  "63049": "A Meta não entregou esta mensagem de marketing (limite de mensagens de marketing que esta pessoa recebe).",
+  "63112": "A conta do WhatsApp Business foi limitada pela Meta.",
+};
+const twilioError = (data) => (data?.code && TWILIO_ERRORS[String(data.code)]) || data?.message || null;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -134,7 +152,8 @@ Deno.serve(async (req) => {
     const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${account.account_sid}/Messages.json`, {
       method: "POST",
       headers: { Authorization: `Basic ${btoa(`${account.account_sid}:${token}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ From: account.from_number, To: toPhone, Body: text.value }),
+      // StatusCallback: a Twilio avisa quando o SMS é entregue ou falha.
+      body: new URLSearchParams({ From: account.from_number, To: toPhone, Body: text.value, StatusCallback: `${supabaseUrl}/functions/v1/twilio-whatsapp-webhook` }),
     });
     const data = await res.json();
 
@@ -147,11 +166,11 @@ Deno.serve(async (req) => {
       direction: "outbound",
       provider_ref: data?.sid || null,
       status: res.ok ? "sent" : "failed",
-      error: res.ok ? null : data?.message || null,
+      error: res.ok ? null : twilioError(data),
     });
 
     if (res.ok) sent++;
-    else { failed++; if (data?.message) errors.add(data.message); }
+    else { failed++; const why = twilioError(data); if (why) errors.add(why); }
   }
 
   // Se ninguém recebeu, volta a rascunho para se poder corrigir e tentar de novo.

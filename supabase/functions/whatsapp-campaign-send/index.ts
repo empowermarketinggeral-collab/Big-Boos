@@ -33,16 +33,35 @@ async function sendTemplateViaMeta(phoneNumberId, token, toPhone, template, vari
   return { ok: res.ok, id: data?.messages?.[0]?.id || null, error: data?.error?.message };
 }
 
+// Motivos mais comuns da Twilio, em português (o resto fica com a mensagem original).
+const TWILIO_ERRORS = {
+  "21211": "Número de telefone inválido.",
+  "21408": "Envios para este país não estão ativos na conta Twilio.",
+  "21610": "A pessoa pediu para não receber mensagens (STOP).",
+  "21614": "Este número não recebe SMS.",
+  "63003": "Este número não tem WhatsApp.",
+  "63016": "Fora da janela de 24 horas: só se pode enviar um template aprovado.",
+  "63018": "Limite de envios do número atingido. Tente mais tarde.",
+  "63024": "Número de destino inválido.",
+  "63027": "Template com variáveis em falta ou a mais.",
+  "63030": "Template não aprovado ou com parâmetros errados.",
+  "63032": "A pessoa não aceita mensagens desta empresa (bloqueou ou saiu).",
+  "63049": "A Meta não entregou esta mensagem de marketing (limite de mensagens de marketing que esta pessoa recebe).",
+  "63112": "A conta do WhatsApp Business foi limitada pela Meta.",
+};
+const twilioError = (data) => (data?.code && TWILIO_ERRORS[String(data.code)]) || data?.message || null;
+
 async function sendTemplateViaTwilio(accountSid, authToken, fromNumber, toPhone, template, variableValues) {
   const contentVariables = {};
   (variableValues || []).forEach((v, i) => { contentVariables[String(i + 1)] = String(v); });
   const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
     method: "POST",
     headers: { Authorization: `Basic ${btoa(`${accountSid}:${authToken}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ From: `whatsapp:${fromNumber}`, To: `whatsapp:${toPhone}`, ContentSid: template.twilio_content_sid, ContentVariables: JSON.stringify(contentVariables) }),
+    // StatusCallback: a Twilio avisa quando a mensagem é entregue, lida ou falha.
+    body: new URLSearchParams({ From: `whatsapp:${fromNumber}`, To: `whatsapp:${toPhone}`, ContentSid: template.twilio_content_sid, ContentVariables: JSON.stringify(contentVariables), StatusCallback: `${Deno.env.get("SUPABASE_URL")}/functions/v1/twilio-whatsapp-webhook` }),
   });
   const data = await res.json();
-  return { ok: res.ok, id: data?.sid || null, error: data?.message };
+  return { ok: res.ok, id: data?.sid || null, error: twilioError(data) };
 }
 
 // Variáveis por contacto: {{primeiro_nome}}, {{nome}}, {{telefone}}, {{email}}

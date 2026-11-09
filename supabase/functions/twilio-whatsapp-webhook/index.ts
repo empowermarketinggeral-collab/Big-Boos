@@ -130,7 +130,7 @@ async function twilioSend(account, authToken, to, fields) {
   const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${account.twilio_account_sid}/Messages.json`, {
     method: "POST",
     headers: { Authorization: `Basic ${btoa(`${account.twilio_account_sid}:${authToken}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ From: `whatsapp:${account.phone_number_id}`, To: `whatsapp:${to}`, ...fields }),
+    body: new URLSearchParams({ From: `whatsapp:${account.phone_number_id}`, To: `whatsapp:${to}`, StatusCallback: `${Deno.env.get("SUPABASE_URL")}/functions/v1/twilio-whatsapp-webhook`, ...fields }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) console.error("twilio-whatsapp-webhook: envio falhou", data?.message);
@@ -199,6 +199,72 @@ async function processAnswer(admin, account, authToken, conversationId, contactI
   }
 }
 
+// ---------------------------------------------------------
+// Estado das mensagens enviadas (StatusCallback da Twilio, WhatsApp e SMS):
+// entregue, lida ou falhou, com o motivo em português. As campanhas pedem
+// estes avisos para este mesmo endereço.
+// ---------------------------------------------------------
+const TWILIO_ERRORS = {
+  "63003": "Este número não tem WhatsApp.",
+  "63016": "Fora da janela de 24 horas: só se pode enviar um template aprovado.",
+  "63018": "Limite de envios do número atingido. Tente mais tarde.",
+  "63024": "Número de destino inválido.",
+  "63032": "A pessoa não aceita mensagens desta empresa (bloqueou ou saiu).",
+  "63049": "A Meta não entregou esta mensagem de marketing (limite de mensagens de marketing que esta pessoa recebe).",
+  "63112": "A conta do WhatsApp Business foi limitada pela Meta.",
+  "63030": "Template não aprovado ou com parâmetros errados.",
+  "63027": "Template com variáveis em falta ou a mais.",
+  "21211": "Número de telefone inválido.",
+  "21610": "A pessoa pediu para não receber SMS (STOP).",
+  "21614": "Este número não recebe SMS.",
+  "30003": "O telemóvel está desligado ou sem rede.",
+  "30005": "Número desconhecido ou que já não existe.",
+  "30006": "Número fixo ou operadora que não recebe SMS.",
+  "30007": "Mensagem filtrada pela operadora (considerada spam).",
+  "30008": "Erro desconhecido da operadora.",
+};
+const errorText = (code, fallback) => (code ? `${TWILIO_ERRORS[String(code)] || `Erro ${code} da Twilio.`}` : fallback || "Não foi entregue.");
+const STATUS_RANK = { queued: 0, sent: 1, delivered: 2, read: 3 };
+
+async function handleStatusCallback(req, admin, params) {
+  const raw = String(params.MessageStatus || params.SmsStatus || "").toLowerCase();
+  const sid = params.MessageSid || params.SmsSid || "";
+  const isWa = String(params.From || "").startsWith("whatsapp:");
+  const fromDigits = digitsOf(params.From);
+  let token = null, brandId = null;
+  if (isWa) {
+    const { data: accs } = await admin.from("whatsapp_accounts").select("brand_id, phone_number_id, access_token_ref").eq("provider", "twilio");
+    const acc = (accs || []).find((a) => digitsOf(a.phone_number_id) === fromDigits);
+    if (acc) { brandId = acc.brand_id; token = (await admin.rpc("vault_read_secret", { p_id: acc.access_token_ref })).data; }
+  } else {
+    const { data: accs } = await admin.from("sms_accounts").select("brand_id, from_number, auth_token_ref");
+    const acc = (accs || []).find((a) => digitsOf(a.from_number) === fromDigits);
+    if (acc) { brandId = acc.brand_id; token = (await admin.rpc("vault_read_secret", { p_id: acc.auth_token_ref })).data; }
+  }
+  if (!brandId || !token || !sid) return ok();
+  if (!(await verifyTwilioSignature(req, params, req.headers.get("x-twilio-signature"), token))) {
+    console.error("twilio-whatsapp-webhook: assinatura inválida no estado da mensagem", { brand: brandId });
+    return new Response("Assinatura inválida.", { status: 403 });
+  }
+  const status = raw === "undelivered" || raw === "failed" ? "failed" : raw === "read" ? "read" : raw === "delivered" ? "delivered" : raw === "sent" ? "sent" : null;
+  if (!status) return ok();
+  const error = status === "failed" ? errorText(params.ErrorCode, params.ErrorMessage) : null;
+  // Nunca volta atrás (ex.: "sent" atrasado depois de "delivered").
+  const canMove = (current) => status === "failed" ? !["delivered", "read"].includes(current) : (STATUS_RANK[status] ?? 0) > (STATUS_RANK[current] ?? -1) || current === "failed";
+
+  if (isWa) {
+    const { data: sends } = await admin.from("whatsapp_campaign_sends").select("id, status").eq("brand_id", brandId).eq("wa_message_id", sid);
+    for (const r of sends || []) if (canMove(r.status)) await admin.from("whatsapp_campaign_sends").update({ status, error }).eq("id", r.id);
+    const { data: msgs } = await admin.from("whatsapp_messages").select("id, status").eq("brand_id", brandId).eq("wa_message_id", sid);
+    for (const r of msgs || []) if (canMove(r.status)) await admin.from("whatsapp_messages").update({ status }).eq("id", r.id);
+  } else {
+    const smsStatus = status === "read" ? "delivered" : status;
+    const { data: msgs } = await admin.from("sms_messages").select("id, status").eq("brand_id", brandId).eq("provider_ref", sid);
+    for (const r of msgs || []) if (canMove(r.status)) await admin.from("sms_messages").update({ status: smsStatus, error }).eq("id", r.id);
+  }
+  return ok();
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -209,6 +275,12 @@ Deno.serve(async (req) => {
   const form = await req.formData();
   const params = {};
   for (const [key, value] of form.entries()) params[key] = String(value);
+
+  // Aviso de estado de uma mensagem enviada (não é uma mensagem recebida).
+  const st = String(params.MessageStatus || "").toLowerCase();
+  if (st && st !== "received") {
+    return await handleStatusCallback(req, admin, params);
+  }
 
   const from = (params.From || "").replace("whatsapp:", "");
   const to = (params.To || "").replace("whatsapp:", "");

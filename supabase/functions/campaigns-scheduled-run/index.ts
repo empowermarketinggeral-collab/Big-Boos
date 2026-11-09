@@ -205,6 +205,18 @@ Deno.serve(async (req) => {
       } else if (body.lastBatch) {
         await admin.from(ch.table).update({ last_error: null }).eq("id", cp.id);
       }
+      // Último lote: aviso no sino com o resumo (o detalhe fica na campanha).
+      if (body.lastBatch) {
+        try {
+          const sendsTable = ch.fn === "email-send" ? "email_sends" : ch.fn === "sms-campaign-send" ? "sms_messages" : "whatsapp_campaign_sends";
+          const { count: okCount } = await admin.from(sendsTable).select("id", { count: "exact", head: true }).eq("campaign_id", cp.id).neq("status", "failed");
+          const { count: badCount } = await admin.from(sendsTable).select("id", { count: "exact", head: true }).eq("campaign_id", cp.id).eq("status", "failed");
+          const skippedNote = ids.length - (okCount || 0) - (badCount || 0) > 0 ? `, ${ids.length - (okCount || 0) - (badCount || 0)} ignorados (sem contacto válido, sem consentimento ou "Não contactar")` : "";
+          await notifyFailure(admin, cp.brand_id, `A campanha de ${ch.label} "${cp.name}" terminou: ${okCount || 0} enviados, ${badCount || 0} falharam${skippedNote}. Veja o detalhe na campanha.`);
+        } catch (e) {
+          console.error("campaigns-scheduled-run: resumo", e?.message || e);
+        }
+      }
       report.push({ id: cp.id, offset, sent: data?.sent || 0, skipped: data?.skipped || 0, failed: data?.failed || 0 });
     }
   }
