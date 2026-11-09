@@ -1328,7 +1328,58 @@ function CostsPanel({ brandId }) {
 /* ---------------------------------------------------------
    MÓDULO
 --------------------------------------------------------- */
-const TABS = [{ k: "inbox", l: "Inbox" }, { k: "templates", l: "Templates" }, { k: "campanhas", l: "Campanhas" }, { k: "custos", l: "Custos" }];
+const TABS = [{ k: "inbox", l: "Inbox" }, { k: "templates", l: "Templates" }, { k: "campanhas", l: "Campanhas" }, { k: "perguntas", l: "Perguntas" }, { k: "custos", l: "Custos" }];
+
+/* ---------------------------------------------------------
+   PERGUNTAS POR BOTÕES (migração 103) — vista do fluxo.
+   Cada botão põe tags (que arrancam as automações) e segue para a
+   pergunta seguinte. A primeira pergunta vai num template aprovado; as
+   respostas são tratadas pela twilio-whatsapp-webhook.
+--------------------------------------------------------- */
+function useQuestions(brandId) {
+  return useQuery({
+    queryKey: ["whatsapp_questions", brandId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("whatsapp_questions").select("id, key, name, body, options, final_message").eq("brand_id", brandId).order("created_at");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
+function QuestionsPanel({ brandId }) {
+  const questionsQuery = useQuestions(brandId);
+  const questions = questionsQuery.data || [];
+  const byKey = Object.fromEntries(questions.map((q) => [q.key, q]));
+  return (
+    <div>
+      <div style={{ ...serif, fontSize: 17, color: c.ink, marginBottom: 6 }}>Perguntas por botões</div>
+      <div style={{ ...sans, fontSize: 13.5, color: c.mist, lineHeight: 1.6, marginBottom: 16, maxWidth: 680 }}>
+        A primeira pergunta sai num template aprovado (envie-o numa campanha). Quando a pessoa toca num botão, o Big Boss põe as tags dessa opção, o que arranca as automações, e envia logo a pergunta seguinte. Tocar num botão não conta como "respondeu" para parar automações.
+      </div>
+      {questionsQuery.isLoading && <div style={{ ...sans, fontSize: 14, color: c.mist }}>A carregar…</div>}
+      {!questionsQuery.isLoading && !questions.length && <div style={{ ...sans, fontSize: 14, color: c.mist }}>Esta marca ainda não tem perguntas por botões.</div>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {questions.map((q) => (
+          <div key={q.id} style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: "16px 18px" }}>
+            <div style={{ ...sans, fontSize: 14.5, fontWeight: 700, color: c.ink }}>{q.name}</div>
+            <div style={{ ...sans, fontSize: 14, color: c.ink, margin: "6px 0 10px", lineHeight: 1.5 }}>{q.body}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {(q.options || []).map((o) => (
+                <div key={o.id} style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "baseline", background: c.paper, borderRadius: 6, padding: "8px 12px" }}>
+                  <strong style={{ ...sans, fontSize: 14, color: c.ink }}>{o.title}</strong>
+                  {(o.tags || []).length > 0 && <span style={{ ...sans, fontSize: 13, color: c.mist }}>põe {o.tags.join(", ")}</span>}
+                  {(o.next || []).length > 0 && <span style={{ ...sans, fontSize: 13, color: c.bossText }}>segue para {o.next.map((k) => byKey[k]?.name || k).join(" e ")}</span>}
+                </div>
+              ))}
+            </div>
+            {q.final_message && <div style={{ ...sans, fontSize: 13, color: c.mist, marginTop: 10 }}>No fim: {q.final_message}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function WhatsappModule({ brand, onBack }) {
   const accountQuery = useWhatsappAccount(brand.id);
@@ -1380,6 +1431,7 @@ export default function WhatsappModule({ brand, onBack }) {
           {tab === "inbox" && <Inbox brandId={brand.id} />}
           {tab === "templates" && <TemplatesPanel brandId={brand.id} provider={accountQuery.data.provider} />}
           {tab === "campanhas" && <WaCampaignsPanel brandId={brand.id} />}
+          {tab === "perguntas" && <QuestionsPanel brandId={brand.id} />}
           {tab === "custos" && <CostsPanel brandId={brand.id} />}
 
           {showStart && <StartConversationModal brandId={brand.id} onClose={() => setShowStart(false)} />}

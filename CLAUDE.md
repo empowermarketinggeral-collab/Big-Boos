@@ -8,7 +8,7 @@ Papéis em `profiles.role`: `admin_geral` (vê tudo), `membro` (equipa da agênc
 
 ## Como o utilizador faz deploy (importante)
 - **Frontend**: commit + push para `main` → Vercel. Só faz commit/push depois de o utilizador dizer que sim.
-- **SQL**: migrações numeradas em `supabase/NN_nome.sql` (a próxima é a 103 — há uma sessão em paralelo a mexer no mesmo repositório; confirma sempre o `ls supabase/*.sql` antes de escrever, porque este número pode já estar desatualizado). O utilizador cola-as à mão no SQL Editor do Supabase, por ordem. Escreve sempre migrações que se possam correr uma vez e diz-lhe o que correr.
+- **SQL**: migrações numeradas em `supabase/NN_nome.sql` (a próxima é a 104 — há uma sessão em paralelo a mexer no mesmo repositório; confirma sempre o `ls supabase/*.sql` antes de escrever, porque este número pode já estar desatualizado). O utilizador cola-as à mão no SQL Editor do Supabase, por ordem. Escreve sempre migrações que se possam correr uma vez e diz-lhe o que correr.
 - **Edge Functions**: o utilizador cola o código no Dashboard do Supabase, função a função. Por isso **cada `supabase/functions/<nome>/index.ts` tem de ser autossuficiente** — sem imports de pastas partilhadas (`_shared` não funciona). A duplicação de código entre funções é aceite de propósito.
 - Ao entregar funções alteradas, dá o código completo (ou envia os ficheiros) e diz se "Verify JWT" fica ligado. Desligado só em: webhooks (`stripe-webhook`, `twilio-whatsapp-webhook`, `whatsapp-webhook`, `lead-intake` — este autentica com token por marca), `agency-signup`, funções chamadas por cron e páginas públicas de marcação.
 - Segredos globais (ex: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) vivem em Edge Function Secrets (`Deno.env.get`). Segredos por marca (tokens Twilio/Meta/Resend/redes sociais) vão para o Vault via `vault_upsert_secret` e guarda-se só a referência na tabela.
@@ -49,6 +49,8 @@ Papéis em `profiles.role`: `admin_geral` (vê tudo), `membro` (equipa da agênc
 
 ## Comunicação
 WhatsApp via Meta direta ou Twilio (`whatsapp_accounts.provider`); o utilizador usa Twilio. Fora da janela de 24h só templates aprovados (`whatsapp_templates`, com Content SID no caso Twilio). SMS via Twilio. Email via Resend. Campanhas de email/WhatsApp/SMS escolhem destinatários por tag + consentimento (`opted_in_*`). Redes sociais publicam via APIs oficiais (Instagram, Facebook, Threads, LinkedIn, YouTube, TikTok) na função `social-publish` (cron a cada minuto).
+
+- Perguntas por botões no WhatsApp (Twilio, migração 103): `whatsapp_questions` (key, body, options [{id, title, description, tags, next}], final_message, content_sid) e `whatsapp_question_state` (fila por contacto). A 1.ª pergunta vai num template aprovado com botões (`layout.quickReplies`, id "q:<pergunta>:<opção>"); as seguintes vão dentro das 24h (botões até 3, lista até 10; conteúdo criado na Twilio sem aprovação). `twilio-whatsapp-webhook` lê ButtonPayload/ListId (ou o texto igual a uma opção), põe as tags e envia a seguinte. Respostas por botão ficam com `type = 'button'` e não contam para `stopOnReply`. Fluxo "Interesse WingCare" (template `wc_interesse_inicial`) incluído; separador "Perguntas" no módulo WhatsApp (só leitura).
 
 ## Leads e gatilhos por data
 - Landing pages externas → `lead-intake` (token por marca em `brand_lead_webhooks`, só a equipa vê; painel em CRM → "Entrada de leads"). Cria/atualiza o contacto e aplica tags; as automações arrancam pelos gatilhos da BD.

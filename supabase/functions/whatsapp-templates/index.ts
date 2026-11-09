@@ -27,6 +27,9 @@ const META_STATUS_MAP = { APPROVED: "approved", PENDING: "pending", REJECTED: "r
 // Tipo de conteúdo da Twilio: só texto, texto com botão (call-to-action) ou
 // cartão (texto + rodapé, com ou sem botão).
 function contentTypes(body, layout) {
+  // Botões de resposta rápida (até 3): o id volta no ButtonPayload da resposta.
+  const quick = Array.isArray(layout.quickReplies) ? layout.quickReplies.filter((q) => q?.id && q?.title).slice(0, 3) : [];
+  if (quick.length) return { "twilio/quick-reply": { body, actions: quick.map((q) => ({ title: String(q.title).slice(0, 20), id: String(q.id).slice(0, 200) })) } };
   const actions = layout.buttonText && layout.buttonUrl ? [{ type: "URL", title: layout.buttonText, url: layout.buttonUrl }] : [];
   if (layout.footer) return { "twilio/card": { title: body, subtitle: layout.footer, ...(actions.length ? { actions } : {}) } };
   if (actions.length) return { "twilio/call-to-action": { body, actions } };

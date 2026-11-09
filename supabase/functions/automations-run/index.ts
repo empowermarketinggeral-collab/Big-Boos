@@ -439,6 +439,7 @@ async function shouldCancel(admin, run, contact, triggerConfig) {
         .select("id", { count: "exact", head: true })
         .in("conversation_id", convs.map((c) => c.id))
         .eq("direction", "inbound")
+        .neq("type", "button") // tocar num botão de uma pergunta não é "responder"
         .gt("created_at", run.created_at);
       if (count && count > 0) return true;
     }
