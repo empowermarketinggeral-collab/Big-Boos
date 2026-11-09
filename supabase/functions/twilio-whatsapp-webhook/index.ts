@@ -101,6 +101,104 @@ function mediaType(contentType) {
   return ["document", "[Documento]"];
 }
 
+// ---------------------------------------------------------
+// Perguntas por botões (migração 103): a resposta chega com o id do botão
+// (ButtonPayload "q:<pergunta>:<opção>" ou ListId numa lista) ou, se a
+// pessoa escrever, pelo texto igual a uma opção da última pergunta enviada.
+// Cada opção põe tags (que arrancam as automações) e pode seguir para as
+// perguntas seguintes, enviadas dentro da janela de 24h.
+// ---------------------------------------------------------
+const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+
+async function findAnswer(admin, brandId, contactId, payload, text) {
+  const m = String(payload || "").match(/^q:([0-9a-f-]{36}):([\w-]+)$/i);
+  if (m) {
+    const { data: q } = await admin.from("whatsapp_questions").select("*").eq("id", m[1]).eq("brand_id", brandId).maybeSingle();
+    const opt = q && (q.options || []).find((o) => o.id === m[2]);
+    if (opt) return { question: q, option: opt };
+  }
+  if (!contactId || !text) return null;
+  const { data: state } = await admin.from("whatsapp_question_state").select("last_question_id").eq("contact_id", contactId).eq("brand_id", brandId).maybeSingle();
+  if (!state?.last_question_id) return null;
+  const { data: q } = await admin.from("whatsapp_questions").select("*").eq("id", state.last_question_id).eq("brand_id", brandId).maybeSingle();
+  const t = norm(text);
+  const opt = q && (q.options || []).find((o) => norm(o.title) === t || (o.description && norm(o.description) === t));
+  return opt ? { question: q, option: opt } : null;
+}
+
+async function twilioSend(account, authToken, to, fields) {
+  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${account.twilio_account_sid}/Messages.json`, {
+    method: "POST",
+    headers: { Authorization: `Basic ${btoa(`${account.twilio_account_sid}:${authToken}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ From: `whatsapp:${account.phone_number_id}`, To: `whatsapp:${to}`, ...fields }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) console.error("twilio-whatsapp-webhook: envio falhou", data?.message);
+  return { ok: res.ok, sid: data?.sid || null };
+}
+
+// Conteúdo da pergunta na Twilio (sem aprovação: só serve dentro das 24h).
+async function questionContentSid(admin, account, authToken, q) {
+  if (q.content_sid) return q.content_sid;
+  const opts = (q.options || []).slice(0, 10);
+  const types = opts.length <= 3
+    ? { "twilio/quick-reply": { body: q.body, actions: opts.map((o) => ({ title: String(o.title).slice(0, 20), id: `q:${q.id}:${o.id}` })) } }
+    : { "twilio/list-picker": { body: q.body, button: "Ver opções", items: opts.map((o) => ({ item: String(o.title).slice(0, 24), id: `q:${q.id}:${o.id}`, ...(o.description ? { description: String(o.description).slice(0, 72) } : {}) })) } };
+  const res = await fetch("https://content.twilio.com/v1/Content", {
+    method: "POST",
+    headers: { Authorization: `Basic ${btoa(`${account.twilio_account_sid}:${authToken}`)}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ friendly_name: `pergunta_${q.key}_${q.id.slice(0, 8)}`, language: "pt_PT", types }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.sid) {
+    console.error("twilio-whatsapp-webhook: não foi possível criar a pergunta na Twilio", data?.message);
+    return null;
+  }
+  await admin.from("whatsapp_questions").update({ content_sid: data.sid }).eq("id", q.id);
+  return data.sid;
+}
+
+async function processAnswer(admin, account, authToken, conversationId, contactId, to, answer) {
+  const brandId = account.brand_id;
+  const { question, option } = answer;
+
+  // Tags da opção (cria as que faltarem). Pôr a tag arranca as automações da marca.
+  if (contactId) {
+    for (const name of option.tags || []) {
+      let { data: tag } = await admin.from("tags").select("id").eq("brand_id", brandId).ilike("name", name).maybeSingle();
+      if (!tag) tag = (await admin.from("tags").insert({ brand_id: brandId, name }).select("id").single()).data;
+      if (tag) await admin.from("contact_tags").upsert({ brand_id: brandId, contact_id: contactId, tag_id: tag.id }, { onConflict: "contact_id,tag_id", ignoreDuplicates: true });
+    }
+  }
+
+  // Próximas perguntas: as desta opção primeiro, depois as que já estavam à espera.
+  const { data: state } = contactId
+    ? await admin.from("whatsapp_question_state").select("queue").eq("contact_id", contactId).maybeSingle()
+    : { data: null };
+  const next = (option.next || []).map(String);
+  let queue = [...next, ...((state?.queue || []).filter((k) => !next.includes(k)))];
+  let sentQuestion = null;
+  while (queue.length && !sentQuestion) {
+    const key = queue.shift();
+    const { data: q } = await admin.from("whatsapp_questions").select("*").eq("brand_id", brandId).eq("key", key).maybeSingle();
+    if (!q) continue;
+    const sid = await questionContentSid(admin, account, authToken, q);
+    if (!sid) break;
+    const sent = await twilioSend(account, authToken, to, { ContentSid: sid });
+    await admin.from("whatsapp_messages").insert({ brand_id: brandId, conversation_id: conversationId, direction: "outbound", wa_message_id: sent.sid, type: "interactive", body: q.body, status: sent.ok ? "sent" : "failed" });
+    sentQuestion = q;
+  }
+  if (!sentQuestion && question.final_message) {
+    const sent = await twilioSend(account, authToken, to, { Body: question.final_message });
+    await admin.from("whatsapp_messages").insert({ brand_id: brandId, conversation_id: conversationId, direction: "outbound", wa_message_id: sent.sid, type: "text", body: question.final_message, status: sent.ok ? "sent" : "failed" });
+  }
+  if (contactId) {
+    await admin.from("whatsapp_question_state").upsert({
+      contact_id: contactId, brand_id: brandId, last_question_id: sentQuestion ? sentQuestion.id : null, queue, updated_at: new Date().toISOString(),
+    }, { onConflict: "contact_id" });
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -117,7 +215,7 @@ Deno.serve(async (req) => {
   if (!from || !to) return new Response("Bad Request", { status: 400 });
 
   // A marca do número de destino (compara só os dígitos).
-  const { data: accounts } = await admin.from("whatsapp_accounts").select("brand_id, phone_number_id, access_token_ref").eq("provider", "twilio");
+  const { data: accounts } = await admin.from("whatsapp_accounts").select("brand_id, phone_number_id, twilio_account_sid, access_token_ref").eq("provider", "twilio");
   const account = (accounts || []).find((a) => digitsOf(a.phone_number_id) === digitsOf(to));
   if (!account) {
     console.error("twilio-whatsapp-webhook: nenhuma marca com o número", to, "- confirma o número em WhatsApp → Ligar conta");
@@ -177,6 +275,15 @@ Deno.serve(async (req) => {
   }
   if (!rows.length) rows.push({ type: "text", body: text || "[Mensagem sem texto]", media_url: null });
 
+  // Resposta a uma pergunta por botões? Fica com o tipo "button" (não para automações).
+  let answer = null;
+  try {
+    answer = await findAnswer(admin, account.brand_id, conversation.contact_id || contactId, params.ButtonPayload || params.ListId || "", numMedia ? "" : text);
+  } catch (e) {
+    console.error("twilio-whatsapp-webhook: pergunta por botões", e?.message || e);
+  }
+  if (answer && rows.length === 1 && rows[0].type === "text") rows[0].type = "button";
+
   const { error: insertError } = await admin.from("whatsapp_messages").insert(rows.map((r, i) => ({
     brand_id: account.brand_id,
     conversation_id: conversation.id,
@@ -190,6 +297,14 @@ Deno.serve(async (req) => {
   if (insertError) {
     console.error("twilio-whatsapp-webhook: não foi possível guardar a mensagem", insertError.message);
     return new Response("Erro.", { status: 500 });
+  }
+
+  if (answer) {
+    try {
+      await processAnswer(admin, account, authToken, conversation.id, conversation.contact_id || contactId, from, answer);
+    } catch (e) {
+      console.error("twilio-whatsapp-webhook: resposta por botões não tratada", e?.message || e);
+    }
   }
 
   return ok();
