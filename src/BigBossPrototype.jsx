@@ -32,6 +32,7 @@ import GrowthMapModule from "./modules/growthmap/GrowthMapModule.jsx";
 import BirthdaysModule from "./modules/birthdays/BirthdaysModule.jsx";
 import PaymentReminderBanner from "./modules/billing/PaymentReminderBanner.jsx";
 import ThemeToggle from "./design/ThemeToggle.jsx";
+import PushToggle from "./shared/PushToggle.jsx";
 import BrandLogo from "./design/BrandLogo.jsx";
 import ApprovalSeal from "./design/ApprovalSeal.jsx";
 import { setParams, useUrlState } from "./shared/urlState.js";
@@ -2577,6 +2578,7 @@ function TopBar({ onLogout, session }) {
             <div style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: c.ink, padding: "12px 16px", borderBottom: `1px solid ${c.line}` }}>
               {t("topbar.notifications")}
             </div>
+            <PushToggle />
             {notificationsQuery.isLoading && (
               <div style={{ ...sans, fontSize: 13.5, color: c.mist, padding: "12px 16px" }}>{t("common.loading")}</div>
             )}
