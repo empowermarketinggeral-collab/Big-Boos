@@ -82,6 +82,15 @@ const TWILIO_ERRORS = {
 };
 const twilioError = (data) => (data?.code && TWILIO_ERRORS[String(data.code)]) || data?.message || null;
 
+// Chamada pelo envio agendado (campaigns-scheduled-run) com a service role:
+// não há utilizador, por isso a campanha lê-se com a service role.
+function sameKey(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -103,7 +112,9 @@ Deno.serve(async (req) => {
   if (contactIds.length > 500) return json({ error: "Máximo de 500 destinatários por envio, por agora." }, 400);
 
   const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
-  const { data: campaign, error: campaignError } = await userClient
+  const fromScheduler = sameKey(authHeader.replace(/^Bearer\s+/i, ""), serviceRoleKey || "");
+  const campaignClient = fromScheduler ? createClient(supabaseUrl, serviceRoleKey) : userClient;
+  const { data: campaign, error: campaignError } = await campaignClient
     .from("sms_campaigns")
     .select("id, brand_id, body, status")
     .eq("id", campaignId)
