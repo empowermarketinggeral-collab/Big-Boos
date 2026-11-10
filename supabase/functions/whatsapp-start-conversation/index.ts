@@ -54,6 +54,12 @@ async function sendTemplateViaTwilio(accountSid, authToken, fromNumber, toPhone,
   return { ok: res.ok, id: data?.sid || null, error: data?.message };
 }
 
+// Texto do template com as variáveis desta pessoa, para a conversa no Big Boss
+// mostrar o que foi mesmo enviado (e não só o nome do template).
+function templateText(template, values) {
+  return String(template?.body || "").replace(/\{\{(\d+)\}\}/g, (_m, n) => String(values?.[Number(n) - 1] ?? "").trim());
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -87,7 +93,7 @@ Deno.serve(async (req) => {
 
   const { data: template } = await adminClient
     .from("whatsapp_templates")
-    .select("id, name, language, twilio_content_sid, status")
+    .select("id, name, language, twilio_content_sid, status, body")
     .eq("id", templateId)
     .eq("brand_id", brandId)
     .maybeSingle();
@@ -129,6 +135,7 @@ Deno.serve(async (req) => {
     wa_message_id: result.id,
     type: "template",
     template_name: template.name,
+    body: templateText(template, variableValues) || null,
     status: result.ok ? "sent" : "failed",
   });
 

@@ -145,6 +145,12 @@ function sameKey(a, b) {
   return r === 0;
 }
 
+// Texto do template com as variáveis desta pessoa, para a conversa no Big Boss
+// mostrar o que foi mesmo enviado (e não só o nome do template).
+function templateText(template, values) {
+  return String(template?.body || "").replace(/\{\{(\d+)\}\}/g, (_m, n) => String(values?.[Number(n) - 1] ?? "").trim());
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -190,7 +196,7 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!account) return json({ error: "Esta marca não tem WhatsApp ligado." }, 400);
 
-  const { data: template } = await adminClient.from("whatsapp_templates").select("id, name, language, twilio_content_sid, status").eq("id", campaign.template_id).eq("brand_id", campaign.brand_id).maybeSingle();
+  const { data: template } = await adminClient.from("whatsapp_templates").select("id, name, language, twilio_content_sid, status, body").eq("id", campaign.template_id).eq("brand_id", campaign.brand_id).maybeSingle();
   if (!template) return json({ error: "Template da campanha não encontrado." }, 400);
   // O estado guardado no Big Boss não trava o envio: com Twilio, confirma lá.
   // Aprovado (ou sem resposta clara) → envia e a Twilio decide; só espera se a
@@ -292,7 +298,7 @@ Deno.serve(async (req) => {
     if (conversation) {
       await adminClient.from("whatsapp_messages").insert({
         brand_id: campaign.brand_id, conversation_id: conversation.id, direction: "outbound",
-        wa_message_id: result.id, type: "template", template_name: template.name, status: result.ok ? "sent" : "failed",
+        wa_message_id: result.id, type: "template", template_name: template.name, body: templateText(template, contactValues) || null, status: result.ok ? "sent" : "failed",
       });
       await adminClient.from("whatsapp_conversations").update({
         last_message_at: new Date().toISOString(), window_expires_at: new Date(Date.now() + 24 * 3600000).toISOString(), status: "open",
