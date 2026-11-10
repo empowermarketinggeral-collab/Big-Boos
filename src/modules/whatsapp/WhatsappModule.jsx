@@ -260,6 +260,8 @@ function useContactsWa(brandId) {
 function useWaCampaigns(brandId) {
   return useQuery({
     queryKey: ["whatsapp_campaigns", brandId],
+    // Campanhas agendadas mudam sozinhas (o envio automático corre de minuto a minuto).
+    refetchInterval: (q) => ((q.state.data || []).some((cp) => cp.status === "scheduled" || cp.status === "sending") ? 20000 : false),
     enabled: !!brandId,
     queryFn: async () => {
       const { data, error } = await supabase.from("whatsapp_campaigns").select("*, whatsapp_templates(name, status, variables, body)").eq("brand_id", brandId).order("created_at", { ascending: false });

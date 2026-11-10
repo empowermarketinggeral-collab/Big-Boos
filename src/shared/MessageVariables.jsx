@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, Clock } from "lucide-react";
 import { c, sans, Modal, inputStyle, btnPrimary, btnGhost } from "./theme.jsx";
 import { supabase, invokeFunction } from "../lib/supabaseClient.js";
@@ -229,12 +229,29 @@ export function ScheduleCampaignModal({ campaignName, recipientCount, onClose, o
 
 // Aviso no editor: agendada para X (com botão para cancelar) e último erro.
 export function ScheduledNotice({ campaign, onCancel }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((x) => x + 1), 30000);
+    return () => clearInterval(t);
+  }, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const total = (campaign.scheduled_payload?.contactIds || []).length;
   const pacing = campaign.status === "sending" && campaign.scheduled_at && total > 0;
   const scheduled = campaign.status === "scheduled" || pacing;
   if (!scheduled && !campaign.last_error) return null;
+  // O que vai acontecer a seguir, em linguagem simples.
+  const startState = (() => {
+    const at = campaign.scheduled_at ? new Date(campaign.scheduled_at).getTime() : 0;
+    const diffMin = Math.round((at - Date.now()) / 60000);
+    if (!at) return { text: "" };
+    if (diffMin > 0) {
+      const when = diffMin < 60 ? `daqui a ${diffMin} min` : diffMin < 24 * 60 ? `daqui a ${Math.floor(diffMin / 60)} h ${diffMin % 60} min` : `em ${formatScheduled(campaign.scheduled_at)}`;
+      return { text: pacing ? `O próximo lote sai ${when}.` : `Começa a sair ${when}. Esta página atualiza sozinha.` };
+    }
+    if (diffMin >= -3) return { text: "A começar: o primeiro lote sai dentro de 1 a 2 minutos. Esta página atualiza sozinha." };
+    return { late: true, text: `Devia ter saído há ${-diffMin} min e ainda não saiu. O envio automático pode estar parado: avise a equipa técnica.` };
+  })();
   const cancel = async () => {
     setBusy(true); setError("");
     try { await onCancel(); } catch (err) { setError(err.message || "Não foi possível cancelar."); setBusy(false); }
@@ -250,6 +267,7 @@ export function ScheduledNotice({ campaign, onCancel }) {
             ) : (
               <>Agendada para <strong>{formatScheduled(campaign.scheduled_at)}</strong> ({total} contacto(s))</>
             )}
+            <span style={{ display: "block", fontSize: 13, color: startState.late ? c.rose : c.bossText, marginTop: 2 }}>{startState.text}</span>
             {campaign.scheduled_payload?.dailyLimit ? <span style={{ display: "block", fontSize: 13, color: c.mist }}>Máximo {campaign.scheduled_payload.dailyLimit} por dia{campaign.scheduled_payload.windowStart ? `, das ${campaign.scheduled_payload.windowStart} às ${campaign.scheduled_payload.windowEnd}` : ""}.</span> : null}
           </span>
           <button onClick={cancel} disabled={busy} style={{ ...btnGhost, padding: "6px 12px", fontSize: 13.5 }}>{busy ? "A parar…" : pacing ? "Parar os envios que faltam" : "Cancelar agendamento"}</button>

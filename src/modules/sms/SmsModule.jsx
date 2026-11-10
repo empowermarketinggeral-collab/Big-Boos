@@ -108,6 +108,8 @@ function useContactsSms(brandId) {
 function useSmsCampaigns(brandId) {
   return useQuery({
     queryKey: ["sms_campaigns", brandId],
+    // Campanhas agendadas mudam sozinhas (o envio automático corre de minuto a minuto).
+    refetchInterval: (q) => ((q.state.data || []).some((cp) => cp.status === "scheduled" || cp.status === "sending") ? 20000 : false),
     enabled: !!brandId,
     queryFn: async () => {
       const { data, error } = await supabase.from("sms_campaigns").select("*").eq("brand_id", brandId).order("created_at", { ascending: false });
