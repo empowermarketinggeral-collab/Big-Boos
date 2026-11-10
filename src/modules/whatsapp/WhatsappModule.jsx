@@ -1032,7 +1032,7 @@ function ConversationRow({ conversation, active, onSelect }) {
       onClick={onSelect}
       style={{
         display: "flex", flexDirection: "column", gap: 3, textAlign: "left", width: "100%",
-        padding: "10px 12px", borderRadius: 6, border: "none", cursor: "pointer",
+        padding: "12px 14px", border: "none", borderBottom: `1px solid ${c.line}`, borderRadius: 0, cursor: "pointer",
         background: active ? c.bossSoft : "transparent",
       }}
     >
@@ -1068,7 +1068,7 @@ function MessageBubble({ message }) {
   );
 }
 
-function MessageThread({ brandId, conversation }) {
+function MessageThread({ brandId, conversation, onBack }) {
   const messagesQuery = useMessages(conversation.id);
   const sendMessage = useSendMessage(brandId);
   const [text, setText] = useState("");
@@ -1095,9 +1095,16 @@ function MessageThread({ brandId, conversation }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={{ padding: "12px 16px", borderBottom: `1px solid ${c.line}` }}>
-        <div style={{ ...sans, fontSize: 15, fontWeight: 600, color: c.ink }}>{conversation.contacts?.name || conversation.wa_contact_phone}</div>
-        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 1 }}>{conversation.wa_contact_phone}</div>
+      <div style={{ padding: "10px 16px", borderBottom: `1px solid ${c.lineStrong}`, background: c.folha, display: "flex", alignItems: "center", gap: 10 }}>
+        {onBack && (
+          <button onClick={onBack} aria-label="Voltar às conversas" style={{ ...sans, display: "flex", alignItems: "center", gap: 4, fontSize: 13.5, color: c.bossText, background: "none", border: "none", padding: "6px 4px 6px 0", cursor: "pointer", flexShrink: 0 }}>
+            <ArrowLeft size={16} /> Conversas
+          </button>
+        )}
+        <div style={{ minWidth: 0, borderLeft: onBack ? `1px solid ${c.line}` : "none", paddingLeft: onBack ? 10 : 0 }}>
+          <div style={{ ...sans, fontSize: 15, fontWeight: 600, color: c.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conversation.contacts?.name || conversation.wa_contact_phone}</div>
+          <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginTop: 1 }}>{conversation.wa_contact_phone}</div>
+        </div>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 8, background: c.paper }}>
@@ -1132,11 +1139,43 @@ function MessageThread({ brandId, conversation }) {
   );
 }
 
+// Ecrã estreito (telemóvel): lista e conversa em vistas separadas.
+function useNarrow(query = "(max-width: 860px)") {
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia?.(query).matches);
+  useEffect(() => {
+    const media = window.matchMedia?.(query);
+    if (!media) return undefined;
+    const onChange = () => setNarrow(media.matches);
+    media.addEventListener?.("change", onChange);
+    return () => media.removeEventListener?.("change", onChange);
+  }, [query]);
+  return narrow;
+}
+
+// Mensagens novas chegam logo (Supabase Realtime, migração 106); o
+// refetchInterval fica como reserva.
+function useLiveWhatsapp(brandId) {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!brandId || !supabase.channel) return undefined;
+    const channel = supabase
+      .channel(`wa-${brandId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `brand_id=eq.${brandId}` }, (payload) => {
+        queryClient.invalidateQueries({ queryKey: ["whatsapp_messages", payload.new?.conversation_id] });
+        queryClient.invalidateQueries({ queryKey: ["whatsapp_conversations", brandId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [brandId, queryClient]);
+}
+
 function Inbox({ brandId }) {
   const conversationsQuery = useConversations(brandId);
+  useLiveWhatsapp(brandId);
+  const narrow = useNarrow();
   const [selectedId, setSelectedId] = useState(null);
   const conversations = conversationsQuery.data || [];
-  const selected = conversations.find((c2) => c2.id === selectedId) || conversations[0] || null;
+  const selected = conversations.find((c2) => c2.id === selectedId) || (narrow ? null : conversations[0]) || null;
 
   if (!conversationsQuery.isLoading && conversations.length === 0) {
     return (
@@ -1147,14 +1186,29 @@ function Inbox({ brandId }) {
     );
   }
 
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "var(--bb-split, 280px 1fr)", height: "calc(100vh - 260px)", minHeight: 420, border: `1px solid ${c.line}`, borderRadius: 3, overflow: "hidden" }}>
-      <div style={{ borderRight: `1px solid ${c.line}`, overflowY: "auto", padding: 8 }}>
-        {conversations.map((conv) => (
-          <ConversationRow key={conv.id} conversation={conv} active={selected?.id === conv.id} onSelect={() => setSelectedId(conv.id)} />
-        ))}
+  const list = (
+    <div style={{ overflowY: "auto", height: "100%" }}>
+      {conversations.map((conv) => (
+        <ConversationRow key={conv.id} conversation={conv} active={selected?.id === conv.id} onSelect={() => setSelectedId(conv.id)} />
+      ))}
+    </div>
+  );
+
+  // Telemóvel: ou a lista, ou a conversa aberta (com "Conversas" para voltar).
+  if (narrow) {
+    return (
+      <div style={{ height: "calc(100dvh - 230px)", minHeight: 420, border: `1px solid ${c.line}`, borderRadius: 3, overflow: "hidden", background: c.folha }}>
+        {selected ? (
+          <MessageThread brandId={brandId} conversation={selected} onBack={() => setSelectedId(null)} />
+        ) : list}
       </div>
-      <div>
+    );
+  }
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", height: "calc(100vh - 260px)", minHeight: 420, border: `1px solid ${c.line}`, borderRadius: 3, overflow: "hidden" }}>
+      <div style={{ borderRight: `1px solid ${c.line}`, minHeight: 0 }}>{list}</div>
+      <div style={{ minHeight: 0 }}>
         {selected ? <MessageThread brandId={brandId} conversation={selected} /> : (
           <div style={{ ...sans, fontSize: 14.5, color: c.mist, padding: 24 }}>Seleciona uma conversa.</div>
         )}
