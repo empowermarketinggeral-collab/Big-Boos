@@ -84,6 +84,8 @@ function SenderSettings({ brandId, domain, onChangeDomain }) {
 function useCampaigns(brandId) {
   return useQuery({
     queryKey: ["email_campaigns", brandId],
+    // Campanhas agendadas mudam sozinhas (o envio automático corre de minuto a minuto).
+    refetchInterval: (q) => ((q.state.data || []).some((cp) => cp.status === "scheduled" || cp.status === "sending") ? 20000 : false),
     enabled: !!brandId,
     queryFn: async () => {
       const { data, error } = await supabase.from("email_campaigns").select("*").eq("brand_id", brandId).order("created_at", { ascending: false });
