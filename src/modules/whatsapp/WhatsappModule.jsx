@@ -1027,23 +1027,30 @@ function WaCampaignsPanel({ brandId }) {
 /* ---------------------------------------------------------
    INBOX
 --------------------------------------------------------- */
+// Por ler: a cliente escreveu depois de a equipa abrir a conversa (migração 108).
+const isUnread = (conv) => Boolean(conv.last_inbound_at && (!conv.read_at || new Date(conv.last_inbound_at) > new Date(conv.read_at)));
+
 function ConversationRow({ conversation, active, onSelect }) {
   const name = conversation.contacts?.name || conversation.wa_contact_phone;
+  const unread = isUnread(conversation) && !active;
   return (
     <button
       onClick={onSelect}
       style={{
         display: "flex", flexDirection: "column", gap: 3, textAlign: "left", width: "100%",
         padding: "12px 14px", border: "none", borderBottom: `1px solid ${c.line}`, borderRadius: 0, cursor: "pointer",
-        background: active ? c.bossSoft : "transparent",
+        background: active ? c.bossSoft : unread ? `color-mix(in srgb, ${c.roseSolid} 8%, transparent)` : "transparent",
+        boxShadow: unread ? `inset 3px 0 0 ${c.roseSolid}` : "none",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <span style={{ ...sans, fontSize: 14.5, fontWeight: 600, color: c.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
-        {conversation.status === "open" && <span style={{ width: 6, height: 6, borderRadius: 999, background: c.sageSolid, flexShrink: 0 }} />}
+        <span style={{ ...sans, fontSize: 14.5, fontWeight: unread ? 700 : 600, color: c.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+        {unread ? (
+          <span style={{ ...sans, fontSize: 12.5, fontWeight: 700, color: "#fff", background: c.roseSolid, borderRadius: 999, padding: "1px 8px", flexShrink: 0 }}>Nova</span>
+        ) : conversation.status === "open" && <span style={{ width: 6, height: 6, borderRadius: 999, background: c.sageSolid, flexShrink: 0 }} />}
       </div>
       <span style={{ ...sans, fontSize: 12.5, color: c.mist }}>{conversation.wa_contact_phone}</span>
-      <span style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>{timeLabel(conversation.last_message_at)}</span>
+      <span style={{ ...sans, fontSize: 12.5, color: unread ? c.rose : c.mistLight, fontWeight: unread ? 600 : 400 }}>{timeLabel(conversation.last_inbound_at && unread ? conversation.last_inbound_at : conversation.last_message_at)}</span>
     </button>
   );
 }
@@ -1101,6 +1108,14 @@ function MessageBubble({ message, template }) {
 function MessageThread({ brandId, conversation, onBack }) {
   const messagesQuery = useMessages(conversation.id);
   const templatesByName = new Map((useTemplates(brandId).data || []).map((t) => [t.name, t]));
+  const qc = useQueryClient();
+  // Abrir a conversa (ou chegar mensagem com ela aberta) marca-a como lida.
+  useEffect(() => {
+    if (!isUnread(conversation)) return;
+    supabase.rpc("whatsapp_mark_read", { p_conversation: conversation.id }).then(({ error }) => {
+      if (!error) qc.invalidateQueries({ queryKey: ["whatsapp_conversations", brandId] });
+    });
+  }, [conversation.id, conversation.last_inbound_at, conversation.read_at, brandId, qc]);
   const sendMessage = useSendMessage(brandId);
   const [text, setText] = useState("");
   const [error, setError] = useState("");
@@ -1474,6 +1489,7 @@ export default function WhatsappModule({ brand, onBack }) {
   const usageQuery = useWaUsage(brand.id);
   const [tab, setTab] = useUrlState("aba", "inbox");
   const [showStart, setShowStart] = useState(false);
+  const unreadCount = (useConversations(accountQuery.data ? brand.id : null).data || []).filter(isUnread).length;
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
@@ -1498,6 +1514,9 @@ export default function WhatsappModule({ brand, onBack }) {
                   }}
                 >
                   {t.l}
+                  {t.k === "inbox" && unreadCount > 0 && (
+                    <span style={{ marginLeft: 6, fontSize: 12.5, fontWeight: 700, color: "#fff", background: c.roseSolid, borderRadius: 999, padding: "1px 7px" }}>{unreadCount}</span>
+                  )}
                 </button>
               ))}
             </div>

@@ -35,6 +35,20 @@ async function saveSubscription(sub) {
   if (error) throw new Error(error.message);
 }
 
+// Erros do browser ao subscrever, explicados em português.
+function explainPushError(e) {
+  const msg = String(e?.message || e || "");
+  const ua = navigator.userAgent || "";
+  if (/push service|registration failed|AbortError/i.test(msg) || e?.name === "AbortError") {
+    if (/huawei|honor/i.test(ua)) return "Este telemóvel não tem os serviços Google, que o Android usa para as notificações. Aqui os avisos não funcionam: use outro aparelho ou o computador.";
+    if (navigator.brave) return "No Brave: abra brave://settings/privacy, ligue \"Usar serviços Google para mensagens push\", feche e abra o browser e tente de novo.";
+    if (/SamsungBrowser/i.test(ua)) return "O browser da Samsung não conseguiu ativar os avisos. Abra o Big Boss no Google Chrome e ative aqui.";
+    return "O browser não conseguiu falar com o serviço de notificações. Abra o Big Boss no Google Chrome (no Android, com os serviços Google ativos), confirme que tem internet e tente de novo.";
+  }
+  if (/denied|permission/i.test(msg)) return "As notificações estão bloqueadas para este site. Permita-as nas definições do browser e tente de novo.";
+  return msg || "Não foi possível ativar.";
+}
+
 export default function PushToggle() {
   const [state, setState] = useState("loading"); // loading | off | on | denied | unsupported | ios-install
   const [busy, setBusy] = useState(false);
@@ -76,11 +90,21 @@ export default function PushToggle() {
         await sub.unsubscribe().catch(() => {});
         sub = null;
       }
-      if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(data.publicKey) });
+      const subscribe = () => reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(data.publicKey) });
+      if (!sub) {
+        try {
+          sub = await subscribe();
+        } catch (first) {
+          // Uma subscrição antiga presa no browser dá "push service error": limpa e tenta outra vez.
+          const stale = await reg.pushManager.getSubscription().catch(() => null);
+          if (stale) await stale.unsubscribe().catch(() => {});
+          try { sub = await subscribe(); } catch { throw first; }
+        }
+      }
       await saveSubscription(sub);
       setState("on");
     } catch (e) {
-      setError(e?.message || "Não foi possível ativar.");
+      setError(explainPushError(e));
     } finally {
       setBusy(false);
     }
