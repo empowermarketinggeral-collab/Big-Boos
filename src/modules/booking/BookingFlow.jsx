@@ -106,7 +106,7 @@ function ServicePicker({ services, onPick }) {
               <span style={{ fontSize: 16, fontWeight: 500 }}>{s.name}</span>
               <span style={{ fontSize: 15, fontWeight: 500, whiteSpace: "nowrap" }}>{servicePriceLabel(s)}</span>
             </div>
-            <div style={{ fontSize: 14, color: T.muted, marginTop: 4, lineHeight: 1.45 }}>
+            <div style={{ fontSize: 14, color: T.muted, marginTop: 4, lineHeight: 1.45, whiteSpace: "pre-line" }}>
               {optionGroupsOf(s).length === 1 ? "" : durationLabel(s.duration_minutes)}
               {s.description ? `${optionGroupsOf(s).length === 1 ? "" : ". "}${s.description}` : ""}
             </div>
@@ -289,7 +289,7 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
         </button>
         <div style={{ ...T.title, fontSize: 22, color: T.ink }}>{service.name}</div>
         {groups.length !== 1 && <div style={{ fontSize: 14.5, color: T.muted, marginTop: 4 }}>{durationLabel(service.duration_minutes)}, {servicePriceLabel(service).replace(/^Desde/, "desde")}</div>}
-        {service.description && <div style={{ fontSize: 14.5, color: T.ink, marginTop: 10, lineHeight: 1.55 }}>{service.description}</div>}
+        {service.description && <div style={{ fontSize: 14.5, color: T.ink, marginTop: 10, lineHeight: 1.55, whiteSpace: "pre-line" }}>{service.description}</div>}
 
         {extras.map((x) => (
           <div key={x.id} style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12, padding: "10px 12px", border: `1px solid ${T.line}`, borderRadius: 12, background: T.surface }}>
