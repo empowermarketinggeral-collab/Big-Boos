@@ -12,12 +12,15 @@
 //   phone | telefone | telemovel | whatsapp
 //   birth_date | data_nascimento        (AAAA-MM-DD ou DD/MM/AAAA)
 //   source                              (origem; por omissão a da marca)
-//   tags                                (lista ou "a, b, c" — criadas se não existirem)
+//   tags                                (lista ou "a, b, c" — criadas se não existirem; ou ?tags= no URL)
 //   consent                             (true → consentimento WhatsApp + email + SMS)
 //   consent_whatsapp | consent_email | consent_sms
 //   custom_fields                       (objeto) e/ou campos "cf_<chave>"
 //   referrer_email | referrer_phone     (contacto que indicou este lead)
 //   _honeypot                           (campo-armadilha: se vier preenchido, ignora)
+//
+// Google Ads (formulários de leads): aceita o formato do webhook do Google
+// (user_column_data); a "chave" do formulário pode ser o próprio token.
 //
 // Precisa de "Verify JWT" DESLIGADO — a segurança vem do token por marca
 // (revogável em CRM → Entrada de leads). O token só permite CRIAR/atualizar
@@ -129,6 +132,28 @@ function pickCustomFields(data) {
   return out;
 }
 
+// Formulário de leads do Google Ads (webhook): cada resposta vem em
+// user_column_data [{ column_id, string_value }]. Nome, email e telefone vão
+// para os campos do contacto; as outras perguntas para campos personalizados.
+function fromGoogleAds(data) {
+  const out = { source: data.source || "google_ads", custom_fields: { ...(data.custom_fields || {}) } };
+  const MAP = { FULL_NAME: "name", FIRST_NAME: "first_name", LAST_NAME: "last_name", EMAIL: "email", WORK_EMAIL: "email", PHONE_NUMBER: "phone", WORK_PHONE: "phone" };
+  for (const col of data.user_column_data.slice(0, 40)) {
+    const id = String(col?.column_id || "").toUpperCase();
+    const value = str(col?.string_value, 500);
+    if (!value) continue;
+    if (MAP[id]) { if (!out[MAP[id]]) out[MAP[id]] = value; }
+    else {
+      const key = String(col?.column_name || id).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40);
+      if (key) out.custom_fields[key] = value;
+    }
+  }
+  if (data.campaign_id) out.custom_fields.google_campanha = str(data.campaign_id, 60);
+  if (data.form_id) out.custom_fields.google_formulario = str(data.form_id, 60);
+  if (data.is_test === true) out.custom_fields.google_teste = "sim";
+  return out;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -142,8 +167,15 @@ Deno.serve(async (req) => {
   }
   if (payload.tooLarge) return json({ error: "Pedido demasiado grande." }, 413);
   const data = payload.data;
+  // Google Ads (formulários de leads): user_column_data passa a campos normais.
+  if (Array.isArray(data.user_column_data)) Object.assign(data, fromGoogleAds(data));
+  // Tags e origem também pelo endereço (?tags=a,b&source=…), para plataformas
+  // que não deixam mudar o corpo (ex.: um endereço por formulário do Google).
+  if (!data.tags && url.searchParams.get("tags")) data.tags = url.searchParams.get("tags");
+  if (url.searchParams.get("source")) data.source = url.searchParams.get("source");
 
-  const token = str(req.headers.get("x-lead-token") || url.searchParams.get("token") || data.token, 200);
+  // Google Ads manda a "chave" que se escreve no formulário em google_key.
+  const token = str(req.headers.get("x-lead-token") || url.searchParams.get("token") || data.token || data.google_key, 200);
   if (!token) return json({ error: "Token inválido." }, 401);
 
   const admin = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
