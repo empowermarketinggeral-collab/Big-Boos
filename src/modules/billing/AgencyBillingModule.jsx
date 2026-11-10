@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase, invokeFunction } from "../../lib/supabaseClient.js";
 import { c, sans, serif, Eyebrow, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { CreditCard, Check, ExternalLink, MessageCircle } from "lucide-react";
+import MessagingCostsPanel from "./MessagingCostsPanel.jsx";
 
 /* ---------------------------------------------------------
    FATURAÇÃO DA AGÊNCIA — subscrição da própria agência (Starter/
@@ -187,6 +188,7 @@ export default function AgencyBillingModule({ session }) {
         )}
         {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginTop: 12 }}>{error}</div>}
       </div>
+      {agencyId && <MessagingCostsPanel agencyId={agencyId} />}
     </div>
   );
 }
