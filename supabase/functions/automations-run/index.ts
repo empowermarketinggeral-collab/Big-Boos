@@ -84,7 +84,7 @@ async function sendWhatsappText(admin, brandId, toPhone, body, template = null, 
 
   await admin.from("whatsapp_messages").insert({
     brand_id: brandId, conversation_id: conversation.id, direction: "outbound",
-    wa_message_id: msgId, type: template ? "template" : "text", body, status: ok ? "sent" : "failed",
+    wa_message_id: msgId, type: template ? "template" : "text", template_name: template?.name || null, body, status: ok ? "sent" : "failed",
   });
   await admin.from("whatsapp_conversations").update({ last_message_at: new Date().toISOString() }).eq("id", conversation.id);
 

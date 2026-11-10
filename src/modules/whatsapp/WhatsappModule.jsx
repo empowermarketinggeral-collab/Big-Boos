@@ -1048,18 +1048,46 @@ function ConversationRow({ conversation, active, onSelect }) {
   );
 }
 
-function MessageBubble({ message }) {
+// Botões do template (respostas rápidas ou link), para se ver o que a cliente recebeu.
+function templateButtons(template) {
+  const layout = template?.layout || {};
+  const quick = Array.isArray(layout.quickReplies) ? layout.quickReplies.map((q) => q?.title).filter(Boolean) : [];
+  if (quick.length) return quick;
+  return layout.buttonText ? [layout.buttonText] : [];
+}
+
+function MessageBubble({ message, template }) {
   const outbound = message.direction === "outbound";
+  const isTemplate = message.type === "template";
+  const isButton = !outbound && message.type === "button";
+  const text = message.body || (isTemplate ? String(template?.body || "").replace(/\{\{\d+\}\}/g, "…") || `Template ${message.template_name || ""}` : "");
+  const buttons = isTemplate ? templateButtons(template) : [];
+  const soft = outbound ? "rgba(255,255,255,0.75)" : c.mist;
   return (
     <div style={{ display: "flex", justifyContent: outbound ? "flex-end" : "flex-start" }}>
       <div
         style={{
-          maxWidth: "72%", padding: "8px 12px", borderRadius: 3,
+          maxWidth: "78%", padding: "8px 12px", borderRadius: 3,
           background: outbound ? c.boss : c.folha, color: outbound ? "#fff" : c.ink,
-          border: outbound ? "none" : `1px solid ${c.line}`,
+          border: outbound ? "none" : `1px solid ${isButton ? c.bossText : c.line}`,
         }}
       >
-        <div style={{ ...sans, fontSize: 14.5, whiteSpace: "pre-wrap" }}>{message.body || (message.type === "template" ? `[template: ${message.template_name}]` : "")}</div>
+        {isTemplate && message.template_name && (
+          <div style={{ ...sans, fontSize: 12.5, color: soft, marginBottom: 4 }}>Template {message.template_name}</div>
+        )}
+        {isButton && (
+          <div style={{ ...sans, fontSize: 12.5, color: c.bossText, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>
+            <CheckCircle2 size={12} /> Carregou no botão
+          </div>
+        )}
+        <div style={{ ...sans, fontSize: 14.5, whiteSpace: "pre-wrap", fontWeight: isButton ? 600 : 400 }}>{text}</div>
+        {buttons.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+            {buttons.map((b) => (
+              <span key={b} style={{ ...sans, fontSize: 12.5, padding: "3px 10px", borderRadius: 999, border: `1px solid ${outbound ? "rgba(255,255,255,0.6)" : c.lineStrong}` }}>{b}</span>
+            ))}
+          </div>
+        )}
         <div style={{ ...sans, fontSize: 12.5, marginTop: 4, color: outbound ? "rgba(255,255,255,0.75)" : c.mistLight, display: "flex", alignItems: "center", gap: 4 }}>
           {timeLabel(message.created_at)}
           {outbound && message.status === "failed" && <AlertCircle size={11} color="#FBD5DC" />}
@@ -1072,6 +1100,7 @@ function MessageBubble({ message }) {
 
 function MessageThread({ brandId, conversation, onBack }) {
   const messagesQuery = useMessages(conversation.id);
+  const templatesByName = new Map((useTemplates(brandId).data || []).map((t) => [t.name, t]));
   const sendMessage = useSendMessage(brandId);
   const [text, setText] = useState("");
   const [error, setError] = useState("");
@@ -1111,7 +1140,7 @@ function MessageThread({ brandId, conversation, onBack }) {
 
       <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 8, background: c.paper }}>
         {(messagesQuery.data || []).map((m) => (
-          <MessageBubble key={m.id} message={m} />
+          <MessageBubble key={m.id} message={m} template={m.template_name ? templatesByName.get(m.template_name) : null} />
         ))}
         <div ref={bottomRef} />
       </div>
