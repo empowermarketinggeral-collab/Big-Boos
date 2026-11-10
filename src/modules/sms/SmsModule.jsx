@@ -5,6 +5,7 @@ import { VariableChips, RecipientSummary, useVariableInsert, IncludeWithoutConse
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, MessageSquare, AlertCircle, CheckCircle2, Plus, Trash2, Send, Clock } from "lucide-react";
 import { useUrlState } from "../../shared/urlState.js";
+import TwilioHealth from "../../shared/TwilioHealth.jsx";
 
 /* ---------------------------------------------------------
    SMS — via Twilio. Módulo do EMPOWER OS.
@@ -561,6 +562,7 @@ export default function SmsModule({ brand, onBack }) {
       ) : accountQuery.data ? (
         <>
           <Eyebrow>SMS</Eyebrow>
+          <TwilioHealth brandId={brand.id} channel="sms" />
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
             <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 6, padding: 3 }}>
               {TABS.map((t) => (

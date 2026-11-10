@@ -5,6 +5,7 @@ import { VariableChips, RecipientSummary, useVariableInsert, IncludeWithoutConse
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, display } from "../../shared/theme.jsx";
 import { ArrowLeft, Send, MessageCircle, CheckCircle2, AlertCircle, Plus, Trash2, FileText, RefreshCw, UserPlus, Calculator, Info, Clock } from "lucide-react";
 import { useUrlState } from "../../shared/urlState.js";
+import TwilioHealth from "../../shared/TwilioHealth.jsx";
 
 /* ---------------------------------------------------------
    WHATSAPP — Inbox ligado à Meta Cloud API (WhatsApp Business)
@@ -1502,6 +1503,7 @@ export default function WhatsappModule({ brand, onBack }) {
       ) : accountQuery.data ? (
         <>
           <Eyebrow>WhatsApp Business</Eyebrow>
+          {accountQuery.data.provider === "twilio" && <TwilioHealth brandId={brand.id} channel="whatsapp" />}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
             <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 6, padding: 3 }}>
               {TABS.map((t) => (
