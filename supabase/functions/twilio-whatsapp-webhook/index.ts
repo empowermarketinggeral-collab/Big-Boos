@@ -314,8 +314,9 @@ Deno.serve(async (req) => {
   const contactId = await contactFor(admin, account.brand_id, from, params.ProfileName);
 
   let conversation = (
-    await admin.from("whatsapp_conversations").select("id, contact_id").eq("brand_id", account.brand_id).eq("wa_contact_phone", from).maybeSingle()
-  ).data;
+    // Pode haver mais do que uma conversa com o mesmo número (criadas pelas campanhas): usa a mais antiga.
+    await admin.from("whatsapp_conversations").select("id, contact_id").eq("brand_id", account.brand_id).eq("wa_contact_phone", from).order("created_at", { ascending: true }).limit(1)
+  ).data?.[0] || null;
   if (!conversation) {
     const { data: created, error } = await admin
       .from("whatsapp_conversations")
