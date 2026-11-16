@@ -290,7 +290,43 @@ export const campaignStatusLabel = (cp) =>
    chegam depois pela Twilio (callback na twilio-whatsapp-webhook);
    "failed" traz o motivo. Agrupa as falhas por motivo.
 --------------------------------------------------------- */
-export function CampaignResults({ rows = [], channel = "whatsapp", loading, campaignId, onRefreshed }) {
+// Reenviar aos que falharam (migração 113): voltam para o fim da fila da
+// campanha e saem com o mesmo máximo por dia e horário.
+function RequeueFailed({ channel, campaign, failedCount, defaults, onDone }) {
+  const [state, setState] = useState({ ask: false, busy: false, note: "", error: "" });
+  const pace = campaign?.scheduled_payload?.contactIds ? campaign.scheduled_payload : defaults || {};
+  const paceText = pace.dailyLimit
+    ? `no máximo ${pace.dailyLimit} por dia${pace.windowStart ? `, das ${pace.windowStart} às ${pace.windowEnd}` : ""}`
+    : "logo que possível";
+  const run = async () => {
+    setState((s) => ({ ...s, busy: true, error: "" }));
+    const { data, error } = await supabase.rpc("campaign_requeue_failed", { p_channel: channel, p_campaign: campaign.id, p_defaults: defaults || {} });
+    if (error) { setState({ ask: false, busy: false, note: "", error: error.message }); return; }
+    setState({ ask: false, busy: false, error: "", note: data ? `${data} contacto(s) voltaram para o fim da fila. Saem ${paceText}.` : "Já estão todos na fila por enviar." });
+    onDone?.();
+  };
+  return (
+    <div style={{ marginTop: 10 }}>
+      {!state.ask ? (
+        <button type="button" onClick={() => setState((s) => ({ ...s, ask: true, note: "", error: "" }))} style={{ ...btnPrimary, padding: "7px 14px", fontSize: 13.5 }}>
+          Reenviar aos que falharam ({failedCount})
+        </button>
+      ) : (
+        <div style={{ ...sans, fontSize: 13.5, color: c.ink, lineHeight: 1.5 }}>
+          Os {failedCount} contactos que falharam vão para o fim da fila desta campanha e saem {paceText}, junto com os que ainda faltam. Quem já recebeu não recebe outra vez.
+          <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+            <button type="button" onClick={run} disabled={state.busy} style={{ ...btnPrimary, padding: "7px 14px", fontSize: 13.5 }}>{state.busy ? "A pôr na fila…" : "Sim, reenviar"}</button>
+            <button type="button" onClick={() => setState((s) => ({ ...s, ask: false }))} disabled={state.busy} style={{ ...btnGhost, padding: "7px 14px", fontSize: 13.5 }}>Cancelar</button>
+          </div>
+        </div>
+      )}
+      {state.note && <div style={{ ...sans, fontSize: 13.5, color: c.sage, marginTop: 6 }}>{state.note}</div>}
+      {state.error && <div style={{ ...sans, fontSize: 13.5, color: c.rose, marginTop: 6 }}>{state.error}</div>}
+    </div>
+  );
+}
+
+export function CampaignResults({ rows = [], channel = "whatsapp", loading, campaignId, onRefreshed, campaign, requeueDefaults, onRequeued }) {
   const [openReason, setOpenReason] = useState(null);
   const [refresh, setRefresh] = useState({ busy: false, note: "" });
   // Pergunta à Twilio o estado das mensagens ainda sem confirmação (campaign-status-refresh).
@@ -350,6 +386,7 @@ export function CampaignResults({ rows = [], channel = "whatsapp", loading, camp
       {byReason.size > 0 && (
         <div style={{ background: c.folha, border: `1px solid ${c.rose}`, borderRadius: 3, padding: "12px 16px", marginTop: 12 }}>
           <div style={{ ...sans, fontSize: 14, fontWeight: 700, color: c.rose, marginBottom: 6 }}>Porque falharam</div>
+          {campaign && <RequeueFailed channel={channel} campaign={campaign} failedCount={(() => { const ok = new Set(rows.filter((r) => r.status !== "failed").map((r) => r.contact_id)); return new Set(failed.filter((r) => !ok.has(r.contact_id)).map((r) => r.contact_id || r.id)).size; })()} defaults={requeueDefaults} onDone={() => { onRefreshed?.(); onRequeued?.(); }} />}
           {[...byReason.entries()].sort((a, b) => b[1].length - a[1].length).map(([reason, list]) => (
             <div key={reason} style={{ borderTop: `1px solid ${c.line}`, padding: "8px 0" }}>
               <button type="button" onClick={() => setOpenReason(openReason === reason ? null : reason)} style={{ ...sans, background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", width: "100%", display: "flex", gap: 10, alignItems: "baseline" }}>

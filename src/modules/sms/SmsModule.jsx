@@ -171,7 +171,7 @@ function useSmsCampaignMessages(campaignId) {
     queryKey: ["sms_campaign_messages", campaignId],
     enabled: !!campaignId,
     queryFn: async () => {
-      return fetchAll(() => supabase.from("sms_messages").select("id, status, error, contacts(name, phone)").eq("campaign_id", campaignId).order("id"));
+      return fetchAll(() => supabase.from("sms_messages").select("id, contact_id, status, error, contacts(name, phone)").eq("campaign_id", campaignId).order("id"));
     },
     refetchInterval: 30000,
   });
@@ -394,7 +394,7 @@ function SmsCampaignEditor({ brandId, campaign, onBack }) {
 
       {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 16 }}>{error}</div>}
 
-      {isSent && !isScheduled && <CampaignResults rows={messages} channel="sms" loading={messagesQuery.isLoading} campaignId={campaign.id} onRefreshed={() => messagesQuery.refetch()} />}
+      {isSent && !isScheduled && <CampaignResults rows={messages} channel="sms" loading={messagesQuery.isLoading} campaignId={campaign.id} onRefreshed={() => messagesQuery.refetch()} campaign={campaign} requeueDefaults={{ includeWithoutConsent: true }} onRequeued={refreshCampaigns} />}
 
       <ScheduledNotice campaign={campaign} onCancel={cancelSchedule} />
 
