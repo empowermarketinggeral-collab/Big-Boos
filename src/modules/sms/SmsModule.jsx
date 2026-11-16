@@ -6,6 +6,7 @@ import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, displ
 import { ArrowLeft, MessageSquare, AlertCircle, CheckCircle2, Plus, Trash2, Send, Clock } from "lucide-react";
 import { useUrlState } from "../../shared/urlState.js";
 import TwilioHealth from "../../shared/TwilioHealth.jsx";
+import { MessagingCreditBanner, MessagingCreditPanel } from "../../shared/MessagingCredit.jsx";
 
 /* ---------------------------------------------------------
    SMS — via Twilio. Módulo do EMPOWER OS.
@@ -547,9 +548,9 @@ const TABS = [{ k: "envios", l: "Envios" }, { k: "campanhas", l: "Campanhas" }];
 export default function SmsModule({ brand, onBack }) {
   const accountQuery = useSmsAccount(brand.id);
   const messagesQuery = useSmsMessages(brand.id);
-  const usageQuery = useSmsUsage(brand.id);
   const [tab, setTab] = useUrlState("aba", "envios");
   const [showSend, setShowSend] = useState(false);
+  const [showCredit, setShowCredit] = useState(false);
 
   return (
     <div className="bb-page" style={{ padding: "8px 40px 60px", maxWidth: 1040 }}>
@@ -563,6 +564,14 @@ export default function SmsModule({ brand, onBack }) {
         <>
           <Eyebrow>SMS</Eyebrow>
           <TwilioHealth brandId={brand.id} channel="sms" />
+          {showCredit ? (
+            <div style={{ marginBottom: 16, maxWidth: 720 }}>
+              <MessagingCreditPanel brandId={brand.id} />
+              <button type="button" onClick={() => setShowCredit(false)} style={{ ...btnGhost, marginTop: 8, padding: "6px 12px", fontSize: 13.5 }}>Fechar</button>
+            </div>
+          ) : (
+            <MessagingCreditBanner brandId={brand.id} onOpenCosts={() => setShowCredit(true)} />
+          )}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
             <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 6, padding: 3 }}>
               {TABS.map((t) => (
@@ -580,11 +589,6 @@ export default function SmsModule({ brand, onBack }) {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>{accountQuery.data.from_number}</div>
-              {usageQuery.data && usageQuery.data.numMessages > 0 && (
-                <div style={{ ...sans, fontSize: 12.5, color: c.mist, background: c.paper, borderRadius: 999, padding: "4px 10px" }}>
-                  {usageQuery.data.numMessages} SMS, {usageQuery.data.cost.toFixed(2)} {usageQuery.data.currency} (30 dias)
-                </div>
-              )}
               {tab === "envios" && (
                 <button onClick={() => setShowSend(true)} style={{ ...btnPrimary, padding: "8px 14px", display: "flex", alignItems: "center", gap: 6 }}>
                   <Send size={14} /> Enviar SMS

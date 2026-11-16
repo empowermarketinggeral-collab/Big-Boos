@@ -6,6 +6,7 @@ import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, displ
 import { ArrowLeft, Send, MessageCircle, CheckCircle2, AlertCircle, Plus, Trash2, FileText, RefreshCw, UserPlus, Calculator, Info, Clock } from "lucide-react";
 import { useUrlState } from "../../shared/urlState.js";
 import TwilioHealth from "../../shared/TwilioHealth.jsx";
+import { MessagingCreditBanner, MessagingCreditPanel, useMessagingSummary } from "../../shared/MessagingCredit.jsx";
 
 /* ---------------------------------------------------------
    WHATSAPP — Inbox ligado à Meta Cloud API (WhatsApp Business)
@@ -1340,68 +1341,32 @@ function VolumeSlider({ label, value, onChange, max = 10000 }) {
 }
 
 function CostsPanel({ brandId }) {
-  const usageQuery = useWaUsage(brandId);
-  const trendQuery = useWaUsageTrend(brandId);
-  const [messages, setMessages] = useState(0);
+  const summaryQuery = useMessagingSummary(brandId);
+  const [messages, setMessages] = useState(1000);
   const [rate, setRate] = useState(DEFAULT_RATE);
   const [prefilled, setPrefilled] = useState(false);
 
-  // Pré-preenche uma vez com o número real dos últimos 30 dias.
+  // Pré-preenche uma vez com o preço médio real deste mês (Twilio, em euros, com a margem).
   useEffect(() => {
-    if (!prefilled && usageQuery.data && usageQuery.data.numMessages > 0) {
-      setMessages(usageQuery.data.numMessages);
+    const s = summaryQuery.data;
+    if (!prefilled && s && s.avgPrice) {
+      setRate(s.avgPrice);
+      if (s.monthMessages > 1000) setMessages(s.monthMessages);
       setPrefilled(true);
     }
-  }, [prefilled, usageQuery.data]);
+  }, [prefilled, summaryQuery.data]);
 
   const total = messages * rate;
 
-  const trend = trendQuery.data || [];
-  const daysWithData = trend.length;
-  const trendCost = trend.reduce((sum, r) => sum + Number(r.cost), 0);
-  const dailyAvg = daysWithData > 0 ? trendCost / daysWithData : 0;
-  const suggestedTopUp = dailyAvg * 30 * 1.2; // média real × 30 dias + 20% de margem
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 720 }}>
-      <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
-        <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 6 }}>Gasto real</div>
-        <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 16, lineHeight: 1.5 }}>
-          A mensalidade cobre a plataforma. Cada mensagem enviada tem uma taxa à parte. Este é o valor já gasto em mensagens, atualizado uma vez por dia.
-        </div>
-        {usageQuery.isLoading ? (
-          <div style={{ ...sans, fontSize: 13.5, color: c.mist }}>A carregar…</div>
-        ) : usageQuery.data && usageQuery.data.numMessages > 0 ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14 }}>
-            <div>
-              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 3 }}>Últimos 30 dias</div>
-              <div style={{ ...display, fontSize: 22, color: c.ink }}>{money(usageQuery.data.cost, usageQuery.data.currency)}</div>
-              <div style={{ ...sans, fontSize: 12.5, color: c.mistLight }}>{usageQuery.data.numMessages.toLocaleString("pt-PT")} mensagens</div>
-            </div>
-            <div>
-              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 3 }}>Média diária ({daysWithData} dias com registo)</div>
-              <div style={{ ...display, fontSize: 22, color: c.ink }}>{money(dailyAvg, usageQuery.data.currency)}</div>
-            </div>
-            <div>
-              <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 3 }}>Saldo sugerido p/ 30 dias</div>
-              <div style={{ ...display, fontSize: 22, color: c.bossText }}>{money(suggestedTopUp, usageQuery.data.currency)}</div>
-              <div style={{ ...sans, fontSize: 11.5, color: c.mistLight }}>média real × 30 dias + 20% de margem</div>
-            </div>
-          </div>
-        ) : (
-          <div style={{ ...sans, fontSize: 13.5, color: c.mistLight }}>
-            Ainda sem histórico de gasto real (a sincronização é diária). Usa o simulador abaixo para estimar antes de teres dados.
-          </div>
-        )}
-      </div>
-
       <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
           <Calculator size={16} color={c.bossText} />
           <div style={{ ...serif, fontSize: 15.5, color: c.ink }}>Simulador</div>
         </div>
         <div style={{ ...sans, fontSize: 12.5, color: c.mist, marginBottom: 18, lineHeight: 1.5 }}>
-          Ajusta o número de mensagens por mês para veres o custo estimado.
+          Ajusta o número de mensagens por mês para veres o custo estimado. A taxa vem do preço médio real deste mês (inclui as mensagens que falham e também são cobradas).
         </div>
 
         <VolumeSlider label="Mensagens por mês" value={messages} onChange={setMessages} max={10000} />
@@ -1487,7 +1452,6 @@ function QuestionsPanel({ brandId }) {
 
 export default function WhatsappModule({ brand, onBack }) {
   const accountQuery = useWhatsappAccount(brand.id);
-  const usageQuery = useWaUsage(brand.id);
   const [tab, setTab] = useUrlState("aba", "inbox");
   const [showStart, setShowStart] = useState(false);
   const unreadCount = (useConversations(accountQuery.data ? brand.id : null).data || []).filter(isUnread).length;
@@ -1504,6 +1468,7 @@ export default function WhatsappModule({ brand, onBack }) {
         <>
           <Eyebrow>WhatsApp Business</Eyebrow>
           {accountQuery.data.provider === "twilio" && <TwilioHealth brandId={brand.id} channel="whatsapp" />}
+          {accountQuery.data.provider === "twilio" && tab !== "custos" && <MessagingCreditBanner brandId={brand.id} onOpenCosts={() => setTab("custos")} />}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
             <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 6, padding: 3 }}>
               {TABS.map((t) => (
@@ -1538,11 +1503,6 @@ export default function WhatsappModule({ brand, onBack }) {
               })() : (
                 <div style={{ ...sans, fontSize: 12.5, color: c.mist }}>{accountQuery.data.display_phone || accountQuery.data.phone_number_id}</div>
               )}
-              {accountQuery.data.provider === "twilio" && usageQuery.data && usageQuery.data.numMessages > 0 && (
-                <div style={{ ...sans, fontSize: 12.5, color: c.mist, background: c.paper, borderRadius: 999, padding: "4px 10px" }}>
-                  {usageQuery.data.numMessages} msgs, {usageQuery.data.cost.toFixed(2)} {usageQuery.data.currency} (30 dias)
-                </div>
-              )}
               {tab === "inbox" && (
                 <button onClick={() => setShowStart(true)} style={{ ...btnPrimary, padding: "8px 14px", display: "flex", alignItems: "center", gap: 6 }}>
                   <UserPlus size={14} /> Nova conversa
@@ -1555,7 +1515,12 @@ export default function WhatsappModule({ brand, onBack }) {
           {tab === "templates" && <TemplatesPanel brandId={brand.id} provider={accountQuery.data.provider} />}
           {tab === "campanhas" && <WaCampaignsPanel brandId={brand.id} />}
           {tab === "perguntas" && <QuestionsPanel brandId={brand.id} />}
-          {tab === "custos" && <CostsPanel brandId={brand.id} />}
+          {tab === "custos" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 720 }}>
+              <MessagingCreditPanel brandId={brand.id} />
+              <CostsPanel brandId={brand.id} />
+            </div>
+          )}
 
           {showStart && <StartConversationModal brandId={brand.id} onClose={() => setShowStart(false)} />}
         </>
