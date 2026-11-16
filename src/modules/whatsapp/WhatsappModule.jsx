@@ -312,7 +312,7 @@ function useWaCampaignSends(campaignId) {
     queryKey: ["whatsapp_campaign_sends", campaignId],
     enabled: !!campaignId,
     queryFn: async () => {
-      return fetchAll(() => supabase.from("whatsapp_campaign_sends").select("id, status, error, contacts(name, phone)").eq("campaign_id", campaignId).order("id"));
+      return fetchAll(() => supabase.from("whatsapp_campaign_sends").select("id, contact_id, status, error, contacts(name, phone)").eq("campaign_id", campaignId).order("id"));
     },
     // As confirmações de entrega chegam depois: atualiza de 30 em 30 segundos.
     refetchInterval: 30000,
@@ -836,7 +836,7 @@ function WaCampaignEditor({ brandId, campaign, onBack }) {
         {template?.status === "draft" && " (não submetido para aprovação: só serve para conversas abertas. Submeta-o em Templates ou na Twilio, \"Submit for WhatsApp approval\")"}
       </div>
 
-      {isSent && !isScheduled && <CampaignResults rows={sends} channel="whatsapp" loading={sendsQuery.isLoading} campaignId={campaign.id} onRefreshed={() => sendsQuery.refetch()} />}
+      {isSent && !isScheduled && <CampaignResults rows={sends} channel="whatsapp" loading={sendsQuery.isLoading} campaignId={campaign.id} onRefreshed={() => sendsQuery.refetch()} campaign={campaign} requeueDefaults={{ dailyLimit: 200, windowStart: "10:00", windowEnd: "19:00", variableValues: values, includeWithoutConsent: true }} onRequeued={refreshCampaigns} />}
 
       <ScheduledNotice campaign={campaign} onCancel={cancelSchedule} />
 
