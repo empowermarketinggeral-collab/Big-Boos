@@ -1,5 +1,6 @@
 // EMPOWER OS — recebe eventos do Stripe: subscrições (marcas OU
-// agências) e pagamentos de sinal de marcações (Agendamento). Regista
+// agências), pagamentos de sinal de marcações (Agendamento) e
+// carregamentos de saldo de mensagens (messaging-topup). Regista
 // este URL, depois do deploy, em Stripe → Developers → Webhooks →
 // "Add endpoint": https://<project>.supabase.co/functions/v1/stripe-webhook
 // Eventos a subscrever: customer.subscription.created,
@@ -182,6 +183,30 @@ Deno.serve(async (req) => {
     await admin.from("booking_appointments").update({ status: "cancelled", deposit_status: "failed" })
       .eq("id", event.data.object.metadata.appointment_id).eq("status", "pending_payment");
   }
+  // Saldo de mensagens (função messaging-topup, migração 114): regista o
+  // carregamento uma vez (stripe_session_id único) e avisa a equipa.
+  if (depositPaid && event.data.object?.mode === "payment" && event.data.object?.metadata?.type === "messaging_topup") {
+    const session = event.data.object;
+    const brandId = session.metadata?.brand_id;
+    const amount = Math.round(Number(session.amount_total || 0)) / 100;
+    if (brandId && amount > 0) {
+      const { data: inserted, error: insertError } = await admin.from("messaging_credits").upsert(
+        { brand_id: brandId, kind: "topup", amount_eur: amount, stripe_session_id: session.id, note: "Carregamento pelo Stripe", created_by: session.metadata?.user_id || null },
+        { onConflict: "stripe_session_id", ignoreDuplicates: true },
+      ).select("id");
+      if (insertError) console.error("stripe-webhook: saldo de mensagens", insertError.message);
+      if (inserted?.length) {
+        const { data: brand } = await admin.from("brands").select("name, agency_id").eq("id", brandId).maybeSingle();
+        if (brand?.agency_id) {
+          await admin.from("notifications").insert({
+            agency_id: brand.agency_id, brand_id: brandId, area: "crm",
+            message: `${brand.name} carregou ${amount.toFixed(2).replace(".", ",")} € de saldo de mensagens (SMS e WhatsApp).`,
+          });
+        }
+      }
+    }
+  }
+
   if (depositPaid) {
     const session = event.data.object;
     if (session.mode === "payment" && session.metadata?.type === "booking_deposit") {

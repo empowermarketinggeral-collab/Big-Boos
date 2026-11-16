@@ -5,6 +5,7 @@ import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, displ
 import { ArrowLeft, CreditCard, Check, Plus, Trash2, ExternalLink } from "lucide-react";
 import InvoiceLinksPanel from "./InvoiceLinksPanel.jsx";
 import MessagingCostsPanel from "./MessagingCostsPanel.jsx";
+import { MessagingCreditPanel } from "../../shared/MessagingCredit.jsx";
 
 /* ---------------------------------------------------------
    BILLING — subscrição da plataforma (Stripe Checkout/Portal) +
@@ -476,6 +477,7 @@ export default function BillingModule({ brand, onBack, session }) {
       <SubscriptionCard brandId={brand.id} isClient={isClient} />
       <InvoiceLinksPanel brandId={brand.id} isClient={isClient} userId={session?.id} />
       <InvoicesPanel brandId={brand.id} isClient={isClient} />
+      <div style={{ marginTop: 20 }}><MessagingCreditPanel brandId={brand.id} /></div>
       <MessagingCostsPanel brandIds={[brand.id]} isClient={isClient} />
     </div>
   );
