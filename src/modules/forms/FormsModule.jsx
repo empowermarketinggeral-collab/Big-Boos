@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient.js";
+import { useUrlState } from "../../shared/urlState.js";
+import FormResponses from "./FormResponses.jsx";
 import { c, sans, serif, Eyebrow, Modal, inputStyle, btnPrimary, btnGhost, PAGE_FONT_OPTIONS, PAGE_COLOR_SWATCHES, DEFAULT_PAGE_STYLE, display } from "../../shared/theme.jsx";
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, FileText, HelpCircle, Link2, CheckCircle2, Upload } from "lucide-react";
 
@@ -387,6 +389,7 @@ function FormEditor({ brand, form, onBack }) {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [tab, setTab] = useUrlState("aba", "editar");
 
   const tagsQuery = useTags(brand.id);
   const submissionsQuery = useSubmissions(form.id);
@@ -463,7 +466,7 @@ function FormEditor({ brand, form, onBack }) {
 
   return (
     <div>
-      <button onClick={onBack} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
+      <button onClick={() => { setTab("editar"); onBack(); }} style={{ ...sans, display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: c.mist, background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
         <ArrowLeft size={14} /> Formulários
       </button>
 
@@ -488,6 +491,23 @@ function FormEditor({ brand, form, onBack }) {
 
       {error && <div style={{ ...sans, fontSize: 14, color: c.rose, marginBottom: 16 }}>{error}</div>}
 
+      <div style={{ display: "flex", gap: 2, background: c.paper, borderRadius: 6, padding: 3, marginBottom: 20, width: "fit-content" }}>
+        {[{ k: "editar", l: "Editar" }, { k: "respostas", l: `Respostas (${submissionsQuery.data?.length || 0})` }].map((t) => (
+          <button
+            key={t.k}
+            onClick={() => setTab(t.k)}
+            style={{ ...sans, fontSize: 14, fontWeight: 600, padding: "7px 14px", borderRadius: 6, border: "none", cursor: "pointer", color: tab === t.k ? "#fff" : c.mist, background: tab === t.k ? c.boss : "transparent" }}
+          >
+            {t.l}
+          </button>
+        ))}
+      </div>
+
+      {tab === "respostas" ? (
+        <div style={{ maxWidth: 900 }}>
+          <FormResponses formName={name} fields={fields} submissions={submissionsQuery.data || []} loading={submissionsQuery.isLoading} isQuiz={isQuiz} />
+        </div>
+      ) : (
       <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 640 }}>
         <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
           <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Configuração</div>
@@ -700,28 +720,8 @@ function FormEditor({ brand, form, onBack }) {
           </div>
         )}
 
-        <div style={{ background: c.folha, border: `1px solid ${c.line}`, borderRadius: 3, padding: 20 }}>
-          <div style={{ ...serif, fontSize: 15.5, color: c.ink, marginBottom: 14 }}>Respostas ({submissionsQuery.data?.length || 0})</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {(submissionsQuery.data || []).map((s) => (
-              <div key={s.id} style={{ background: c.paper, borderRadius: 6, padding: "10px 12px" }}>
-                <div style={{ ...sans, fontSize: 12.5, color: c.mistLight, marginBottom: 5 }}>
-                  {new Date(s.submitted_at).toLocaleString("pt-PT")}
-                  {isQuiz && s.score != null && <> · <strong style={{ color: c.bossText }}>{s.score} pontos</strong></>}
-                </div>
-                {fields.map((f) => (
-                  f.type !== "section" && s.answers?.[f.id] && (!Array.isArray(s.answers[f.id]) || s.answers[f.id].length) ? (
-                    <div key={f.id} style={{ ...sans, fontSize: 13.5, color: c.ink, marginBottom: 2 }}>
-                      <strong>{f.label}:</strong> {answerText(f, s.answers[f.id])}
-                    </div>
-                  ) : null
-                ))}
-              </div>
-            ))}
-            {!submissionsQuery.data?.length && <div style={{ ...sans, fontSize: 13.5, color: c.mistLight, textAlign: "center", padding: "10px 0" }}>Ainda sem respostas.</div>}
-          </div>
-        </div>
       </div>
+      )}
     </div>
   );
 }
