@@ -40,8 +40,12 @@ function servicePriceLabel(service) {
   return raises && base && base !== "Gratuito" && !service.price_max ? `Desde ${base}` : base;
 }
 
-const toDateKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-const timeLabel = (iso) => new Date(iso).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
+// Tudo em hora de Portugal (Lisboa), seja qual for o fuso do telemóvel de quem marca.
+// Os dias são datas de Lisboa guardadas ao meio-dia UTC (assim o dia nunca muda).
+const TZ = "Europe/Lisbon";
+const toDateKey = (d) => d.toISOString().slice(0, 10);
+const timeLabel = (iso) => new Date(iso).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
+const lisbonToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 
 const label = { ...T.body, fontSize: 13, fontWeight: 500, color: T.muted, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 };
 const field = {
@@ -200,8 +204,8 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
 
   const days = useMemo(() => {
     const out = [];
-    const today = new Date();
-    for (let i = 0; i < 45; i++) out.push(new Date(today.getFullYear(), today.getMonth(), today.getDate() + i));
+    const today = new Date(`${lisbonToday()}T12:00:00Z`);
+    for (let i = 0; i < 45; i++) out.push(new Date(today.getTime() + i * 86400000));
     return out;
   }, []);
 
@@ -396,9 +400,9 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
                   border: `1px solid ${on ? T.accent : T.line}`, background: on ? T.accent : T.surface, color: on ? T.onAccent : T.ink,
                 }}
               >
-                <div style={{ fontSize: 12.5, opacity: 0.8 }}>{capitalize(d.toLocaleDateString("pt-PT", { weekday: "short" }).replace(".", ""))}</div>
-                <div style={{ fontSize: 19, fontWeight: 500, lineHeight: 1.35 }}>{d.getDate()}</div>
-                <div style={{ fontSize: 12.5, opacity: 0.8 }}>{capitalize(d.toLocaleDateString("pt-PT", { month: "short" }).replace(".", ""))}</div>
+                <div style={{ fontSize: 12.5, opacity: 0.8 }}>{capitalize(d.toLocaleDateString("pt-PT", { weekday: "short", timeZone: "UTC" }).replace(".", ""))}</div>
+                <div style={{ fontSize: 19, fontWeight: 500, lineHeight: 1.35 }}>{d.getUTCDate()}</div>
+                <div style={{ fontSize: 12.5, opacity: 0.8 }}>{capitalize(d.toLocaleDateString("pt-PT", { month: "short", timeZone: "UTC" }).replace(".", ""))}</div>
               </button>
             );
           })}
@@ -407,7 +411,7 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
 
       {allOptionsChosen && date && (
         <div>
-          <div style={label}>Hora, duração {durationLabel(baseMinutes + extraMinutes)}</div>
+          <div style={label}>Hora de Portugal, duração {durationLabel(baseMinutes + extraMinutes)}</div>
           {loadingSlots ? (
             <div style={{ fontSize: 15, color: T.muted }}>A procurar horários livres…</div>
           ) : slots.length === 0 ? (
@@ -457,7 +461,7 @@ export default function BookingFlow({ page, client, returnUrl, onBooked }) {
               {servicesLabel}{chosenOptions.length ? ` (${chosenOptions.map((ch) => ch.name).join(", ")})` : ""}{chosenUpsells.length ? ` e ${chosenUpsells.map((u) => u.name).join(", ")}` : ""}
             </div>
             <div style={{ color: T.muted }}>
-              {capitalize(new Date(chosenSlot).toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" }))}, às {timeLabel(chosenSlot)}
+              {capitalize(new Date(chosenSlot).toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long", timeZone: TZ }))}, às {timeLabel(chosenSlot)} (hora de Portugal)
             </div>
             {packId ? (
               <div style={{ color: T.muted }}>Pago com o seu pack</div>
