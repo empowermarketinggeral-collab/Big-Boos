@@ -33,6 +33,20 @@ const startOfWeek = (d) => addDays(startOfDay(d), -((d.getDay() + 6) % 7)); // s
 const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 const minutesOf = (d) => d.getHours() * 60 + d.getMinutes();
 const hhmm = (d) => d.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
+// O calendário usa o fuso do computador. Se não for o de Portugal, as horas
+// aparecem mudadas: avisa (compara a diferença para UTC, não o nome do fuso).
+function offsetOf(tz, at = new Date()) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).formatToParts(at).map((x) => [x.type, x.value]));
+  return Math.round((Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - at.getTime()) / 60000);
+}
+function deviceOutsidePortugal() {
+  try {
+    const deviceTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return offsetOf(deviceTz) !== offsetOf("Europe/Lisbon") ? deviceTz : null;
+  } catch {
+    return null;
+  }
+}
 const toDateInput = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const timeToMin = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
@@ -696,8 +710,15 @@ export default function AgendaCalendar({ brand, session, onOpenContact }) {
 
   const pill = (on) => ({ ...sans, fontSize: 13.5, fontWeight: 700, borderRadius: 999, padding: "6px 13px", cursor: "pointer", border: `1px solid ${on ? c.boss : c.lineStrong}`, background: on ? c.boss : c.folha, color: on ? c.onBoss : c.ink });
 
+  const foreignTz = deviceOutsidePortugal();
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {foreignTz && (
+        <div style={{ ...sans, fontSize: 13.5, color: c.ink, border: `1px solid ${c.amber}`, background: `color-mix(in srgb, ${c.amber} 10%, transparent)`, borderRadius: 3, padding: "10px 12px", lineHeight: 1.5 }}>
+          <strong style={{ color: c.amber }}>Atenção ao fuso horário.</strong> Este aparelho está noutro fuso ({foreignTz}), por isso as horas da agenda não estão em hora de Portugal. Acerte a data e hora do aparelho para Portugal (Lisboa) para ver as marcações à hora certa.
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <div style={{ display: "flex", gap: 4 }}>
           <button type="button" onClick={() => move(-1)} style={{ ...btnGhost, padding: "6px 9px", minHeight: 36 }} aria-label="Anterior"><ChevronLeft size={16} /></button>

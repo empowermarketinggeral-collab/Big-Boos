@@ -21,10 +21,12 @@ import { usePublicBookingPage, money, capitalize, brandThemeVars, brandStyle, T,
    é sempre clara (bb-force-light). Tratamento formal ("o seu").
 --------------------------------------------------------- */
 
-const dateLong = (iso) => capitalize(new Date(iso).toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" }));
-const timeShort = (iso) => new Date(iso).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
-const dateShort = (iso) => new Date(iso).toLocaleDateString("pt-PT", { day: "numeric", month: "short", year: "numeric" }).replace(".", "");
-const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Bom dia" : h < 20 ? "Boa tarde" : "Boa noite"; };
+// Datas e horas sempre em hora de Portugal, seja qual for o fuso do telemóvel.
+const TZ = "Europe/Lisbon";
+const dateLong = (iso) => capitalize(new Date(iso).toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long", timeZone: TZ }));
+const timeShort = (iso) => new Date(iso).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
+const dateShort = (iso) => new Date(iso).toLocaleDateString("pt-PT", { day: "numeric", month: "short", year: "numeric", timeZone: TZ }).replace(".", "");
+const greeting = () => { const h = Number(new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hourCycle: "h23", timeZone: TZ }).format(new Date())); return h < 12 ? "Bom dia" : h < 20 ? "Boa tarde" : "Boa noite"; };
 
 const PAST_LABEL = { completed: "Realizada", confirmed: "Realizada", no_show: "Faltou", cancelled: "Cancelada" };
 
@@ -438,7 +440,7 @@ function useReferralData(brandId, enabled) {
 }
 
 const fillText = (text, vars) => String(text || "").replace(/\{\{(\w+)\}\}/g, (_m, k) => (vars[k] ?? ""));
-const dayMonth = (d) => d.toLocaleDateString("pt-PT", { day: "numeric", month: "short" }).replace(".", "");
+const dayMonth = (d) => d.toLocaleDateString("pt-PT", { day: "numeric", month: "short", timeZone: TZ }).replace(".", "");
 
 function referralState(info) {
   const content = info.content || {};
@@ -766,8 +768,8 @@ function AppointmentCard({ a }) {
   return (
     <div style={{ ...card, display: "flex", gap: 14 }}>
       <div style={{ width: 50, flexShrink: 0, textAlign: "center", background: T.soft, borderRadius: 12, padding: "8px 0", alignSelf: "flex-start" }}>
-        <div style={{ fontSize: 20, fontWeight: 500, color: T.ink, lineHeight: 1.1 }}>{new Date(a.starts_at).getDate()}</div>
-        <div style={{ fontSize: 12.5, color: T.muted }}>{capitalize(new Date(a.starts_at).toLocaleDateString("pt-PT", { month: "short" }).replace(".", ""))}</div>
+        <div style={{ fontSize: 20, fontWeight: 500, color: T.ink, lineHeight: 1.1 }}>{new Date(a.starts_at).toLocaleDateString("pt-PT", { day: "numeric", timeZone: TZ })}</div>
+        <div style={{ fontSize: 12.5, color: T.muted }}>{capitalize(new Date(a.starts_at).toLocaleDateString("pt-PT", { month: "short", timeZone: TZ }).replace(".", ""))}</div>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
