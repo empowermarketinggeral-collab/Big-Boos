@@ -53,7 +53,7 @@ create index if not exists idx_form_submissions_brand_time on form_submissions(b
 
 -- A chave do Painel (só o SHA-256).
 insert into agent_gateway_keys (label, key_sha256)
-values ('Painel', '__PAINEL_KEY_SHA256__')
+values ('Painel', 'e1c9252fb4c2f4a5dafc6d5afa8aa35f2f61055a2203a1394e19fa3906b5677a')
 on conflict (key_sha256) do nothing;
 
 -- ---------------------------------------------------------------- ajudantes
